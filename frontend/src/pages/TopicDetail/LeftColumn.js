@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Divider, List, ListItem, ListItemIcon } from '@mui/material';
+import { Box, Typography, Divider, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { Science, Rocket, Language, AccountBalance, Apps } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 
-const LeftColumn = ({ user }) => {
+const LeftColumn = ({ user, darkMode }) => {
     const [topics, setTopics] = useState([]);
 
-    // Các biểu tượng tương ứng với các chủ đề
     const icons = [
         <Science />,
         <Rocket />,
@@ -20,7 +19,7 @@ const LeftColumn = ({ user }) => {
         const fetchTopics = async () => {
             try {
                 const res = await axios.get('http://localhost:5000/api/topics/all');
-                setTopics(res.data.slice(0, 10000)); // Lấy 6 chủ đề đầu tiên
+                setTopics(res.data.slice(0, 10000));
             } catch (error) {
                 console.error('Lỗi khi lấy chủ đề nổi bật:', error);
             }
@@ -33,57 +32,71 @@ const LeftColumn = ({ user }) => {
         <Box
             sx={{
                 p: 2,
-                bgcolor: '#f9f9f9',
+                backgroundColor: darkMode ? '#121212' : '#f0f2f5', // màu nền card trong dark mode giống Facebook
+                color: darkMode ? '#e4e6eb' : '#1c1e21',
                 borderRadius: 2,
                 maxWidth: 500,
                 height: 'calc(100vh - 64px)',
                 overflowY: 'auto',
-                boxShadow: 3,  // Thêm shadow cho đẹp mắt
+                boxShadow: 'none !important',
+                transition: 'background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease',
+                border: 'none',
+                textAlign: 'left',
             }}
         >
-            <Typography variant="h6" gutterBottom>👤 Thông tin người dùng</Typography>
-            <Typography variant="body1">Tên: {user?.fullName || 'Chưa cập nhật'}</Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="h6" gutterBottom sx={{ color: darkMode ? '#e4e6eb' : '#1c1e21' }}>
+                👤 Thông tin người dùng
+            </Typography>
+            <Typography variant="body1" sx={{ color: darkMode ? '#b0b3b8' : '#65676b' }}>
+                Tên: <strong style={{ color: darkMode ? '#e4e6eb' : '#1c1e21' }}>{user?.fullName || 'Chưa cập nhật'}</strong>
+            </Typography>
+            <Typography variant="body2" sx={{ color: darkMode ? '#b0b3b8' : '#65676b' }}>
                 Email: {user?.email ? `${user.email.slice(0, 15)}${user.email.length > 25 ? '...' : ''}` : 'Chưa đăng nhập'}
             </Typography>
 
+            <Divider sx={{ my: 2, borderColor: darkMode ? '#3a3b3c' : '#eee' }} />
 
-            <Divider sx={{ my: 2 }} />
-
-            <Typography variant="h6" gutterBottom>🔥 Các chủ đề tương tự</Typography>
+            <Typography variant="h6" gutterBottom sx={{ color: darkMode ? '#e4e6eb' : '#1c1e21' }}>
+                🔥 Các chủ đề tương tự
+            </Typography>
             <List>
                 {topics.map((topic, index) => (
                     <ListItem
                         key={topic._id}
+                        component={Link}
+                        to={`/topic/${topic._id}`}
                         sx={{
                             display: 'flex',
-                            alignItems: 'center',
+                            alignItems: 'flex-start',
                             p: 1,
                             borderRadius: 1,
+                            textDecoration: 'none',
                             '&:hover': {
-                                backgroundColor: '#f1f1f1',
+                                backgroundColor: darkMode ? '#3a3b3c' : '#f5f5f5',
                                 cursor: 'pointer',
                             },
+                            transition: 'background-color 0.3s ease',
                         }}
                     >
-                        <ListItemIcon sx={{ color: 'primary.main', mr: 0 }}> {/* Giảm khoảng cách giữa icon và tên chủ đề */}
-                            {icons[index % icons.length]} {/* Chọn icon tương ứng */}
-                        </ListItemIcon>
-                        <Typography
-                            variant="body1"
-                            component={Link}
-                            to={`/topic/${topic._id}`}
+                        <ListItemIcon
                             sx={{
-                                textDecoration: 'none',
-                                color: 'text.primary',
-                                '&:hover': {
-                                    textDecoration: 'underline',
-                                    color: 'primary.main'
-                                },
+                                color: darkMode ? '#90caf9' : 'primary.main',
+                                minWidth: 32,
                             }}
                         >
-                            {topic.name}
-                        </Typography>
+                            {icons[index % icons.length]}
+                        </ListItemIcon>
+                        <ListItemText
+                            primary={topic.name}
+                            primaryTypographyProps={{
+                                color: darkMode ? '#e4e6eb' : 'text.primary',
+                                textAlign: 'left',
+                                '&:hover': {
+                                    textDecoration: 'underline',
+                                    color: darkMode ? '#90caf9' : 'primary.main'
+                                },
+                            }}
+                        />
                     </ListItem>
                 ))}
             </List>

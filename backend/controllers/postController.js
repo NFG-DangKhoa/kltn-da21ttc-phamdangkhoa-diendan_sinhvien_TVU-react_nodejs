@@ -363,14 +363,15 @@ exports.createPostWithImages = async (req, res) => {
 
         const savedPost = await newPost.save();
 
-        // 2. Tìm tất cả URL ảnh trong content
+        // 2. Tìm tất cả URL ảnh trong nội dung
         const imageUrls = extractImageUrls(content);
 
-        // 3. Lưu từng ảnh vào bảng Images
+        // 3. Lưu ảnh gắn với post
         const imageDocs = await Promise.all(
             imageUrls.map(url => {
                 return Image.create({
-                    postId: savedPost._id,
+                    refType: 'post',
+                    refId: savedPost._id,
                     url,
                 });
             })
@@ -388,17 +389,19 @@ exports.createPostWithImages = async (req, res) => {
 };
 
 /**
- * Hàm helper để lấy tất cả src của thẻ <img> trong HTML
+ * Hàm helper để trích xuất tất cả src của thẻ <img> trong HTML
  */
 const extractImageUrls = (htmlContent) => {
     const imageUrls = [];
-    const imgTagRegex = /<img[^>]+src="([^">]+)"/g;
+    const imgTagRegex = /<img[^>]+src\s*=\s*['"]([^'"]+)['"]/gi;
     let match;
 
     while ((match = imgTagRegex.exec(htmlContent))) {
-        imageUrls.push(match[1]);
+        const src = match[1].trim(); // loại bỏ khoảng trắng nếu có
+        imageUrls.push(src);
     }
 
     return imageUrls;
 };
+
 

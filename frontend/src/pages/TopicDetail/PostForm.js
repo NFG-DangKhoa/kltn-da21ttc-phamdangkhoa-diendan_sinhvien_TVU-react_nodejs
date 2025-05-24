@@ -18,6 +18,7 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { AuthContext } from '../../context/AuthContext';
 
+// Helper function to convert Data URL to File object
 function dataURLtoFile(dataurl, filename) {
     const arr = dataurl.split(',');
     const mime = arr[0].match(/:(.*?);/)[1];
@@ -30,7 +31,11 @@ function dataURLtoFile(dataurl, filename) {
     return new File([u8arr], filename, { type: mime });
 }
 
-function imageHandler() {
+// Custom image handler for Quill toolbar button
+const imageHandler = () => {
+    const quill = window.quillEditor; // Access quill instance from global
+    if (!quill) return;
+
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
     input.setAttribute('accept', 'image/*');
@@ -40,34 +45,23 @@ function imageHandler() {
         const file = input.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = () => {
-                const base64Image = reader.result;
-                const quill = window.quillEditor;
-                const range = quill.getSelection(true);
-
-                if (range) {
-                    quill.insertEmbed(range.index, 'image', base64Image);
-                    quill.setSelection(range.index + 1);
-
-                    setTimeout(() => {
-                        const editor = quill.root;
-                        const images = editor.querySelectorAll('img');
-                        const img = images[images.length - 1];
-                        if (img) {
-                            img.classList.add('custom-resizable-image');
-                            img.style.maxWidth = '100%';
-                            img.style.height = 'auto';
-                            img.style.width = '300px';
-                            img.style.display = 'block';
-                            img.style.margin = '12px auto';
-                        }
-                    }, 100);
+            reader.onload = (e) => {
+                const base64Image = e.target.result;
+                // --- THAY ĐỔI Ở ĐÂY ---
+                let range = quill.getSelection(true);
+                // Nếu không có selection (ví dụ, editor trống), chèn vào vị trí 0
+                if (!range) {
+                    range = { index: 0, length: 0 };
+                    quill.focus(); // Đảm bảo editor có focus để selection được tạo
                 }
+                // --- KẾT THÚC THAY ĐỔI ---
+                quill.insertEmbed(range.index, 'image', base64Image);
+                quill.setSelection(range.index + 1);
             };
             reader.readAsDataURL(file);
         }
     };
-}
+};
 
 const modules = {
     toolbar: {
@@ -102,6 +96,45 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
         setOpen(false);
     };
 
+    // Effect for handling image paste
+    useEffect(() => {
+        const quill = quillRef.current?.getEditor();
+        if (!quill) return;
+
+        const handlePaste = (e) => {
+            const clipboardItems = e.clipboardData?.items;
+            if (!clipboardItems) return;
+
+            for (const item of clipboardItems) {
+                if (item.type.indexOf('image') !== -1) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        e.preventDefault(); // Prevent default paste behavior
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const base64Image = e.target.result;
+                            // --- THAY ĐỔI Ở ĐÂY ---
+                            let range = quill.getSelection(true);
+                            // Nếu không có selection (ví dụ, editor trống), chèn vào vị trí 0
+                            if (!range) {
+                                range = { index: 0, length: 0 };
+                                quill.focus(); // Đảm bảo editor có focus để selection được tạo
+                            }
+                            // --- KẾT THÚC THAY ĐỔI ---
+                            quill.insertEmbed(range.index, 'image', base64Image);
+                            quill.setSelection(range.index + 1);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                }
+            }
+        };
+
+        quill.root.addEventListener('paste', handlePaste);
+        return () => quill.root.removeEventListener('paste', handlePaste);
+    }, []);
+
+    // Effect for handling image clicks to show resize/align controls
     useEffect(() => {
         const handleImageClick = (e) => {
             if (e.target.tagName === 'IMG' && e.target.classList.contains('custom-resizable-image')) {
@@ -110,9 +143,9 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
                 setSelectedImage(e.target);
                 setImageWidth(widthPx);
                 setClickedImage(e.target);
-                setAnchorEl({ clientX: e.clientX, clientY: e.clientY });
             } else {
                 setSelectedImage(null);
+                setClickedImage(null);
             }
         };
 
@@ -120,10 +153,12 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
         return () => document.removeEventListener('click', handleImageClick);
     }, []);
 
+    // Effect to apply custom styling and expose quill instance
     useEffect(() => {
         const quill = quillRef.current?.getEditor();
         if (!quill) return;
-        window.quillEditor = quill; // expose quill to global for imageHandler
+        window.quillEditor = quill; // Expose quill instance to global for custom imageHandler
+
         const editor = quill.root;
         const imgs = editor.querySelectorAll('img');
         imgs.forEach(img => {
@@ -148,12 +183,17 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
     const handleAlign = (align) => {
         if (clickedImage) {
             clickedImage.style.float = 'none';
-            clickedImage.style.display = align === 'center' ? 'block' : 'inline-block';
-            clickedImage.style.margin = align === 'center' ? '12px auto' : '12px 0';
-            if (align === 'left') clickedImage.style.float = 'left';
-            else if (align === 'right') clickedImage.style.float = 'right';
+            clickedImage.style.display = 'block';
+            clickedImage.style.margin = '12px auto';
+
+            if (align === 'left') {
+                clickedImage.style.float = 'left';
+                clickedImage.style.margin = '12px 12px 12px 0';
+            } else if (align === 'right') {
+                clickedImage.style.float = 'right';
+                clickedImage.style.margin = '12px 0 12px 12px';
+            }
         }
-        setAnchorEl(null);
     };
 
     const handleSubmit = async () => {
@@ -167,28 +207,63 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
         const imgTags = tempDiv.querySelectorAll('img');
         const uploadPromises = [];
 
-        imgTags.forEach((img) => {
+        for (const img of imgTags) {
             const src = img.getAttribute('src');
-            if (src && src.startsWith('data:image/')) {
-                const file = dataURLtoFile(src, 'image.png');
+
+            if (!src || src.startsWith(`http://localhost:5000/uploads/`)) {
+                continue;
+            }
+
+            let fileToUpload = null;
+            let filename = `image_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
+
+            if (src.startsWith('data:image/')) {
+                fileToUpload = dataURLtoFile(src, filename);
+            }
+            else if (src.startsWith('http://') || src.startsWith('https://')) {
+                try {
+                    console.log(`Workspaceing remote image: ${src}`);
+                    const response = await fetch(src);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch remote image: ${response.statusText}`);
+                    }
+                    const blob = await response.blob();
+                    const contentType = blob.type;
+                    const fileExtension = contentType.split('/')[1] || 'png';
+                    filename = `remote_image_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExtension}`;
+                    fileToUpload = new File([blob], filename, { type: contentType });
+                } catch (err) {
+                    console.error(`Error fetching remote image ${src}:`, err);
+                    continue;
+                }
+            }
+
+            if (fileToUpload) {
                 const formData = new FormData();
-                formData.append('image', file);
+                formData.append('image', fileToUpload);
 
                 const uploadPromise = fetch('http://localhost:5000/api/uploads/image', {
                     method: 'POST',
                     body: formData,
                 })
-                    .then(res => res.json())
+                    .then(res => {
+                        if (!res.ok) {
+                            throw new Error(`HTTP error! status: ${res.status}`);
+                        }
+                        return res.json();
+                    })
                     .then(data => {
                         if (data?.url) {
                             img.setAttribute('src', data.url);
+                        } else {
+                            console.error('URL not found in upload response:', data);
                         }
                     })
                     .catch(err => console.error('Upload ảnh lỗi:', err));
 
                 uploadPromises.push(uploadPromise);
             }
-        });
+        }
 
         await Promise.all(uploadPromises);
 
@@ -265,14 +340,13 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
                     )}
                 </DialogContent>
 
-
                 <TextField
                     fullWidth
                     variant="outlined"
                     label="Tags (cách nhau bằng dấu phẩy)"
                     value={newPost.tags}
                     onChange={(e) => setNewPost({ ...newPost, tags: e.target.value })}
-                    sx={{ mt: 2 }}
+                    sx={{ mt: 2, mx: 3 }}
                 />
                 <Box textAlign="right" p={3}>
                     <Button variant="contained" color="primary" onClick={handleSubmit}>
