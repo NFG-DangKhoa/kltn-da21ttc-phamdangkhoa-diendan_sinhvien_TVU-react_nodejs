@@ -2,10 +2,15 @@
 const mongoose = require('mongoose');
 
 const imageSchema = new mongoose.Schema({
-    postId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Posts',
+    refType: {
+        type: String,
+        enum: ['post', 'topic'],
         required: true,
+    },
+    refId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        refPath: 'refType', // liên kết động theo refType
     },
     url: {
         type: String,
@@ -17,7 +22,7 @@ const imageSchema = new mongoose.Schema({
     },
     isMain: {
         type: Boolean,
-        default: false, // true = ảnh chính
+        default: false,
     },
     likeCount: {
         type: Number,
