@@ -38,6 +38,20 @@ const TopicDetail = () => {
         fetchData();
     }, [topicId]);
 
+    // Lấy thông tin chủ đề
+    useEffect(() => {
+        const fetchTopic = async () => {
+            try {
+                const topicRes = await axios.get(`http://localhost:5000/api/topics/${topicId}`);
+                setTopic(topicRes.data);
+            } catch (err) {
+                console.error('Lỗi khi tải thông tin chủ đề:', err);
+            }
+        };
+        fetchTopic();
+    }, [topicId]);
+
+
     // Lưu trạng thái darkMode vào localStorage mỗi khi nó thay đổi
     useEffect(() => {
         localStorage.setItem('darkMode', darkMode.toString());
@@ -79,7 +93,7 @@ const TopicDetail = () => {
             sx={{
                 flexGrow: 1,
                 p: 2,
-                mt: 0,
+                mt: 8, // Thay đổi từ mt: 0 thành mt: 8 (tương đương 64px)
                 // Nền chính của trang: màu đen cho ban đêm, màu trắng xám cho ban ngày
                 backgroundColor: darkMode ? '#121212' : '#f0f2f5',
                 color: darkMode ? '#ffffff' : '#1c1e21',

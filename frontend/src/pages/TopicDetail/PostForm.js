@@ -1,4 +1,4 @@
-import { useContext, useState, useRef, useEffect } from 'react';
+import React, { useContext, useState, useRef, useEffect, useCallback } from 'react';
 import {
     Box,
     Typography,
@@ -9,16 +9,22 @@ import {
     DialogContent,
     IconButton,
     Slider,
+    Select, // Thêm Select cho font size
+    MenuItem, // Thêm MenuItem cho font size
+    InputLabel, // Thêm InputLabel cho font size
+    FormControl, // Thêm FormControl cho font size
+    Popover, // Để hiển thị controls ảnh một cách linh hoạt hơn
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import FormatAlignLeftIcon from '@mui/icons-material/FormatAlignLeft';
 import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter';
 import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight';
-import ReactQuill from 'react-quill';
+import ReactQuill, { Quill } from 'react-quill'; // Import Quill từ react-quill
 import 'react-quill/dist/quill.snow.css';
+
 import { AuthContext } from '../../context/AuthContext';
 
-// Helper function to convert Data URL to File object
+// --- Helper Functions ---
 function dataURLtoFile(dataurl, filename) {
     const arr = dataurl.split(',');
     const mime = arr[0].match(/:(.*?);/)[1];
@@ -31,9 +37,10 @@ function dataURLtoFile(dataurl, filename) {
     return new File([u8arr], filename, { type: mime });
 }
 
-// Custom image handler for Quill toolbar button
+// --- Custom Image Handler for Quill Toolbar ---
+// Đã được cải thiện để xử lý khi editor trống hoặc không có selection
 const imageHandler = () => {
-    const quill = window.quillEditor; // Access quill instance from global
+    const quill = window.quillEditor;
     if (!quill) return;
 
     const input = document.createElement('input');
@@ -47,37 +54,53 @@ const imageHandler = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const base64Image = e.target.result;
-                // --- THAY ĐỔI Ở ĐÂY ---
-                let range = quill.getSelection(true);
-                // Nếu không có selection (ví dụ, editor trống), chèn vào vị trí 0
-                if (!range) {
-                    range = { index: 0, length: 0 };
-                    quill.focus(); // Đảm bảo editor có focus để selection được tạo
-                }
-                // --- KẾT THÚC THAY ĐỔI ---
-                quill.insertEmbed(range.index, 'image', base64Image);
-                quill.setSelection(range.index + 1);
+                let range = quill.getSelection(); // Lấy selection hiện tại (có thể null nếu editor trống)
+
+                // Nếu không có selection, đặt con trỏ ở cuối nội dung (hoặc đầu nếu hoàn toàn trống)
+                const index = range ? range.index : quill.getLength();
+
+                quill.insertEmbed(index, 'image', base64Image);
+                quill.setSelection(index + 1); // Di chuyển con trỏ sau ảnh
             };
             reader.readAsDataURL(file);
         }
     };
 };
 
+// --- Custom Font Size (optional, if you want more control) ---
+// Thay đổi cách định nghĩa các kích thước font để Quill có thể hiểu
+const Size = Quill.import('formats/size');
+Size.whitelist = ['small', 'medium', 'large', 'huge']; // Các kích thước bạn muốn
+Quill.register(Size, true);
+
+// --- React Quill Modules and Toolbar Configuration ---
 const modules = {
     toolbar: {
         container: [
-            [{ header: [1, 2, 3, false] }],
-            [{ size: ['small', false, 'large', 'huge'] }],
+            [{ header: [1, 2, 3, 4, 5, 6, false] }],
+            [{ font: [] }],
+            [{ size: ['small', false, 'large', 'huge'] }], // Sử dụng 'false' cho kích thước mặc định (medium)
+
             ['bold', 'italic', 'underline', 'strike'],
             ['blockquote', 'code-block'],
+            [{ script: 'sub' }, { script: 'super' }],
+
             [{ list: 'ordered' }, { list: 'bullet' }],
+            [{ indent: '-1' }, { indent: '+1' }],
+            [{ direction: 'rtl' }],
+
+            [{ color: [] }, { background: [] }],
             [{ align: [] }],
-            ['link', 'image'],
+
+            ['link', 'image', 'video'],
             ['clean'],
         ],
         handlers: {
             image: imageHandler,
         },
+    },
+    clipboard: {
+        matchVisual: false,
     },
 };
 
@@ -87,16 +110,16 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
     const quillRef = useRef(null);
     const [selectedImage, setSelectedImage] = useState(null);
     const [imageWidth, setImageWidth] = useState(300);
-    const [anchorEl, setAnchorEl] = useState(null);
-    const [clickedImage, setClickedImage] = useState(null);
+    const [imageAnchorEl, setImageAnchorEl] = useState(null); // Anchor element for Popover
 
     const handleDialogOpen = () => setOpen(true);
     const handleDialogClose = () => {
         setSelectedImage(null);
+        setImageAnchorEl(null); // Đóng Popover khi đóng dialog
         setOpen(false);
     };
 
-    // Effect for handling image paste
+    // --- Effect for handling image paste ---
     useEffect(() => {
         const quill = quillRef.current?.getEditor();
         if (!quill) return;
@@ -109,20 +132,15 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
                 if (item.type.indexOf('image') !== -1) {
                     const file = item.getAsFile();
                     if (file) {
-                        e.preventDefault(); // Prevent default paste behavior
+                        e.preventDefault();
                         const reader = new FileReader();
                         reader.onload = (e) => {
                             const base64Image = e.target.result;
-                            // --- THAY ĐỔI Ở ĐÂY ---
-                            let range = quill.getSelection(true);
-                            // Nếu không có selection (ví dụ, editor trống), chèn vào vị trí 0
-                            if (!range) {
-                                range = { index: 0, length: 0 };
-                                quill.focus(); // Đảm bảo editor có focus để selection được tạo
-                            }
-                            // --- KẾT THÚC THAY ĐỔI ---
-                            quill.insertEmbed(range.index, 'image', base64Image);
-                            quill.setSelection(range.index + 1);
+                            let range = quill.getSelection(); // Lấy selection
+                            const index = range ? range.index : quill.getLength(); // Vị trí chèn
+
+                            quill.insertEmbed(index, 'image', base64Image);
+                            quill.setSelection(index + 1);
                         };
                         reader.readAsDataURL(file);
                     }
@@ -134,67 +152,75 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
         return () => quill.root.removeEventListener('paste', handlePaste);
     }, []);
 
-    // Effect for handling image clicks to show resize/align controls
-    useEffect(() => {
-        const handleImageClick = (e) => {
-            if (e.target.tagName === 'IMG' && e.target.classList.contains('custom-resizable-image')) {
-                e.preventDefault();
-                const widthPx = e.target.style.width ? parseInt(e.target.style.width.replace('px', '')) : 300;
-                setSelectedImage(e.target);
-                setImageWidth(widthPx);
-                setClickedImage(e.target);
-            } else {
-                setSelectedImage(null);
-                setClickedImage(null);
-            }
-        };
-
-        document.addEventListener('click', handleImageClick);
-        return () => document.removeEventListener('click', handleImageClick);
-    }, []);
-
-    // Effect to apply custom styling and expose quill instance
+    // --- Effect for handling image clicks to show resize/align controls with Popover ---
     useEffect(() => {
         const quill = quillRef.current?.getEditor();
         if (!quill) return;
-        window.quillEditor = quill; // Expose quill instance to global for custom imageHandler
 
+        const handleImageClick = (e) => {
+            if (e.target.tagName === 'IMG' && e.target.classList.contains('custom-resizable-image')) {
+                // e.preventDefault(); // Không cần preventDefault ở đây để tránh ảnh hưởng đến việc chọn ảnh
+
+                // Cập nhật vị trí Popover dựa trên vị trí của ảnh
+                setImageAnchorEl(e.currentTarget); // Sử dụng e.currentTarget để Popover bám vào ảnh
+
+                const widthPx = e.target.style.width ? parseInt(e.target.style.width.replace('px', '')) : 300;
+                setSelectedImage(e.target);
+                setImageWidth(widthPx);
+            } else {
+                setSelectedImage(null);
+                setImageAnchorEl(null); // Đóng Popover nếu click ra ngoài ảnh
+            }
+        };
+
+        quill.root.addEventListener('click', handleImageClick);
+        return () => quill.root.removeEventListener('click', handleImageClick);
+    }, []);
+
+    // --- Effect to apply custom styling and expose quill instance ---
+    useEffect(() => {
+        const quill = quillRef.current?.getEditor();
+        if (!quill) return;
+        window.quillEditor = quill; // Expose quill instance globally for the custom toolbar handler
+
+        // Apply custom styling to images whenever content changes or on mount
         const editor = quill.root;
         const imgs = editor.querySelectorAll('img');
-        imgs.forEach(img => {
+        imgs.forEach((img) => {
             if (!img.classList.contains('custom-resizable-image')) {
                 img.classList.add('custom-resizable-image');
-                img.style.width = '300px';
+                img.style.width = img.style.width || '300px'; // Giữ nguyên kích thước nếu đã có, nếu không thì đặt 300px
                 img.style.maxWidth = '100%';
                 img.style.height = 'auto';
                 img.style.display = 'block';
                 img.style.margin = '12px auto';
             }
         });
-    }, [newPost.content]);
+    }, [newPost.content]); // Re-run when newPost.content changes to style newly added images
 
-    const handleSliderChange = (event, newValue) => {
+    const handleSliderChange = useCallback((event, newValue) => {
         setImageWidth(newValue);
         if (selectedImage) {
             selectedImage.style.width = `${newValue}px`;
         }
-    };
+    }, [selectedImage]);
 
-    const handleAlign = (align) => {
-        if (clickedImage) {
-            clickedImage.style.float = 'none';
-            clickedImage.style.display = 'block';
-            clickedImage.style.margin = '12px auto';
+    const handleAlign = useCallback((align) => {
+        if (selectedImage) { // Sử dụng selectedImage thay vì clickedImage
+            selectedImage.style.float = 'none';
+            selectedImage.style.display = 'block';
+            selectedImage.style.margin = '12px auto';
 
             if (align === 'left') {
-                clickedImage.style.float = 'left';
-                clickedImage.style.margin = '12px 12px 12px 0';
+                selectedImage.style.float = 'left';
+                selectedImage.style.margin = '12px 12px 12px 0';
             } else if (align === 'right') {
-                clickedImage.style.float = 'right';
-                clickedImage.style.margin = '12px 0 12px 12px';
+                selectedImage.style.float = 'right';
+                selectedImage.style.margin = '12px 0 12px 12px';
             }
         }
-    };
+    }, [selectedImage]);
+
 
     const handleSubmit = async () => {
         const quill = quillRef.current?.getEditor();
@@ -219,10 +245,9 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
 
             if (src.startsWith('data:image/')) {
                 fileToUpload = dataURLtoFile(src, filename);
-            }
-            else if (src.startsWith('http://') || src.startsWith('https://')) {
+            } else if (src.startsWith('http://') || src.startsWith('https://')) {
                 try {
-                    console.log(`Workspaceing remote image: ${src}`);
+                    console.log(`Processing remote image: ${src}`);
                     const response = await fetch(src);
                     if (!response.ok) {
                         throw new Error(`Failed to fetch remote image: ${response.statusText}`);
@@ -284,7 +309,11 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
                 <Box sx={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: '#C0C2C4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
                     👤
                 </Box>
-                <Typography variant="body1" sx={{ backgroundColor: '#B8B9BB', borderRadius: '30px', padding: '10px 16px', color: '#65676b', fontSize: '1rem', display: 'inline-block', cursor: 'pointer' }} onClick={handleDialogOpen}>
+                <Typography
+                    variant="body1"
+                    sx={{ backgroundColor: '#B8B9BB', borderRadius: '30px', padding: '10px 16px', color: '#65676b', fontSize: '1rem', display: 'inline-block', cursor: 'pointer' }}
+                    onClick={handleDialogOpen}
+                >
                     ✍️ {user?.fullName || 'Bạn'} ơi, bạn viết bài hoặc đặt câu hỏi gì không?
                 </Typography>
             </Box>
@@ -306,7 +335,11 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
                         sx={{ mb: 2 }}
                     />
 
-                    <Box sx={{ '& .ql-editor': { minHeight: '300px' }, '& .ql-editor p': { margin: '0.5em 0' }, '& .ql-editor img': { maxWidth: '100%', height: 'auto', cursor: 'pointer' } }}>
+                    <Box sx={{
+                        '& .ql-editor': { minHeight: '300px' },
+                        '& .ql-editor p': { margin: '0.5em 0' },
+                        '& .ql-editor img': { maxWidth: '100%', height: 'auto', cursor: 'pointer' }
+                    }}>
                         <ReactQuill
                             ref={quillRef}
                             theme="snow"
@@ -318,26 +351,47 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit }) => {
                         />
                     </Box>
 
-                    {selectedImage && (
-                        <Box sx={{ position: 'absolute', bottom: 50, left: 20, backgroundColor: '#fff', boxShadow: '0 0 8px rgba(0,0,0,0.15)', padding: 2, borderRadius: 2, width: 250, zIndex: 9999 }}>
-                            <Typography variant="caption" gutterBottom>
-                                Điều chỉnh kích thước ảnh (px)
-                            </Typography>
-                            <Slider
-                                min={50}
-                                max={800}
-                                value={imageWidth}
-                                onChange={handleSliderChange}
-                                aria-label="Image width"
-                                valueLabelDisplay="auto"
-                            />
-                            <Box mt={1} display="flex" justifyContent="space-between">
-                                <IconButton onClick={() => handleAlign('left')}><FormatAlignLeftIcon /></IconButton>
-                                <IconButton onClick={() => handleAlign('center')}><FormatAlignCenterIcon /></IconButton>
-                                <IconButton onClick={() => handleAlign('right')}><FormatAlignRightIcon /></IconButton>
-                            </Box>
+                    {/* Image Resize and Align Controls using Popover */}
+                    <Popover
+                        open={Boolean(imageAnchorEl)}
+                        anchorEl={imageAnchorEl}
+                        onClose={() => setImageAnchorEl(null)}
+                        anchorOrigin={{
+                            vertical: 'bottom',
+                            horizontal: 'center',
+                        }}
+                        transformOrigin={{
+                            vertical: 'top',
+                            horizontal: 'center',
+                        }}
+                        slotProps={{
+                            paper: {
+                                sx: {
+                                    boxShadow: 3,
+                                    p: 2,
+                                    borderRadius: 2,
+                                    width: 250,
+                                },
+                            },
+                        }}
+                    >
+                        <Typography variant="caption" gutterBottom>
+                            Điều chỉnh kích thước ảnh (px)
+                        </Typography>
+                        <Slider
+                            min={50}
+                            max={800}
+                            value={imageWidth}
+                            onChange={handleSliderChange}
+                            aria-label="Image width"
+                            valueLabelDisplay="auto"
+                        />
+                        <Box mt={1} display="flex" justifyContent="space-between">
+                            <IconButton onClick={() => handleAlign('left')}><FormatAlignLeftIcon /></IconButton>
+                            <IconButton onClick={() => handleAlign('center')}><FormatAlignCenterIcon /></IconButton>
+                            <IconButton onClick={() => handleAlign('right')}><FormatAlignRightIcon /></IconButton>
                         </Box>
-                    )}
+                    </Popover>
                 </DialogContent>
 
                 <TextField

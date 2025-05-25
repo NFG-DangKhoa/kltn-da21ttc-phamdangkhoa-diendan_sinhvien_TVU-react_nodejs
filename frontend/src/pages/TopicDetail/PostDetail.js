@@ -125,6 +125,7 @@ const PostDetail = () => {
                 backgroundColor: darkMode ? '#1e1e1e' : '#f9f9f9', // Màu nền cho Box chính
                 color: darkMode ? '#e0e0e0' : '#333333', // Màu chữ cho Box chính
                 transition: 'background-color 0.4s ease, color 0.4s ease',
+                mt: 10,
             }}
         >
             {!postDetail ? (

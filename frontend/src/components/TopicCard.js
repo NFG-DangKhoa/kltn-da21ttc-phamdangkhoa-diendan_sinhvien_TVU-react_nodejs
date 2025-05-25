@@ -1,63 +1,113 @@
 import React from 'react';
-import { Card, CardContent, Typography, CardActionArea, Box } from '@mui/material';
+import { Card, CardContent, Typography, CardActionArea, Box, Link, Divider } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { Comment, CalendarToday, Whatshot } from '@mui/icons-material';
 
-const TopicCard = ({ topic, icon, variant = 'card' }) => {
+const TopicCard = ({ topic, darkMode }) => {
     const navigate = useNavigate();
 
-    if (variant === 'table') {
-        return (
-            <Box
-                sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    color: '#1976d2',
-                    fontWeight: 500,
-                    textDecoration: 'none',
-                    '&:hover': { textDecoration: 'underline' },
-                }}
-                onClick={() => navigate(`/topic/${topic._id}`)}
-            >
-                {icon && <Box sx={{ mr: 1 }}>{icon}</Box>}
-                {topic.name}
-            </Box>
-        );
-    }
+    // Hàm xử lý khi click vào CardActionArea
+    const handleCardClick = () => {
+        navigate(`/topic/${topic._id}`); // Chuyển hướng đến /topic/:id
+    };
 
-    // Mặc định: hiển thị dạng Card
     return (
         <Card
             sx={{
-                maxWidth: 345,
-                m: 2,
-                transition: 'transform 0.2s, box-shadow 0.2s',
+                backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
+                color: darkMode ? '#e0e0e0' : '#1c1e21',
+                borderRadius: '12px',
+                boxShadow: darkMode ? '0px 4px 10px rgba(0,0,0,0.5)' : '0px 4px 10px rgba(0,0,0,0.08)',
+                transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
                 '&:hover': {
-                    transform: 'scale(1.03)',
-                    boxShadow: 6,
+                    transform: 'translateY(-5px)',
+                    boxShadow: darkMode ? '0px 6px 15px rgba(0,0,0,0.7)' : '0px 6px 15px rgba(0,0,0,0.15)',
                 },
                 '&:active': {
-                    transform: 'scale(0.98)',
-                    boxShadow: 1,
+                    transform: 'translateY(-2px)',
+                    boxShadow: darkMode ? '0px 2px 5px rgba(0,0,0,0.3)' : '0px 2px 5px rgba(0,0,0,0.05)',
                 },
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
             }}
         >
-            <CardActionArea onClick={() => navigate(`/topic/${topic._id}`)}>
+            {/* CardActionArea bao bọc toàn bộ phần trên của card để click vào đâu cũng được */}
+            <CardActionArea onClick={handleCardClick} sx={{ flexGrow: 1 }}>
                 <CardContent>
-                    <Box display="flex" alignItems="center">
-                        {icon && <Box sx={{ mr: 1 }}>{icon}</Box>}
-                        <Typography gutterBottom variant="h6" component="div">
-                            {topic.name}
+                    {/* Tên chủ đề */}
+                    <Typography
+                        gutterBottom
+                        variant="h6"
+                        component="div"
+                        sx={{
+                            fontWeight: 600,
+                            color: darkMode ? '#90caf9' : 'primary.main',
+                            fontFamily: 'Inter, sans-serif'
+                        }}
+                    >
+                        {topic.name}
+                    </Typography>
+                    {/* Mô tả chủ đề */}
+                    <Typography
+                        variant="body2"
+                        color={darkMode ? '#bdbdbd' : 'text.secondary'}
+                        sx={{ mb: 2, fontFamily: 'Inter, sans-serif' }}
+                    >
+                        {topic.description || 'Không có mô tả.'}
+                    </Typography>
+
+                    {/* Số bài viết */}
+                    <Box display="flex" alignItems="center" mb={1}>
+                        <Comment fontSize="small" sx={{ mr: 0.5, color: darkMode ? '#bbdefb' : 'text.secondary' }} />
+                        <Typography variant="body2" color={darkMode ? '#bdbdbd' : 'text.secondary'} sx={{ fontFamily: 'Inter, sans-serif' }}>
+                            {topic.postCount ?? 0} bài viết
                         </Typography>
                     </Box>
-                    <Typography variant="body2" color="text.secondary">
-                        {topic.description}
-                    </Typography>
                 </CardContent>
             </CardActionArea>
+
+            {/* Thông tin bài viết mới nhất (nếu có) */}
+            {topic.latestPost && (
+                <CardContent sx={{ pt: 0, mx: 2, pb: '16px !important' }}>
+                    <Divider sx={{ my: 1.5, borderColor: darkMode ? '#2c2c2c' : '#e0e0e0' }} />
+                    <Box display="flex" alignItems="center" mb={0.5}>
+                        <Whatshot fontSize="small" sx={{ mr: 0.5, color: darkMode ? '#ffc107' : '#f57c00' }} />
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: darkMode ? '#ffffff' : 'text.primary', fontFamily: 'Inter, sans-serif' }}>
+                            Bài mới nhất:
+                        </Typography>
+                    </Box>
+                    {/* Sử dụng Link để điều hướng tới bài viết cụ thể nếu muốn, hoặc có thể thay bằng Typography thông thường nếu không muốn click vào bài viết mới nhất */}
+                    <Link
+                        href={`/topic/${topic._id}?postId=${topic.latestPost._id}`} // Điều chỉnh lại path để phù hợp với route của bạn
+                        sx={{
+                            textDecoration: 'none',
+                            color: darkMode ? '#90caf9' : 'primary.main',
+                            '&:hover': {
+                                textDecoration: 'underline',
+                            },
+                            display: 'block',
+                            ml: 2,
+                        }}
+                    >
+                        <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+                            {topic.latestPost.title}
+                        </Typography>
+                    </Link>
+                    <Typography variant="caption" color={darkMode ? '#bdbdbd' : 'text.secondary'} sx={{ ml: 2, display: 'block', fontFamily: 'Inter, sans-serif' }}>
+                        bởi {topic.latestPost.author}
+                    </Typography>
+                    <Box display="flex" alignItems="center" mt={0.5} ml={2}>
+                        <CalendarToday fontSize="small" sx={{ mr: 0.5, color: darkMode ? '#bdbdbd' : 'text.secondary' }} />
+                        <Typography variant="caption" color={darkMode ? '#bdbdbd' : 'text.secondary'} sx={{ fontFamily: 'Inter, sans-serif' }}>
+                            {new Date(topic.latestPost.date).toLocaleDateString('vi-VN')}
+                        </Typography>
+                    </Box>
+                </CardContent>
+            )}
         </Card>
     );
 };
 
 export default TopicCard;
-

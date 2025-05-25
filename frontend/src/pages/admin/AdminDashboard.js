@@ -1,49 +1,41 @@
-// src/pages/admin/AdminDashboard.js
-import React, { useState } from 'react';
-import AdminLayout from './AdminLayout';
-import CustomCard from '../../components/ui/card';
-import CustomButton from '../../components/ui/button';
-import CustomTabs from '../../components/ui/tabs';
-import CustomTable from '../../components/ui/table';
+import React from 'react';
+import { Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+// Đảm bảo đường dẫn này đúng với vị trí của Sidebar và Content của bạn
+import Sidebar from './Sidebar';
+import Content from './Content';
+
+// Tạo một theme tùy chỉnh (có thể là light hoặc dark)
+// Bạn có thể giữ theme này trong App.jsx nếu muốn áp dụng cho toàn bộ ứng dụng,
+// hoặc đặt ở đây nếu muốn theme riêng cho phần admin.
+// Tôi sẽ đặt nó ở đây để minh họa sự độc lập.
+const adminDashboardTheme = createTheme({
+    palette: {
+        mode: 'dark', // Đặt 'light' nếu bạn muốn giao diện sáng
+        primary: {
+            main: '#90caf9', // Blue
+        },
+        secondary: {
+            main: '#f48fb1', // Pink
+        },
+        background: {
+            default: '#121212',
+            paper: '#1d1d1d',
+        },
+    },
+    typography: {
+        fontFamily: 'Roboto, sans-serif',
+    },
+});
 
 const AdminDashboard = () => {
-    const [tabValue, setTabValue] = useState('posts'); // Trạng thái lưu giá trị tab
-
-    const handleTabChange = (event, newValue) => {
-        setTabValue(newValue); // Xử lý thay đổi tab
-    };
-
-    const postData = [
-        {
-            title: 'Làm thế nào để học tốt hơn?',
-            author: 'Nguyễn Văn A',
-            time: '02/05/2025',
-            actions: <CustomButton variant="contained">Duyệt</CustomButton>
-        }
-    ];
-
     return (
-        <AdminLayout>
-            {/* Các tab để chuyển đổi giữa bài viết, bình luận và thành viên */}
-            <CustomTabs value={tabValue} onChange={handleTabChange} />
-
-            {/* Hiển thị nội dung tùy theo tab đã chọn */}
-            {tabValue === 'posts' && (
-                <CustomCard title="Bài Viết Chờ Duyệt">
-                    <CustomTable data={postData} />
-                </CustomCard>
-            )}
-            {tabValue === 'comments' && (
-                <CustomCard title="Bình Luận Cần Kiểm Duyệt">
-                    <CustomTable data={postData} />
-                </CustomCard>
-            )}
-            {tabValue === 'users' && (
-                <CustomCard title="Danh Sách Thành Viên">
-                    <CustomTable data={postData} />
-                </CustomCard>
-            )}
-        </AdminLayout>
+        <ThemeProvider theme={adminDashboardTheme}>
+            <Box sx={{ display: 'flex' }}>
+                <CssBaseline /> {/* Đặt ở đây để reset CSS cho phần dashboard */}
+                <Sidebar />
+                <Content />
+            </Box>
+        </ThemeProvider>
     );
 };
 
