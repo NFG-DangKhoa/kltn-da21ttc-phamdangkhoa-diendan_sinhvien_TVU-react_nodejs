@@ -6,9 +6,8 @@ import { Comment, CalendarToday, Whatshot } from '@mui/icons-material';
 const TopicCard = ({ topic, darkMode }) => {
     const navigate = useNavigate();
 
-    // Hàm xử lý khi click vào CardActionArea
     const handleCardClick = () => {
-        navigate(`/topic/${topic._id}`); // Chuyển hướng đến /topic/:id
+        navigate(`/topic/${topic._id}`);
     };
 
     return (
@@ -33,10 +32,8 @@ const TopicCard = ({ topic, darkMode }) => {
                 justifyContent: 'space-between',
             }}
         >
-            {/* CardActionArea bao bọc toàn bộ phần trên của card để click vào đâu cũng được */}
             <CardActionArea onClick={handleCardClick} sx={{ flexGrow: 1 }}>
                 <CardContent>
-                    {/* Tên chủ đề */}
                     <Typography
                         gutterBottom
                         variant="h6"
@@ -44,21 +41,32 @@ const TopicCard = ({ topic, darkMode }) => {
                         sx={{
                             fontWeight: 600,
                             color: darkMode ? '#90caf9' : 'primary.main',
-                            fontFamily: 'Inter, sans-serif'
+                            fontFamily: 'Inter, sans-serif',
+                            // Giới hạn 1 dòng cho tiêu đề chủ đề (nếu cần)
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
                         }}
                     >
                         {topic.name}
                     </Typography>
-                    {/* Mô tả chủ đề */}
                     <Typography
                         variant="body2"
                         color={darkMode ? '#bdbdbd' : 'text.secondary'}
-                        sx={{ mb: 2, fontFamily: 'Inter, sans-serif' }}
+                        sx={{
+                            mb: 2,
+                            fontFamily: 'Inter, sans-serif',
+                            // Giới hạn 2 dòng cho mô tả
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2, // Giới hạn 2 dòng
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                        }}
                     >
                         {topic.description || 'Không có mô tả.'}
                     </Typography>
 
-                    {/* Số bài viết */}
                     <Box display="flex" alignItems="center" mb={1}>
                         <Comment fontSize="small" sx={{ mr: 0.5, color: darkMode ? '#bbdefb' : 'text.secondary' }} />
                         <Typography variant="body2" color={darkMode ? '#bdbdbd' : 'text.secondary'} sx={{ fontFamily: 'Inter, sans-serif' }}>
@@ -68,7 +76,6 @@ const TopicCard = ({ topic, darkMode }) => {
                 </CardContent>
             </CardActionArea>
 
-            {/* Thông tin bài viết mới nhất (nếu có) */}
             {topic.latestPost && (
                 <CardContent sx={{ pt: 0, mx: 2, pb: '16px !important' }}>
                     <Divider sx={{ my: 1.5, borderColor: darkMode ? '#2c2c2c' : '#e0e0e0' }} />
@@ -78,9 +85,8 @@ const TopicCard = ({ topic, darkMode }) => {
                             Bài mới nhất:
                         </Typography>
                     </Box>
-                    {/* Sử dụng Link để điều hướng tới bài viết cụ thể nếu muốn, hoặc có thể thay bằng Typography thông thường nếu không muốn click vào bài viết mới nhất */}
                     <Link
-                        href={`/topic/${topic._id}?postId=${topic.latestPost._id}`} // Điều chỉnh lại path để phù hợp với route của bạn
+                        href={`/topic/${topic._id}?postId=${topic.latestPost._id}`}
                         sx={{
                             textDecoration: 'none',
                             color: darkMode ? '#90caf9' : 'primary.main',
@@ -91,7 +97,17 @@ const TopicCard = ({ topic, darkMode }) => {
                             ml: 2,
                         }}
                     >
-                        <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+                        <Typography
+                            variant="body2"
+                            sx={{
+                                fontWeight: 500,
+                                fontFamily: 'Inter, sans-serif',
+                                // Giới hạn 1 dòng cho tiêu đề bài viết mới nhất
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                            }}
+                        >
                             {topic.latestPost.title}
                         </Typography>
                     </Link>
