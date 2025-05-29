@@ -1,96 +1,94 @@
-import React, { useContext, useState } from 'react';
-import {
-    AppBar,
-    Toolbar,
-    Typography,
-    Button,
-    Box,
-    IconButton,
-    Menu,
-    MenuItem,
-    Badge,
-    Avatar,
-    Tooltip,
-    // Import Switch nếu bạn muốn dùng switch thay vì IconButton
-    // Switch,
-    // FormControlLabel,
-} from '@mui/material';
-import { AuthContext } from '../context/AuthContext';
-import { ThemeContext } from '../context/ThemeContext'; // Import ThemeContext mới
-import { useNavigate } from 'react-router-dom';
-import {
-    ExitToApp,
-    PostAdd,
-    Login,
-    PersonAdd,
-    Notifications,
-    Settings,
-    Dashboard,
-    ArrowDropDown,
-    Brightness4, // Icon cho chế độ tối
-    Brightness7, // Icon cho chế độ sáng
-} from '@mui/icons-material';
+import React, { useContext, useState } from 'react'; // Import useContext and useState from React
+import { useNavigate } from 'react-router-dom'; // Import useNavigate from react-router-dom
+
+// Import Material-UI components
+import AppBar from '@mui/material/AppBar';
+import Box from '@mui/material/Box';
+import Toolbar from '@mui/material/Toolbar';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Avatar from '@mui/material/Avatar';
+import Badge from '@mui/material/Badge'; // Don't forget Badge for notifications
+
+// Import Material-UI Icons
+import PostAdd from '@mui/icons-material/PostAdd';
+import Dashboard from '@mui/icons-material/Dashboard';
+import Notifications from '@mui/icons-material/Notifications';
+import ArrowDropDown from '@mui/icons-material/ArrowDropDown';
+import Settings from '@mui/icons-material/Settings';
+import Brightness7 from '@mui/icons-material/Brightness7';
+import Brightness4 from '@mui/icons-material/Brightness4';
+import ExitToApp from '@mui/icons-material/ExitToApp';
+import Login from '@mui/icons-material/Login';
+import PersonAdd from '@mui/icons-material/PersonAdd';
+
+// Import your custom contexts
+import { AuthContext } from '../context/AuthContext'; // Adjust path as needed
+import { ThemeContext } from '../context/ThemeContext'; // Adjust path as needed
 
 const Header = () => {
     const { user, logout } = useContext(AuthContext);
-    const { mode, toggleColorMode } = useContext(ThemeContext); // Lấy mode và toggleColorMode từ ThemeContext
+    const { mode, toggleColorMode } = useContext(ThemeContext);
     const navigate = useNavigate();
 
-    const [anchorElUser, setAnchorElUser] = useState(null);
+    // State for notification menu
     const [anchorElNotifications, setAnchorElNotifications] = useState(null);
-
-    const handleOpenUserMenu = (event) => {
-        setAnchorElUser(event.currentTarget);
-    };
-
-    const handleCloseUserMenu = () => {
-        setAnchorElUser(null);
-    };
-
     const handleOpenNotificationsMenu = (event) => {
         setAnchorElNotifications(event.currentTarget);
     };
-
     const handleCloseNotificationsMenu = () => {
         setAnchorElNotifications(null);
     };
 
+    // State for user menu
+    const [anchorElUser, setAnchorElUser] = useState(null);
+    const handleOpenUserMenu = (event) => {
+        setAnchorElUser(event.currentTarget);
+    };
+    const handleCloseUserMenu = () => {
+        setAnchorElUser(null);
+    };
+
+    // Handle Logout function
     const handleLogout = () => {
-        logout();
+        logout(); // Assuming logout is provided by AuthContext
         handleCloseUserMenu();
-        navigate('/');
+        navigate('/login'); // Redirect to login page after logout
     };
 
     return (
         <AppBar
-            position="fixed" // Thay đổi thành 'fixed' để cố định header
+            position="fixed"
             sx={{
-                // Các màu này sẽ được điều khiển bởi ThemeProvider
-                // backgroundColor: '#2C3E50',
-                // boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-                zIndex: (theme) => theme.zIndex.drawer + 1, // Đảm bảo header nằm trên các phần tử khác
+                zIndex: (theme) => theme.zIndex.drawer + 1,
+                color: '#fff',
+                backgroundColor: '#1d2731', // Changed AppBar background color to match footer
             }}
         >
             <Toolbar
                 sx={{
-                    padding: '0 24px', // Tăng padding để không gian thoáng hơn
+                    padding: '0 24px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    minHeight: '64px', // Đảm bảo chiều cao tối thiểu cho toolbar
+                    minHeight: '64px',
+                    color: '#fff',
                 }}
             >
                 {/* Logo / Title */}
                 <Typography
-                    variant="h5" // Tăng kích thước font
+                    variant="h5"
                     sx={{
                         flexGrow: 1,
                         fontWeight: 'bold',
                         cursor: 'pointer',
-                        // color: '#ECF0F1', // Màu chữ sẽ được điều khiển bởi ThemeProvider
-                        letterSpacing: '0.5px', // Tăng khoảng cách chữ
+                        letterSpacing: '0.5px',
                         '&:hover': {
-                            color: '#3498DB', // Hiệu ứng hover
+                            color: '#3498DB',
                         },
                     }}
                     onClick={() => navigate('/')}
@@ -106,13 +104,13 @@ const Header = () => {
                             {user.role === 'user' && (
                                 <Button
                                     color="inherit"
-                                    onClick={() => navigate('/post')}
+                                    onClick={() => navigate('/CreatePostPage')}
                                     sx={{
                                         marginRight: 2,
-                                        backgroundColor: '#27AE60', // Màu xanh lá cho nút đăng bài
+                                        backgroundColor: '#27AE60',
                                         color: 'white',
                                         fontWeight: 'bold',
-                                        borderRadius: '8px', // Bo tròn góc
+                                        borderRadius: '8px',
                                         padding: '8px 18px',
                                         transition: 'background-color 0.3s ease',
                                         '&:hover': { backgroundColor: '#2ECC71' },
@@ -130,7 +128,7 @@ const Header = () => {
                                     onClick={() => navigate('/admin')}
                                     sx={{
                                         marginRight: 2,
-                                        backgroundColor: '#8E44AD', // Màu tím cho nút dashboard
+                                        backgroundColor: '#8E44AD',
                                         color: 'white',
                                         fontWeight: 'bold',
                                         borderRadius: '8px',
@@ -152,8 +150,6 @@ const Header = () => {
                                     onClick={handleOpenNotificationsMenu}
                                 >
                                     <Badge badgeContent={3} color="error">
-                                        {' '}
-                                        {/* Ví dụ có 3 thông báo mới */}
                                         <Notifications />
                                     </Badge>
                                 </IconButton>
@@ -200,7 +196,7 @@ const Header = () => {
                                     >
                                         <Avatar
                                             alt={user?.fullName || user?.email}
-                                            src="/static/images/avatar/2.jpg" // Có thể thay bằng avatar của người dùng
+                                            src={user?.avatarUrl || "/static/images/avatar/2.jpg"}
                                             sx={{ width: 32, height: 32, marginRight: 1 }}
                                         />
                                         <Typography sx={{ display: { xs: 'none', md: 'block' } }}>
@@ -224,13 +220,21 @@ const Header = () => {
                                     open={Boolean(anchorElUser)}
                                     onClose={handleCloseUserMenu}
                                 >
-                                    <MenuItem onClick={() => { navigate('/profile'); handleCloseUserMenu(); }}>
+                                    {/* Thay đổi dòng này để điều hướng đến trang ProfilePage với userId */}
+                                    <MenuItem onClick={() => {
+                                        if (user && user.id) {
+                                            navigate(`/profile/${user.id}`);
+                                        } else {
+                                            navigate('/profile/default');
+                                        }
+                                        handleCloseUserMenu();
+                                    }}>
                                         <Settings sx={{ marginRight: 1 }} />
-                                        <Typography textAlign="center">Cài đặt tài khoản</Typography>
+                                        <Typography textAlign="center">Trang cá nhân</Typography>
                                     </MenuItem>
 
                                     {/* Nút chuyển đổi chế độ sáng/tối */}
-                                    <MenuItem onClick={toggleColorMode}> {/* Gọi hàm toggleColorMode khi click */}
+                                    <MenuItem onClick={toggleColorMode}>
                                         <IconButton sx={{ mr: 1 }} color="inherit">
                                             {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
                                         </IconButton>
@@ -254,7 +258,7 @@ const Header = () => {
                                 onClick={() => navigate('/login')}
                                 sx={{
                                     marginLeft: 2,
-                                    backgroundColor: '#3498DB', // Màu xanh dương cho nút đăng nhập
+                                    backgroundColor: '#3498DB',
                                     color: 'white',
                                     fontWeight: 'bold',
                                     borderRadius: '8px',
@@ -271,7 +275,7 @@ const Header = () => {
                                 onClick={() => navigate('/register')}
                                 sx={{
                                     marginLeft: 2,
-                                    backgroundColor: '#9B59B6', // Màu tím nhạt cho nút đăng ký
+                                    backgroundColor: '#9B59B6',
                                     color: 'white',
                                     fontWeight: 'bold',
                                     borderRadius: '8px',
