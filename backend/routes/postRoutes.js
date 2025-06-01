@@ -1,34 +1,40 @@
-// File: routes/postRoutes.js
 const express = require('express');
 const router = express.Router();
+const auth = require('../middlewares/authMiddleware'); // Đảm bảo đúng đường dẫn cho middleware
+
+// Import postController directly. We will set `io` separately.
 const postController = require('../controllers/postController');
 
-// Tạo bài viết mới
-// Route tạo bài viết mới
-router.post('/cr', postController.createPost);
+// Export a function that accepts `io` and then uses it to set up the controller
+module.exports = (io) => {
+    // Set the io instance in the postController
+    postController.setIo(io);
 
-router.post('/crr', postController.createPostWithImages);
+    // Tạo bài viết mới (có thể có hoặc không có auth, tùy logic của bạn)
+    router.post('/cr', auth, postController.createPost);
+    // This line will now correctly reference the exported function
+    router.post('/crr', auth, postController.createPostWithImages);
 
-// Lấy danh sách bài viết theo chủ đề
-router.get('/topic/:topicId', postController.getPostsByTopic);
+    // Lấy danh sách bài viết theo chủ đề
+    router.get('/topic/:topicId', postController.getPostsByTopic);
 
-// Lấy danh sách bài viết theo topic id và post id
-router.get('/topic/:topicId/post/:postId', postController.getPostByTopicAndPostIdWithDetails);
+    // Lấy danh sách bài viết theo topic id và post id
+    router.get('/topic/:topicId/post/:postId', postController.getPostByTopicAndPostIdWithDetails);
 
+    // Lấy chi tiết bài viết theo ID
+    router.get('/:id', postController.getPostById);
 
-// Lấy chi tiết bài viết theo ID
-router.get('/:id', postController.getPostById);
+    // Cập nhật bài viết (cần auth)
+    router.put('/:id', auth, postController.updatePost); // Changed to :id for consistency
 
-// Cập nhật bài viết
-router.put('/:id', postController.updatePost);
+    // Xóa bài viết (cần auth)
+    router.delete('/:id', auth, postController.deletePost); // Changed to :id for consistency
 
-// Xóa bài viết
-router.delete('/:id', postController.deletePost);
+    // Tăng lượt xem (có thể không cần auth)
+    router.put('/:id/view', postController.incrementViews);
 
-// Tăng lượt xem
-router.put('/:id/view', postController.incrementViews);
+    // Lấy danh sách bài viết theo chủ đề với chi tiết (có thể không cần auth)
+    router.get('/topic-details/:topicId', postController.getPostsByTopicWithDetails);
 
-router.get('/topic-details/:topicId', postController.getPostsByTopicWithDetails);
-
-module.exports = router;
-
+    return router; // It's crucial to return the router object
+};

@@ -2,8 +2,9 @@ import React from 'react';
 import { Box, Typography, Grid, Card, useTheme, CardMedia, CardContent } from '@mui/material';
 import { Whatshot } from '@mui/icons-material';
 
-const TrendingTopicsSection = ({ trendingTopics, darkMode }) => {
-    const theme = useTheme();
+// Đổi tên prop 'darkMode' thành 'isDarkMode' để nhất quán
+const TrendingTopicsSection = ({ trendingTopics, isDarkMode }) => {
+    const theme = useTheme(); // Lấy theme object hiện tại
 
     return (
         <Box mb={6}>
@@ -12,9 +13,11 @@ const TrendingTopicsSection = ({ trendingTopics, darkMode }) => {
                 mb={3}
                 sx={{
                     fontWeight: 700,
-                    color: darkMode ? '#ffffff' : 'text.primary',
+                    // Sử dụng theme.palette.text.primary
+                    color: theme.palette.text.primary,
                     textAlign: 'center',
-                    borderBottom: `2px solid ${darkMode ? '#424242' : '#e0e0e0'}`,
+                    // Sử dụng theme.palette.divider
+                    borderBottom: `2px solid ${theme.palette.divider}`,
                     pb: 1.5,
                     display: 'flex',
                     alignItems: 'center',
@@ -29,14 +32,17 @@ const TrendingTopicsSection = ({ trendingTopics, darkMode }) => {
                     <Grid item xs={12} sm={6} md={4} lg={3} key={topic.id}>
                         <Card
                             sx={{
-                                backgroundColor: darkMode ? '#2c2c2c' : '#ffffff',
+                                // Sử dụng theme.palette.background.paper cho nền Card
+                                backgroundColor: theme.palette.background.paper,
                                 borderRadius: 2,
-                                boxShadow: darkMode ? '0px 4px 8px rgba(0,0,0,0.3)' : '0px 4px 8px rgba(0,0,0,0.1)',
+                                // Box shadow tùy chỉnh theo isDarkMode
+                                boxShadow: isDarkMode ? '0px 4px 8px rgba(0,0,0,0.3)' : '0px 4px 8px rgba(0,0,0,0.1)',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                transition: 'transform 0.2s ease',
+                                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                                 '&:hover': {
                                     transform: 'translateY(-3px)',
+                                    boxShadow: isDarkMode ? '0px 8px 16px rgba(0,0,0,0.5)' : '0px 8px 16px rgba(0,0,0,0.2)',
                                 },
                             }}
                         >
@@ -56,12 +62,17 @@ const TrendingTopicsSection = ({ trendingTopics, darkMode }) => {
                                     variant="h6"
                                     sx={{
                                         fontWeight: 600,
-                                        color: darkMode ? '#e0e0e0' : 'text.primary',
+                                        // Sử dụng theme.palette.text.primary
+                                        color: theme.palette.text.primary,
                                     }}
                                 >
                                     {topic.name}
                                 </Typography>
-                                <Typography variant="body2" color={darkMode ? '#bdbdbd' : 'text.secondary'}>
+                                <Typography
+                                    variant="body2"
+                                    // Sử dụng theme.palette.text.secondary
+                                    color={theme.palette.text.secondary}
+                                >
                                     {topic.postCount} bài viết
                                 </Typography>
                             </CardContent>

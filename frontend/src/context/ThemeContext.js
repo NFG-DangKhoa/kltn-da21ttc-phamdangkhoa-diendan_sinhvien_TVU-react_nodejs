@@ -1,5 +1,5 @@
 // src/context/ThemeContext.js
-import React, { createContext, useState, useMemo, useCallback } from 'react';
+import React, { createContext, useState, useMemo, useCallback, useEffect } from 'react';
 import { createTheme, ThemeProvider, CssBaseline } from '@mui/material';
 
 // Tạo Context cho theme
@@ -10,7 +10,25 @@ export const ThemeContext = createContext({
 
 // Component Provider để bao bọc ứng dụng của bạn
 export const ThemeContextProvider = ({ children }) => {
-    const [mode, setMode] = useState('light'); // 'light' hoặc 'dark'
+    // Khởi tạo trạng thái mode từ localStorage hoặc mặc định là 'light'
+    const [mode, setMode] = useState(() => {
+        try {
+            const savedMode = localStorage.getItem('themeMode');
+            return savedMode === 'dark' ? 'dark' : 'light';
+        } catch (error) {
+            console.error("Failed to read themeMode from localStorage:", error);
+            return 'light'; // Fallback to light mode if localStorage is inaccessible
+        }
+    });
+
+    // Cập nhật localStorage mỗi khi mode thay đổi
+    useEffect(() => {
+        try {
+            localStorage.setItem('themeMode', mode);
+        } catch (error) {
+            console.error("Failed to write themeMode to localStorage:", error);
+        }
+    }, [mode]);
 
     // Hàm để chuyển đổi chế độ sáng/tối
     const toggleColorMode = useCallback(() => {
@@ -23,20 +41,25 @@ export const ThemeContextProvider = ({ children }) => {
             createTheme({
                 palette: {
                     mode, // 'light' hoặc 'dark'
-                    // Bạn có thể tùy chỉnh thêm màu sắc cho các chế độ ở đây
                     primary: {
                         main: '#3498DB', // Ví dụ màu chính
+                        light: '#64B5F6',
+                        dark: '#1A67A3',
                     },
                     secondary: {
                         main: '#2ECC71', // Ví dụ màu phụ
                     },
                     background: {
-                        default: mode === 'light' ? '#ECF0F1' : '#2C3E50', // Màu nền
-                        paper: mode === 'light' ? '#FFFFFF' : '#34495E',   // Màu nền cho các thẻ, box
+                        // Nền tổng thể: trắng cho sáng, đen cho tối
+                        default: mode === 'light' ? '#FFFFFF' : '#121212', // Đã chỉnh sửa: #FFFFFF cho light, #121212 cho dark
+                        // Nền cho các thẻ/box: trắng cho sáng, xám đậm cho tối
+                        paper: mode === 'light' ? '#FFFFFF' : '#1D1D1D',   // Đã chỉnh sửa: #FFFFFF cho light, #1D1D1D cho dark
                     },
                     text: {
-                        primary: mode === 'light' ? '#212121' : '#ECF0F1',  // Màu chữ chính
-                        secondary: mode === 'light' ? '#757575' : '#BDC3C7', // Màu chữ phụ
+                        // Màu chữ chính: đen cho sáng, trắng cho tối
+                        primary: mode === 'light' ? '#212121' : '#FFFFFF', // Đã chỉnh sửa: #212121 cho light, #FFFFFF cho dark
+                        // Màu chữ phụ: xám đậm cho sáng, xám nhạt cho tối
+                        secondary: mode === 'light' ? '#757575' : '#CCCCCC', // Đã chỉnh sửa: #757575 cho light, #CCCCCC cho dark
                     },
                 },
                 typography: {
@@ -61,7 +84,7 @@ export const ThemeContextProvider = ({ children }) => {
                     MuiMenu: {
                         styleOverrides: {
                             paper: {
-                                backgroundColor: mode === 'light' ? '#FFFFFF' : '#34495E',
+                                backgroundColor: mode === 'light' ? '#FFFFFF' : '#1D1D1D', // Sử dụng background.paper
                             },
                         },
                     },
@@ -69,12 +92,57 @@ export const ThemeContextProvider = ({ children }) => {
                         styleOverrides: {
                             root: {
                                 '&:hover': {
-                                    backgroundColor: mode === 'light' ? '#F0F0F0' : '#4A6178',
+                                    backgroundColor: mode === 'light' ? '#F0F0F0' : '#333333', // Màu hover cho item menu
                                 },
+                                color: mode === 'light' ? '#212121' : '#FFFFFF', // Sử dụng text.primary
                             },
                         },
                     },
-                    // Bạn có thể thêm các tùy chỉnh khác cho các component MUI ở đây
+                    MuiInputLabel: {
+                        styleOverrides: {
+                            root: {
+                                color: mode === 'light' ? '#757575' : '#CCCCCC', // Sử dụng text.secondary
+                            },
+                        },
+                    },
+                    MuiOutlinedInput: {
+                        styleOverrides: {
+                            root: {
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                    borderColor: mode === 'light' ? '#ccc' : '#555555', // Màu border của input
+                                },
+                                '&:hover .MuiOutlinedInput-notchedOutline': {
+                                    borderColor: mode === 'light' ? '#999' : '#888888', // Màu border khi hover
+                                },
+                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                    borderColor: mode === 'light' ? '#3498DB' : '#64B5F6', // Màu border khi focus
+                                },
+                                color: mode === 'light' ? '#212121' : '#FFFFFF', // Màu chữ trong input
+                            },
+                        },
+                    },
+                    MuiSelect: {
+                        styleOverrides: {
+                            icon: {
+                                color: mode === 'light' ? '#757575' : '#CCCCCC', // Màu icon mũi tên dropdown
+                            },
+                        },
+                    },
+                    MuiTooltip: {
+                        styleOverrides: {
+                            tooltip: {
+                                backgroundColor: mode === 'light' ? '#555' : '#444444', // Nền tooltip
+                                color: mode === 'light' ? '#fff' : '#FFFFFF', // Chữ tooltip
+                            },
+                        },
+                    },
+                    MuiDivider: {
+                        styleOverrides: {
+                            root: {
+                                backgroundColor: mode === 'light' ? '#bbb' : '#444444', // Màu divider
+                            },
+                        },
+                    },
                 },
             }),
         [mode],
@@ -83,7 +151,7 @@ export const ThemeContextProvider = ({ children }) => {
     return (
         <ThemeContext.Provider value={{ toggleColorMode, mode }}>
             <ThemeProvider theme={theme}>
-                <CssBaseline /> {/* Giúp chuẩn hóa CSS và áp dụng màu nền */}
+                <CssBaseline /> {/* Giúp chuẩn hóa CSS và áp dụng màu nền cho body */}
                 {children}
             </ThemeProvider>
         </ThemeContext.Provider>

@@ -9,19 +9,23 @@ import {
     HelpOutline,
 } from '@mui/icons-material';
 
-const CategoriesSidebar = ({ darkMode }) => {
-    const theme = useTheme();
+// Đổi tên prop 'darkMode' thành 'isDarkMode' để nhất quán
+const CategoriesSidebar = ({ isDarkMode }) => {
+    const theme = useTheme(); // Lấy theme object hiện tại
 
     return (
         <Box
             sx={{
                 p: 2,
-                backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
+                // Sử dụng theme.palette.background.paper cho nền sidebar
+                backgroundColor: theme.palette.background.paper,
                 borderRadius: 3,
-                boxShadow: darkMode ? '0px 4px 10px rgba(0,0,0,0.4)' : '0px 4px 10px rgba(0,0,0,0.1)',
+                // Box shadow tùy chỉnh theo isDarkMode
+                boxShadow: isDarkMode ? '0px 4px 10px rgba(0,0,0,0.4)' : '0px 4px 10px rgba(0,0,0,0.1)',
                 width: { xs: '100%', md: '220px' },
                 minWidth: { xs: 'auto', md: '220px' },
-                color: darkMode ? '#e0e0e0' : '#1c1e21',
+                // Sử dụng theme.palette.text.primary cho màu chữ mặc định của Box
+                color: theme.palette.text.primary,
                 transition: 'background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease, width 0.3s ease',
                 flexShrink: 0,
             }}
@@ -30,10 +34,12 @@ const CategoriesSidebar = ({ darkMode }) => {
                 variant="h6"
                 gutterBottom
                 sx={{
-                    color: darkMode ? '#ffffff' : 'text.primary',
+                    // Sử dụng theme.palette.text.primary cho tiêu đề danh mục
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
                     mb: 2,
-                    borderBottom: `1px solid ${darkMode ? '#424242' : '#e0e0e0'}`,
+                    // Sử dụng theme.palette.divider cho đường gạch chân
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                     pb: 1,
                 }}
             >
@@ -48,20 +54,29 @@ const CategoriesSidebar = ({ darkMode }) => {
                             borderRadius: '8px',
                             mb: 1,
                             '&:hover': {
-                                backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                                // Sử dụng theme.palette.action.hover cho hover
+                                backgroundColor: theme.palette.action.hover,
                             },
                         }}
                     >
                         <ListItemText
                             primary={
                                 <Box display="flex" alignItems="center">
-                                    {text === 'Bài mới' && <Rocket sx={{ mr: 1, color: darkMode ? '#bbdefb' : 'primary.main' }} />}
-                                    {text === 'Thảo luận' && <Forum sx={{ mr: 1, color: darkMode ? '#81c784' : '#4caf50' }} />}
-                                    {text === 'Giải trí' && <SportsHandball sx={{ mr: 1, color: darkMode ? '#ffb74d' : '#ff9800' }} />}
-                                    {text === 'Sinh hoạt' && <School sx={{ mr: 1, color: darkMode ? '#ef9a9a' : '#f44336' }} />}
-                                    {text === 'Tài khoản' && <AccountCircle sx={{ mr: 1, color: darkMode ? '#b39ddb' : '#9c27b0' }} />}
-                                    {text === 'Câu hỏi' && <HelpOutline sx={{ mr: 1, color: darkMode ? '#a1887f' : '#795548' }} />}
-                                    <Typography component="span" sx={{ color: darkMode ? '#e0e0e0' : 'text.primary', fontWeight: 500 }}>
+                                    {/* Sử dụng màu sắc từ theme.palette hoặc màu cố định có ý nghĩa */}
+                                    {text === 'Bài mới' && <Rocket sx={{ mr: 1, color: theme.palette.info.light }} />}
+                                    {text === 'Thảo luận' && <Forum sx={{ mr: 1, color: theme.palette.success.main }} />}
+                                    {text === 'Giải trí' && <SportsHandball sx={{ mr: 1, color: theme.palette.warning.main }} />}
+                                    {text === 'Sinh hoạt' && <School sx={{ mr: 1, color: theme.palette.error.main }} />}
+                                    {text === 'Tài khoản' && <AccountCircle sx={{ mr: 1, color: theme.palette.secondary.main }} />}
+                                    {text === 'Câu hỏi' && <HelpOutline sx={{ mr: 1, color: theme.palette.text.secondary }} />}
+                                    <Typography
+                                        component="span"
+                                        sx={{
+                                            // Sử dụng theme.palette.text.primary cho tên danh mục
+                                            color: theme.palette.text.primary,
+                                            fontWeight: 500
+                                        }}
+                                    >
                                         {text}
                                     </Typography>
                                 </Box>

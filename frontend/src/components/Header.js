@@ -1,5 +1,5 @@
-import React, { useContext, useState } from 'react'; // Import useContext and useState from React
-import { useNavigate } from 'react-router-dom'; // Import useNavigate from react-router-dom
+import React, { useContext, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // Import Material-UI components
 import AppBar from '@mui/material/AppBar';
@@ -12,7 +12,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Avatar from '@mui/material/Avatar';
-import Badge from '@mui/material/Badge'; // Don't forget Badge for notifications
+import Badge from '@mui/material/Badge';
 
 // Import Material-UI Icons
 import PostAdd from '@mui/icons-material/PostAdd';
@@ -27,8 +27,8 @@ import Login from '@mui/icons-material/Login';
 import PersonAdd from '@mui/icons-material/PersonAdd';
 
 // Import your custom contexts
-import { AuthContext } from '../context/AuthContext'; // Adjust path as needed
-import { ThemeContext } from '../context/ThemeContext'; // Adjust path as needed
+import { AuthContext } from '../context/AuthContext';
+import { ThemeContext } from '../context/ThemeContext'; // Ensure this path is correct
 
 const Header = () => {
     const { user, logout } = useContext(AuthContext);
@@ -55,9 +55,9 @@ const Header = () => {
 
     // Handle Logout function
     const handleLogout = () => {
-        logout(); // Assuming logout is provided by AuthContext
+        logout();
         handleCloseUserMenu();
-        navigate('/login'); // Redirect to login page after logout
+        navigate('/login');
     };
 
     return (
@@ -65,8 +65,9 @@ const Header = () => {
             position="fixed"
             sx={{
                 zIndex: (theme) => theme.zIndex.drawer + 1,
-                color: '#fff',
-                backgroundColor: '#1d2731', // Changed AppBar background color to match footer
+                // backgroundColor sẽ tự động lấy từ theme.components.MuiAppBar.styleOverrides.root.backgroundColor
+                // trong ThemeContext.js bạn đã định nghĩa.
+                // Loại bỏ màu cố định ở đây để theme hoạt động.
             }}
         >
             <Toolbar
@@ -76,7 +77,8 @@ const Header = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     minHeight: '64px',
-                    color: '#fff',
+                    // Loại bỏ màu chữ cố định ở đây, để nó tự động lấy từ theme.palette.text.primary
+                    // hoặc các thành phần con sẽ tự định nghĩa màu của chúng.
                 }}
             >
                 {/* Logo / Title */}
@@ -87,8 +89,10 @@ const Header = () => {
                         fontWeight: 'bold',
                         cursor: 'pointer',
                         letterSpacing: '0.5px',
+                        // Màu chữ sẽ được kế thừa từ theme.palette.text.primary hoặc được điều chỉnh bởi AppBar
+                        // Nên không cần đặt color: '#fff' ở đây.
                         '&:hover': {
-                            color: '#3498DB',
+                            color: (theme) => theme.palette.primary.light, // Sử dụng màu primary light của theme khi hover
                         },
                     }}
                     onClick={() => navigate('/')}
@@ -103,12 +107,12 @@ const Header = () => {
                             {/* Nút Đăng Bài (chỉ user thường thấy) */}
                             {user.role === 'user' && (
                                 <Button
-                                    color="inherit"
+                                    color="inherit" // Giữ color="inherit" để icon kế thừa màu chữ của button
                                     onClick={() => navigate('/CreatePostPage')}
                                     sx={{
                                         marginRight: 2,
                                         backgroundColor: '#27AE60',
-                                        color: 'white',
+                                        color: 'white', // Giữ màu chữ trắng cho các nút có màu nền đặc trưng
                                         fontWeight: 'bold',
                                         borderRadius: '8px',
                                         padding: '8px 18px',
@@ -124,12 +128,12 @@ const Header = () => {
                             {/* Nút Dashboard (chỉ admin/editor thấy) */}
                             {(user.role === 'admin' || user.role === 'editor') && (
                                 <Button
-                                    color="inherit"
+                                    color="inherit" // Giữ color="inherit"
                                     onClick={() => navigate('/admin')}
                                     sx={{
                                         marginRight: 2,
                                         backgroundColor: '#8E44AD',
-                                        color: 'white',
+                                        color: 'white', // Giữ màu chữ trắng
                                         fontWeight: 'bold',
                                         borderRadius: '8px',
                                         padding: '8px 18px',
@@ -145,7 +149,7 @@ const Header = () => {
                             {/* Chuông thông báo */}
                             <Tooltip title="Thông báo">
                                 <IconButton
-                                    color="inherit"
+                                    color="inherit" // Kế thừa màu từ AppBar (sẽ là màu chữ của AppBar)
                                     sx={{ marginRight: 1 }}
                                     onClick={handleOpenNotificationsMenu}
                                 >
@@ -180,7 +184,7 @@ const Header = () => {
                                     <Typography textAlign="center">Thông báo 3</Typography>
                                 </MenuItem>
                                 <MenuItem onClick={handleCloseNotificationsMenu}>
-                                    <Typography textAlign="center" sx={{ color: '#3498DB' }}>
+                                    <Typography textAlign="center" sx={{ color: (theme) => theme.palette.primary.main }}>
                                         Xem tất cả
                                     </Typography>
                                 </MenuItem>
@@ -191,7 +195,11 @@ const Header = () => {
                                 <Tooltip title="Cài đặt tài khoản">
                                     <Button
                                         onClick={handleOpenUserMenu}
-                                        sx={{ p: 0, color: 'white', textTransform: 'none' }}
+                                        sx={{
+                                            p: 0,
+                                            color: 'inherit', // Để màu chữ của button tự động theo AppBar
+                                            textTransform: 'none',
+                                        }}
                                         endIcon={<ArrowDropDown />}
                                     >
                                         <Avatar
@@ -252,6 +260,11 @@ const Header = () => {
                         </>
                     ) : (
                         <>
+                            {/* Nút chuyển đổi chế độ sáng/tối cho người dùng chưa đăng nhập */}
+                            <IconButton sx={{ mr: 2 }} color="inherit" onClick={toggleColorMode}>
+                                {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+                            </IconButton>
+
                             {/* Các nút Đăng Nhập và Đăng Ký */}
                             <Button
                                 color="inherit"
@@ -259,7 +272,7 @@ const Header = () => {
                                 sx={{
                                     marginLeft: 2,
                                     backgroundColor: '#3498DB',
-                                    color: 'white',
+                                    color: 'white', // Giữ màu chữ trắng
                                     fontWeight: 'bold',
                                     borderRadius: '8px',
                                     padding: '8px 18px',
@@ -276,7 +289,7 @@ const Header = () => {
                                 sx={{
                                     marginLeft: 2,
                                     backgroundColor: '#9B59B6',
-                                    color: 'white',
+                                    color: 'white', // Giữ màu chữ trắng
                                     fontWeight: 'bold',
                                     borderRadius: '8px',
                                     padding: '8px 18px',

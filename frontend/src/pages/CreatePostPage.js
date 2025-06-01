@@ -1,3 +1,4 @@
+// File đăng bài chính
 import React, { useState } from 'react';
 import {
     Container, TextField, Button, Typography,
@@ -55,6 +56,7 @@ function CreatePostPage() {
                 <Typography variant="h4" component="h1" gutterBottom
                     sx={{
                         mb: 3,
+                        mt: 10,
                         fontWeight: 'bold',
                         color: 'primary.main',
                         textAlign: 'center'

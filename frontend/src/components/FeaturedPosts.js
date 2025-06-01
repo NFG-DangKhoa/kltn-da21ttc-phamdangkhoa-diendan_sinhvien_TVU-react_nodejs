@@ -3,8 +3,9 @@ import React from 'react';
 import { Box, Typography, Card, CardContent, CardMedia, Button, useTheme } from '@mui/material';
 import { Star } from '@mui/icons-material';
 
-const FeaturedPosts = ({ featuredPosts, darkMode }) => {
-    const theme = useTheme();
+// Thay đổi prop 'darkMode' thành 'isDarkMode' để nhất quán với Home.js
+const FeaturedPosts = ({ featuredPosts, isDarkMode }) => {
+    const theme = useTheme(); // Hook này đã truy cập được theme hiện tại (light/dark)
 
     return (
         <Box mb={6}>
@@ -13,9 +14,11 @@ const FeaturedPosts = ({ featuredPosts, darkMode }) => {
                 mb={3}
                 sx={{
                     fontWeight: 700,
-                    color: darkMode ? '#ffffff' : 'text.primary',
+                    // Sử dụng theme.palette.text.primary cho màu chữ chính
+                    color: theme.palette.text.primary,
                     textAlign: 'center',
-                    borderBottom: `2px solid ${darkMode ? '#424242' : '#e0e0e0'}`,
+                    // Sử dụng theme.palette.divider cho đường viền
+                    borderBottom: `2px solid ${theme.palette.divider}`,
                     pb: 1.5,
                     display: 'flex',
                     alignItems: 'center',
@@ -32,13 +35,26 @@ const FeaturedPosts = ({ featuredPosts, darkMode }) => {
                     gap: 3,
                     py: 2,
                     px: 1,
-                    backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
+                    // Sử dụng theme.palette.background.paper cho nền của Box chứa các card
+                    backgroundColor: theme.palette.background.paper,
                     borderRadius: 3,
-                    boxShadow: darkMode ? '0px 4px 15px rgba(0,0,0,0.5)' : '0px 4px 15px rgba(0,0,0,0.15)',
+                    // Sử dụng theme.palette.shadows hoặc tùy chỉnh dựa trên mode
+                    boxShadow: isDarkMode ? '0px 4px 15px rgba(0,0,0,0.5)' : '0px 4px 15px rgba(0,0,0,0.15)',
                     '&::-webkit-scrollbar': { height: '8px' },
-                    '&::-webkit-scrollbar-track': { background: darkMode ? '#2c2c2c' : '#e0e0e0', borderRadius: '4px' },
-                    '&::-webkit-scrollbar-thumb': { background: darkMode ? '#555' : '#888', borderRadius: '4px' },
-                    '&::-webkit-scrollbar-thumb:hover': { background: darkMode ? '#777' : '#555' },
+                    '&::-webkit-scrollbar-track': {
+                        // Màu track scrollbar
+                        background: isDarkMode ? theme.palette.background.default : theme.palette.grey[300],
+                        borderRadius: '4px'
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                        // Màu thumb scrollbar
+                        background: isDarkMode ? theme.palette.grey[700] : theme.palette.grey[500],
+                        borderRadius: '4px'
+                    },
+                    '&::-webkit-scrollbar-thumb:hover': {
+                        // Màu thumb scrollbar khi hover
+                        background: isDarkMode ? theme.palette.grey[600] : theme.palette.grey[700]
+                    },
                 }}
             >
                 {featuredPosts.map((post) => (
@@ -48,12 +64,14 @@ const FeaturedPosts = ({ featuredPosts, darkMode }) => {
                             flexShrink: 0,
                             width: { xs: '90%', sm: '45%', md: '320px' },
                             borderRadius: 3,
-                            boxShadow: darkMode ? '0px 6px 12px rgba(0,0,0,0.4)' : '0px 6px 12px rgba(0,0,0,0.1)',
-                            backgroundColor: darkMode ? '#2c2c2c' : '#f8f8f8',
+                            // Box shadow tùy chỉnh
+                            boxShadow: isDarkMode ? '0px 6px 12px rgba(0,0,0,0.4)' : '0px 6px 12px rgba(0,0,0,0.1)',
+                            // Màu nền của Card: sử dụng background.paper
+                            backgroundColor: theme.palette.background.paper,
                             transition: 'transform 0.3s ease, box-shadow 0.3s ease',
                             '&:hover': {
                                 transform: 'translateY(-5px)',
-                                boxShadow: darkMode ? '0px 10px 20px rgba(0,0,0,0.6)' : '0px 10px 20px rgba(0,0,0,0.2)',
+                                boxShadow: isDarkMode ? '0px 10px 20px rgba(0,0,0,0.6)' : '0px 10px 20px rgba(0,0,0,0.2)',
                             },
                             scrollSnapAlign: 'start',
                             display: 'flex',
@@ -77,7 +95,8 @@ const FeaturedPosts = ({ featuredPosts, darkMode }) => {
                                 component="div"
                                 sx={{
                                     fontWeight: 600,
-                                    color: darkMode ? '#e0e0e0' : 'text.primary',
+                                    // Sử dụng theme.palette.text.primary
+                                    color: theme.palette.text.primary,
                                     mb: 1,
                                     minHeight: '48px',
                                     overflow: 'hidden',
@@ -91,7 +110,8 @@ const FeaturedPosts = ({ featuredPosts, darkMode }) => {
                             </Typography>
                             <Typography
                                 variant="body2"
-                                color={darkMode ? '#bdbdbd' : 'text.secondary'}
+                                // Sử dụng theme.palette.text.secondary
+                                color={theme.palette.text.secondary}
                                 sx={{ mt: 'auto' }}
                             >
                                 {post.author} - {new Date(post.date).toLocaleDateString()}
@@ -102,10 +122,12 @@ const FeaturedPosts = ({ featuredPosts, darkMode }) => {
                                 sx={{
                                     mt: 2,
                                     alignSelf: 'flex-end',
-                                    borderColor: darkMode ? '#64b5f6' : 'primary.main',
-                                    color: darkMode ? '#64b5f6' : 'primary.main',
+                                    // Sử dụng primary.main cho màu border và color
+                                    borderColor: theme.palette.primary.main,
+                                    color: theme.palette.primary.main,
                                     '&:hover': {
-                                        backgroundColor: darkMode ? 'rgba(100, 181, 246, 0.08)' : 'rgba(25, 118, 210, 0.04)',
+                                        // Sử dụng primary.main với alpha channel cho hover background
+                                        backgroundColor: theme.palette.primary.light + '1A', // 10% opacity for hover
                                     },
                                 }}
                             >

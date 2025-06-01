@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Box, Typography, Card, CardContent, Grid, CircularProgress, useTheme } from '@mui/material';
 import { ArticleOutlined, PeopleAltOutlined, FavoriteBorderOutlined } from '@mui/icons-material';
-// Không cần import axios nếu bạn chỉ dùng dữ liệu ảo và không gọi API thực tế
-// import axios from 'axios'; 
+import { ThemeContext } from '../context/ThemeContext'; // Import ThemeContext
 
-const ForumStats = ({ darkMode }) => {
+const ForumStats = () => {
     const [stats, setStats] = useState({
         postCount: 0,
         userCount: 0,
@@ -14,6 +13,7 @@ const ForumStats = ({ darkMode }) => {
     });
 
     const theme = useTheme();
+    const { mode } = useContext(ThemeContext); // Lấy mode từ ThemeContext
 
     useEffect(() => {
         const fetchMockStats = () => {
@@ -62,10 +62,11 @@ const ForumStats = ({ darkMode }) => {
                 gutterBottom
                 sx={{
                     fontWeight: 700,
-                    color: darkMode ? '#ffffff' : 'text.primary',
+                    color: mode === 'dark' ? '#ffffff' : 'text.primary', // Sử dụng mode từ context
                     mb: 4,
                 }}
             >
+                {/* Bạn có thể thêm tiêu đề ở đây nếu muốn, ví dụ: "Thống kê diễn đàn" */}
             </Typography>
             <Grid container spacing={4} justifyContent="center">
                 {statItems.map((item, index) => (
@@ -77,12 +78,12 @@ const ForumStats = ({ darkMode }) => {
                                 alignItems: 'center',
                                 p: 3,
                                 borderRadius: '16px',
-                                boxShadow: darkMode ? '0px 8px 20px rgba(0,0,0,0.6)' : '0px 8px 20px rgba(0,0,0,0.1)',
-                                backgroundColor: darkMode ? '#2e2e2e' : '#ffffff',
+                                boxShadow: mode === 'dark' ? '0px 8px 20px rgba(0,0,0,0.6)' : '0px 8px 20px rgba(0,0,0,0.1)', // Sử dụng mode
+                                backgroundColor: mode === 'dark' ? '#2e2e2e' : '#ffffff', // Sử dụng mode
                                 transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
                                 '&:hover': {
                                     transform: 'translateY(-5px)',
-                                    boxShadow: darkMode ? '0px 12px 25px rgba(0,0,0,0.8)' : '0px 12px 25px rgba(0,0,0,0.2)',
+                                    boxShadow: mode === 'dark' ? '0px 12px 25px rgba(0,0,0,0.8)' : '0px 12px 25px rgba(0,0,0,0.2)', // Sử dụng mode
                                 },
                             }}
                         >
@@ -94,14 +95,14 @@ const ForumStats = ({ darkMode }) => {
                                 component="div"
                                 sx={{
                                     fontWeight: 700,
-                                    color: darkMode ? '#e0e0e0' : 'text.primary',
+                                    color: mode === 'dark' ? '#e0e0e0' : 'text.primary', // Sử dụng mode
                                 }}
                             >
                                 {item.count}
                             </Typography>
                             <Typography
                                 variant="subtitle1"
-                                color={darkMode ? '#bdbdbd' : 'text.secondary'}
+                                color={mode === 'dark' ? '#bdbdbd' : 'text.secondary'} // Sử dụng mode
                                 sx={{ mt: 0.5 }}
                             >
                                 {item.name}

@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { Grid, Box, IconButton, useTheme, Typography } from '@mui/material';
+import { Grid, Box, Typography, useTheme } from '@mui/material';
 import { useParams, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
+// import { ThemeContext } from '../../context/ThemeContext'; // This line was already commented out, good!
 import LeftColumn from './LeftColumn';
-import CenterColumn from './CenterColumn';
+import CenterColumn from './CenterColumn/CenterColumn';
 import RightColumn from './RightColumn';
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import NightlightRoundIcon from '@mui/icons-material/NightlightRound';
+// Removed WbSunnyIcon and NightlightRoundIcon imports - These were already removed, good!
 
 const TopicDetail = () => {
     const { topicId } = useParams();
@@ -17,14 +17,9 @@ const TopicDetail = () => {
     const [showReplies, setShowReplies] = useState({});
     const [showComments, setShowComments] = useState({});
     const { user } = useContext(AuthContext);
+    // const { toggleColorMode, mode } = useContext(ThemeContext); // This line was already commented out, good!
 
-    // Sử dụng localStorage để lưu trạng thái darkMode
-    const [darkMode, setDarkMode] = useState(() => {
-        const savedMode = localStorage.getItem('darkMode');
-        return savedMode === 'true' ? true : false;
-    });
-
-    const theme = useTheme(); // Giữ lại useTheme nếu bạn có dùng theme của Material-UI ở nơi khác
+    const theme = useTheme(); // This hook is still useful for accessing theme properties like palette.text.primary
 
     useEffect(() => {
         const fetchData = async () => {
@@ -51,21 +46,26 @@ const TopicDetail = () => {
         fetchTopic();
     }, [topicId]);
 
-
-    // Lưu trạng thái darkMode vào localStorage mỗi khi nó thay đổi
-    useEffect(() => {
-        localStorage.setItem('darkMode', darkMode.toString());
-        // Có thể thêm class cho body hoặc root element để áp dụng style toàn cục
-        document.body.style.backgroundColor = darkMode ? '#121212' : '#f0f2f5';
-        document.body.style.color = darkMode ? '#ffffff' : '#1c1e21';
-    }, [darkMode]);
-
     const handlePostSubmit = async (postWithUserId) => {
         try {
-            await axios.post(`http://localhost:5000/api/posts/crr`, {
-                ...postWithUserId,
-                topicId,
-            });
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error("No token found. User is not logged in.");
+                alert("Bạn cần đăng nhập để đăng bài viết.");
+                return;
+            }
+            await axios.post(
+                `http://localhost:5000/api/posts/cr`, // <--- Check this endpoint, should it be '/posts/create' or similar?
+                {
+                    ...postWithUserId,
+                    topicId,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}` // Đây là phần quan trọng
+                    }
+                }
+            );
             const postsRes = await axios.get(`http://localhost:5000/api/posts/topic-details/${topicId}`);
             setDetailedPosts(postsRes.data);
             setNewPost({ title: '', content: '', tags: '' });
@@ -84,39 +84,23 @@ const TopicDetail = () => {
 
     if (!user) return <Navigate to="/login" replace />;
 
-    const handleToggleDarkMode = () => {
-        setDarkMode(prev => !prev);
-    };
+    // Removed darkMode variable as it's no longer needed for the toggle button - This was already removed, good!
 
     return (
         <Box
             sx={{
                 flexGrow: 1,
                 p: 2,
-                mt: 8, // Thay đổi từ mt: 0 thành mt: 8 (tương đương 64px)
-                // Nền chính của trang: màu đen cho ban đêm, màu trắng xám cho ban ngày
-                backgroundColor: darkMode ? '#121212' : '#f0f2f5',
-                color: darkMode ? '#ffffff' : '#1c1e21',
+                mt: 8,
                 minHeight: '100vh',
-                transition: 'background-color 0.4s ease, color 0.4s ease',
                 fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                // The background color for TopicDetail itself should ideally be set in the App.js or main layout
+                // based on the global theme, not here. This Box should take the default theme background.
+                backgroundColor: theme.palette.background.default, // Ensure background adapts to theme
+                transition: 'background-color 0.4s ease',
             }}
         >
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                <IconButton
-                    onClick={handleToggleDarkMode}
-                    aria-label="toggle dark mode"
-                    sx={{
-                        color: darkMode ? '#f9d71c' : '#4a4a4a',
-                        transition: 'color 0.3s ease',
-                        '&:hover': {
-                            color: darkMode ? '#fff176' : '#616161',
-                        }
-                    }}
-                >
-                    {darkMode ? <WbSunnyIcon fontSize="large" /> : <NightlightRoundIcon fontSize="large" />}
-                </IconButton>
-            </Box>
+            {/* Removed the IconButton for toggling dark/light mode - This was already removed, good! */}
             {/* Hiển thị tên chủ đề */}
             <Typography
                 variant="h4"
@@ -124,7 +108,7 @@ const TopicDetail = () => {
                 sx={{
                     fontWeight: 'bold',
                     mb: 3,
-                    color: darkMode ? '#f9d71c' : '#333',
+                    color: theme.palette.text.primary,
                     transition: 'color 0.4s ease',
                 }}
             >
@@ -133,7 +117,7 @@ const TopicDetail = () => {
 
             <Grid container spacing={2}>
                 <Grid item xs={12} md={3}>
-                    <LeftColumn user={user} darkMode={darkMode} />
+                    <LeftColumn user={user} /> {/* Removed darkMode prop - Confirmed */}
                 </Grid>
                 <Grid item xs={12} md={6}>
                     <CenterColumn
@@ -144,15 +128,16 @@ const TopicDetail = () => {
                         setNewPost={setNewPost}
                         handlePostSubmit={handlePostSubmit}
                         detailedPosts={detailedPosts}
+                        setDetailedPosts={setDetailedPosts}
                         showComments={showComments}
                         toggleComments={toggleComments}
                         showReplies={showReplies}
                         toggleReplies={toggleReplies}
-                        darkMode={darkMode}
+                    // Removed darkMode prop - Confirmed
                     />
                 </Grid>
                 <Grid item xs={12} md={3}>
-                    <RightColumn darkMode={darkMode} />
+                    <RightColumn /> {/* Removed darkMode prop - Confirmed */}
                 </Grid>
             </Grid>
         </Box>

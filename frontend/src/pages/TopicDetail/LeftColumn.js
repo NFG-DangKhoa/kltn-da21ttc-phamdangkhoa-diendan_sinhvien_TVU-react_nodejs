@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react'; // Import useContext
 import { Box, Typography, Divider, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { Science, Rocket, Language, AccountBalance, Apps } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { ThemeContext } from '../../context/ThemeContext'; // Import ThemeContext
 
-const LeftColumn = ({ user, darkMode }) => {
+const LeftColumn = ({ user }) => { // Remove darkMode from props
+    const { mode } = useContext(ThemeContext); // Use useContext to get the current theme mode
+    const darkMode = mode === 'dark'; // Determine darkMode based on the context mode
+
     const [topics, setTopics] = useState([]);
 
     const icons = [
@@ -32,13 +36,13 @@ const LeftColumn = ({ user, darkMode }) => {
         <Box
             sx={{
                 p: 2,
-                backgroundColor: darkMode ? '#121212' : '#f0f2f5', // màu nền card trong dark mode giống Facebook
+                backgroundColor: darkMode ? '#242526' : '#f0f2f5', // Use #242526 for background to match Card in dark mode
                 color: darkMode ? '#e4e6eb' : '#1c1e21',
                 borderRadius: 2,
                 maxWidth: 500,
                 height: 'calc(100vh - 64px)',
                 overflowY: 'auto',
-                boxShadow: 'none !important',
+                boxShadow: darkMode ? '0px 0px 5px rgba(255,255,255,0.1)' : '0px 0px 5px rgba(0,0,0,0.1)', // Add consistent shadow
                 transition: 'background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease',
                 border: 'none',
                 textAlign: 'left',

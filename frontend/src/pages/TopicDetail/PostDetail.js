@@ -1,45 +1,51 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useContext } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import {
     Box, Typography, Button, Dialog, DialogTitle, DialogContent,
-    IconButton, List, ListItem, ListItemText, Divider
+    IconButton, List, ListItem, ListItemText, Divider, useTheme
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import CommentDialog from './CommentDialog';
-import LikeDialog from './LikeDialog';
+// Import the missing icons
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
+
+import CommentDialog from './CenterColumn/CommentDialog';
+import LikeDialog from './CenterColumn/LikeDialog';
+import { ThemeContext } from '../../context/ThemeContext';
+import usePostDetail from './usePostDetail'; // Import the new hook
+import { AuthContext } from '../../context/AuthContext'; // Assuming you have an AuthContext for user info
 
 const PostDetail = () => {
     const [searchParams] = useSearchParams();
     const topicId = searchParams.get('topicId');
     const postId = searchParams.get('postId');
 
-    const [postDetail, setPostDetail] = useState(null);
-    const [openLikes, setOpenLikes] = useState(false);
-    const [likedUsers, setLikedUsers] = useState([]);
-    const [openComments, setOpenComments] = useState(false);
-    const [selectedPost, setSelectedPost] = useState(null);
+    const { mode } = useContext(ThemeContext);
+    const theme = useTheme();
+    const { user } = useContext(AuthContext); // Get current user from AuthContext
 
-    // Mới: dialog hiển thị ảnh to
+    // Use the custom hook for post details and interactions
+    const {
+        postDetail,
+        currentCommentCount,
+        currentLikeCount,
+        currentLikedUsers,
+        isLikedByUser,
+        handleLikeToggle,
+    } = usePostDetail(topicId, postId, user); // Pass user to the hook
+
+    const [openLikes, setOpenLikes] = useState(false);
+    const [openComments, setOpenComments] = useState(false);
+    const [selectedPost, setSelectedPost] = useState(null); // Keep for CommentDialog
+
     const [openImageModal, setOpenImageModal] = useState(false);
     const [modalImageSrc, setModalImageSrc] = useState('');
 
-    // Thêm ref cho vùng nội dung để thao tác DOM
     const contentRef = useRef(null);
 
-    // Sử dụng localStorage để đọc trạng thái darkMode
-    const [darkMode, setDarkMode] = useState(() => {
-        const savedMode = localStorage.getItem('darkMode');
-        return savedMode === 'true' ? true : false;
-    });
-
-    // Cập nhật style cho body khi darkMode thay đổi
-    useEffect(() => {
-        document.body.style.backgroundColor = darkMode ? '#121212' : '#f0f2f5';
-        document.body.style.color = darkMode ? '#ffffff' : '#1c1e21';
-    }, [darkMode]);
-
-    // Quản lý hiện trả lời bình luận (giữ nguyên)
+    // State for showing replies (moved here, or could be in a more granular comment hook)
     const [showReplies, setShowReplies] = useState({});
     const toggleReplies = (commentId) => {
         setShowReplies((prev) => ({
@@ -48,21 +54,7 @@ const PostDetail = () => {
         }));
     };
 
-    useEffect(() => {
-        if (topicId && postId) {
-            const fetchPostDetail = async () => {
-                try {
-                    const response = await axios.get(`http://localhost:5000/api/posts/topic/${topicId}/post/${postId}`);
-                    setPostDetail(response.data);
-                } catch (err) {
-                    console.error('Lỗi khi tải chi tiết bài viết:', err);
-                }
-            };
-            fetchPostDetail();
-        }
-    }, [topicId, postId]);
-
-    // Sau khi postDetail thay đổi, thêm sự kiện click cho tất cả ảnh trong nội dung
+    // Apply styles and click handlers for images in content
     useEffect(() => {
         if (!postDetail) return;
 
@@ -70,31 +62,73 @@ const PostDetail = () => {
         if (!contentElement) return;
 
         const images = contentElement.querySelectorAll('img');
-        // Thêm sự kiện click cho từng ảnh
         images.forEach(img => {
-            img.style.cursor = 'pointer'; // Thêm con trỏ pointer khi hover ảnh
+            Object.assign(img.style, {
+                maxWidth: '100%',
+                height: 'auto',
+                borderRadius: '10px',
+                marginTop: '10px',
+                marginBottom: '10px',
+                display: 'block',
+                objectFit: 'cover',
+                imageRendering: 'auto',
+                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                boxShadow: mode === 'dark' ? '0 2px 8px rgba(255, 255, 255, 0.1)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
+                cursor: 'pointer',
+            });
+            img.setAttribute('loading', 'lazy');
             img.onclick = () => {
                 setModalImageSrc(img.src);
                 setOpenImageModal(true);
             };
+            img.onmouseenter = () => {
+                img.style.transform = 'scale(1.015)';
+                img.style.boxShadow = mode === 'dark' ? '0 4px 16px rgba(255,255,255,0.2)' : '0 4px 16px rgba(0,0,0,0.2)';
+            };
+            img.onmouseleave = () => {
+                img.style.transform = 'scale(1)';
+                img.style.boxShadow = mode === 'dark' ? '0 2px 8px rgba(255, 255, 255, 0.1)' : '0 2px 8px rgba(0, 0, 0, 0.1)';
+            };
         });
 
-        // Cleanup khi component unmount hoặc nội dung thay đổi
+        // Apply general content styles based on theme
+        const updateContentStyles = () => {
+            const elements = contentElement.querySelectorAll('p, h1, h2, h3, h4, h5, h6, span, strong, em, pre, code, ul, ol, li, a, blockquote');
+            elements.forEach(el => {
+                if (el.tagName === 'A') {
+                    el.style.color = mode === 'dark' ? '#90caf9' : '#1976d2';
+                } else if (el.tagName === 'BLOCKQUOTE') {
+                    el.style.borderLeft = mode === 'dark' ? '4px solid #666' : '4px solid #ccc';
+                    el.style.color = mode === 'dark' ? '#aaa' : '#555';
+                } else if (el.tagName === 'PRE') {
+                    el.style.backgroundColor = mode === 'dark' ? '#333' : '#f4f4f4';
+                    el.style.color = mode === 'dark' ? '#eee' : '#333';
+                    el.style.border = mode === 'dark' ? '1px solid #444' : '1px solid #ddd';
+                } else if (el.tagName === 'CODE') {
+                    el.style.backgroundColor = mode === 'dark' ? '#444' : '#f0f0f0';
+                    el.style.color = mode === 'dark' ? '#ffb300' : '#d81b60';
+                } else {
+                    el.style.color = mode === 'dark' ? '#d0d0d0' : '#333333';
+                }
+            });
+        };
+        updateContentStyles();
+
         return () => {
             images.forEach(img => {
                 img.onclick = null;
+                img.onmouseenter = null;
+                img.onmouseleave = null;
             });
         };
-    }, [postDetail]);
+    }, [postDetail, mode]); // Dependency array: re-run when postDetail or mode changes
 
-    const handleOpenLikes = (post) => {
-        setLikedUsers(post.likedUsers || []);
+    const handleOpenLikes = () => {
         setOpenLikes(true);
     };
 
     const handleCloseLikes = () => {
         setOpenLikes(false);
-        setLikedUsers([]);
     };
 
     const handleOpenComments = (post) => {
@@ -121,72 +155,77 @@ const PostDetail = () => {
                 ml: 8,
                 height: 'calc(100vh - 64px)',
                 overflowY: 'auto',
-                // Áp dụng màu nền và màu chữ dựa trên darkMode
-                backgroundColor: darkMode ? '#1e1e1e' : '#f9f9f9', // Màu nền cho Box chính
-                color: darkMode ? '#e0e0e0' : '#333333', // Màu chữ cho Box chính
-                transition: 'background-color 0.4s ease, color 0.4s ease',
+                backgroundColor: theme.palette.background.paper,
+                color: theme.palette.text.primary,
+                transition: theme.transitions.create(['background-color', 'color'], {
+                    duration: theme.transitions.duration.standard,
+                }),
                 mt: 10,
             }}
         >
             {!postDetail ? (
-                <Typography color={darkMode ? '#e0e0e0' : 'text.primary'}>Đang tải bài viết...</Typography>
+                <Typography color={theme.palette.text.primary}>Đang tải bài viết...</Typography>
             ) : (
                 <Box>
-                    {/* Tiêu đề và tác giả */}
-                    <Typography variant="subtitle2" color={darkMode ? '#bdbdbd' : 'text.secondary'}>
+                    {/* Title and Author */}
+                    <Typography variant="subtitle2" color={theme.palette.text.secondary}>
                         👤 {postDetail.authorId?.fullName}
                     </Typography>
-                    <Typography variant="h5" gutterBottom color={darkMode ? '#ffffff' : 'text.primary'}>
+                    <Typography variant="h5" gutterBottom color={theme.palette.text.primary}>
                         {postDetail.title}
                     </Typography>
-                    <Divider sx={{ my: 2, borderColor: darkMode ? '#424242' : 'divider' }} />
+                    <Divider sx={{ my: 2, borderColor: theme.palette.divider }} />
 
-                    {/* Nội dung: đặt ref để thao tác */}
+                    {/* Content */}
                     <Typography
                         variant="body1"
                         component="div"
-                        sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: darkMode ? '#e0e0e0' : 'text.primary' }}
+                        sx={{
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            color: theme.palette.text.primary,
+                        }}
                         dangerouslySetInnerHTML={{ __html: postDetail.content }}
                         ref={contentRef}
                     />
 
-                    {/* Thống kê */}
+                    {/* Stats */}
                     <Box mt={2} display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap">
                         <Typography
                             variant="body2"
-                            sx={{ cursor: 'pointer', color: darkMode ? '#90caf9' : 'primary.main', fontSize: '0.8rem' }}
+                            sx={{ cursor: 'pointer', color: theme.palette.primary.main, fontSize: '0.8rem' }}
                             onClick={() => handleOpenComments(postDetail)}
                         >
-                            💬 {postDetail.commentCount || postDetail.comments?.length || 0} Bình luận
+                            💬 {currentCommentCount} Bình luận
                         </Typography>
 
                         <Typography
                             variant="body2"
-                            sx={{ cursor: 'pointer', color: darkMode ? '#ef9a9a' : 'primary.main', fontSize: '0.8rem' }}
-                            onClick={() => handleOpenLikes(postDetail)}
+                            sx={{ cursor: 'pointer', color: theme.palette.secondary.main, fontSize: '0.8rem' }}
+                            onClick={handleOpenLikes}
                         >
-                            ❤️ {postDetail.likeCount || postDetail.likedUsers?.length || 0} Lượt thích
+                            ❤️ {currentLikeCount} Lượt thích
                         </Typography>
 
                         <Typography
                             variant="body2"
-                            sx={{ fontSize: '0.8rem', mt: 1, color: darkMode ? '#ffb74d' : 'text.primary' }}
+                            sx={{ fontSize: '0.8rem', mt: 1, color: theme.palette.text.secondary }}
                         >
                             ⭐ {postDetail.ratingCount || 0} lượt đánh giá
                         </Typography>
                     </Box>
 
-                    {/* Nút mở Dialog viết bình luận */}
+                    {/* Button to open comment dialog */}
                     <Button
                         variant="outlined"
                         fullWidth
                         sx={{
                             mt: 2,
-                            borderColor: darkMode ? '#757575' : 'primary.main',
-                            color: darkMode ? '#bbdefb' : 'primary.main',
+                            borderColor: theme.palette.divider,
+                            color: theme.palette.primary.main,
                             '&:hover': {
-                                borderColor: darkMode ? '#9e9e9e' : 'primary.dark',
-                                backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                                borderColor: theme.palette.primary.dark,
+                                backgroundColor: theme.palette.action.hover,
                             },
                         }}
                         onClick={() => handleOpenComments(postDetail)}
@@ -194,54 +233,39 @@ const PostDetail = () => {
                         Viết bình luận
                     </Button>
 
-                    {/* Dialog lượt thích */}
-                    <Dialog
-                        open={openLikes}
-                        onClose={handleCloseLikes}
-                        fullWidth
-                        maxWidth="xs"
-                        PaperProps={{
-                            sx: {
-                                backgroundColor: darkMode ? '#2c2c2c' : '#ffffff',
-                                color: darkMode ? '#e0e0e0' : '#1c1e21',
+                    {/* Like/Comment/Rating buttons, similar to PostCard */}
+                    <Divider sx={{ my: 1, borderColor: theme.palette.divider }} />
+                    <Box display="flex" justifyContent="space-around" mt={1}>
+                        <Button
+                            startIcon={
+                                isLikedByUser ? (
+                                    <FavoriteIcon sx={{ color: 'red' }} />
+                                ) : (
+                                    <FavoriteBorderIcon sx={{ color: theme.palette.text.primary }} />
+                                )
                             }
-                        }}
-                    >
-                        <DialogTitle sx={{ borderBottom: darkMode ? '1px solid #424242' : '1px solid #e0e0e0' }}>
-                            Danh sách người đã thích
-                            <IconButton
-                                aria-label="close"
-                                onClick={handleCloseLikes}
-                                sx={{ position: 'absolute', right: 8, top: 8, color: darkMode ? '#e0e0e0' : 'inherit' }}
-                            >
-                                <CloseIcon />
-                            </IconButton>
-                        </DialogTitle>
-                        <DialogContent>
-                            <List>
-                                {likedUsers.map((user, index) => (
-                                    <ListItem key={index}>
-                                        <ListItemText primary={`👤 ${user.fullName}`} sx={{ color: darkMode ? '#e0e0e0' : 'text.primary' }} />
-                                    </ListItem>
-                                ))}
-                            </List>
-                        </DialogContent>
-                    </Dialog>
+                            sx={{ color: theme.palette.text.primary, textTransform: 'none' }}
+                            onClick={handleLikeToggle}
+                        >
+                            Thích
+                        </Button>
+                        <Button
+                            startIcon={<ChatBubbleOutlineIcon sx={{ color: theme.palette.text.primary }} />}
+                            sx={{ color: theme.palette.text.primary, textTransform: 'none' }}
+                            onClick={() => handleOpenComments(postDetail)}
+                        >
+                            Bình luận
+                        </Button>
+                        <Button
+                            startIcon={<StarBorderIcon sx={{ color: theme.palette.text.primary }} />}
+                            sx={{ color: theme.palette.text.primary, textTransform: 'none' }}
+                            onClick={() => { /* Logic for rating */ }}
+                        >
+                            Đánh giá
+                        </Button>
+                    </Box>
 
-                    {/* Dialog bình luận */}
-                    <CommentDialog
-                        open={openComments}
-                        onClose={handleCloseComments}
-                        post={selectedPost}
-                        showReplies={showReplies}
-                        toggleReplies={toggleReplies}
-                        darkMode={darkMode} // Truyền prop darkMode vào CommentDialog
-                    />
-
-                    {/* LikeDialog riêng */}
-                    <LikeDialog open={openLikes} onClose={handleCloseLikes} likedUsers={likedUsers} darkMode={darkMode} />
-
-                    {/* Dialog hiển thị ảnh to */}
+                    {/* Image Modal */}
                     <Dialog
                         open={openImageModal}
                         onClose={handleCloseImageModal}
@@ -249,17 +273,20 @@ const PostDetail = () => {
                         fullWidth
                         PaperProps={{
                             sx: {
-                                backgroundColor: darkMode ? '#2c2c2c' : '#ffffff',
-                                color: darkMode ? '#e0e0e0' : '#1c1e21',
+                                backgroundColor: theme.palette.background.paper,
+                                color: theme.palette.text.primary,
+                                transition: theme.transitions.create(['background-color', 'color'], {
+                                    duration: theme.transitions.duration.standard,
+                                }),
                             }
                         }}
                     >
-                        <DialogTitle sx={{ borderBottom: darkMode ? '1px solid #424242' : '1px solid #e0e0e0' }}>
+                        <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                             Xem ảnh
                             <IconButton
                                 aria-label="close"
                                 onClick={handleCloseImageModal}
-                                sx={{ position: 'absolute', right: 8, top: 8, color: darkMode ? '#e0e0e0' : 'inherit' }}
+                                sx={{ position: 'absolute', right: 8, top: 8, color: theme.palette.action.active }}
                             >
                                 <CloseIcon />
                             </IconButton>
@@ -270,7 +297,7 @@ const PostDetail = () => {
                                 display: 'flex',
                                 justifyContent: 'center',
                                 alignItems: 'center',
-                                borderColor: darkMode ? '#424242' : 'divider',
+                                borderColor: theme.palette.divider,
                             }}
                         >
                             <img
@@ -280,6 +307,26 @@ const PostDetail = () => {
                             />
                         </DialogContent>
                     </Dialog>
+
+                    {/* Comment Dialog */}
+                    <CommentDialog
+                        open={openComments}
+                        onClose={handleCloseComments}
+                        post={selectedPost}
+                        user={user} // Pass user to CommentDialog
+                        showReplies={showReplies}
+                        toggleReplies={toggleReplies}
+                        mode={mode}
+                    />
+
+                    {/* Like Dialog */}
+                    <LikeDialog
+                        open={openLikes}
+                        onClose={handleCloseLikes}
+                        likedUsers={currentLikedUsers} // Use currentLikedUsers from hook
+                        likeCount={currentLikeCount} // Pass currentLikeCount to LikeDialog
+                        mode={mode}
+                    />
                 </Box>
             )}
         </Box>
