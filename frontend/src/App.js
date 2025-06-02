@@ -21,7 +21,9 @@ import { Box, IconButton } from '@mui/material'; // Import Box và IconButton t�
 import EditPostPage from './pages/TopicDetail/EditPostPage';
 import WbSunnyIcon from '@mui/icons-material/WbSunny'; // Icon mặt trời
 import NightlightRoundIcon from '@mui/icons-material/NightlightRound'; // Icon mặt trăng
-
+import PostList from './pages/TopicDetail/PostList';
+import PostDetailSingleImage from './pages/TopicDetail/PostDetailSingleImage';
+import MembersList from './pages/TopicDetail/MemberList';
 
 
 const App = () => {
@@ -102,6 +104,9 @@ const AppContent = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/CreatePostPage" element={<CreatePostPage />} />
         <Route path="/topic/:topicId" element={<TopicDetail />} />
+        <Route path="/PostList" element={<PostList />} />
+        <Route path="/PostDetailSingleImage" element={<PostDetailSingleImage />} />
+        <Route path="/MembersList" element={<MembersList />} />
         <Route path="/posts/detail" element={<PostDetail />} />
         <Route path="/admin/*" element={<AdminDashboard />} />
 

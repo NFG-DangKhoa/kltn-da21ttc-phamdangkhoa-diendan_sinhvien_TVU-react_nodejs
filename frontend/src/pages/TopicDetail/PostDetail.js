@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useContext } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     Box, Typography, Button, Dialog, DialogTitle, DialogContent,
-    IconButton, List, ListItem, ListItemText, Divider, useTheme
+    IconButton, List, ListItem, ListItemText, Divider, useTheme, Avatar, Card, CardContent, CardMedia
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 // Import the missing icons
@@ -16,6 +16,46 @@ import LikeDialog from './CenterColumn/LikeDialog';
 import { ThemeContext } from '../../context/ThemeContext';
 import usePostDetail from './usePostDetail'; // Import the new hook
 import { AuthContext } from '../../context/AuthContext'; // Assuming you have an AuthContext for user info
+
+// Dữ liệu giả định cho các bài viết tương tự
+const dummyRelatedPosts = [
+    {
+        id: 'related-1',
+        title: 'Tối ưu hóa hình ảnh cho Web',
+        thumbnail: 'https://via.placeholder.com/150/FF5733/FFFFFF?text=Image+1',
+        link: '/post-detail?topicId=123&postId=related-1' // Ví dụ link
+    },
+    {
+        id: 'related-2',
+        title: 'Hiểu về CSS Grid Layout',
+        thumbnail: 'https://via.placeholder.com/150/33A1FF/FFFFFF?text=Image+2',
+        link: '/post-detail?topicId=123&postId=related-2'
+    },
+    {
+        id: 'related-3',
+        title: 'Giới thiệu về WebAssembly',
+        thumbnail: 'https://via.placeholder.com/150/33FF57/FFFFFF?text=Image+3',
+        link: '/post-detail?topicId=123&postId=related-3'
+    },
+    {
+        id: 'related-4',
+        title: 'Bảo mật ứng dụng Node.js',
+        thumbnail: 'https://via.placeholder.com/150/FF33E0/FFFFFF?text=Image+4',
+        link: '/post-detail?topicId=123&postId=related-4'
+    },
+    {
+        id: 'related-5',
+        title: 'Sử dụng GraphQL với React',
+        thumbnail: 'https://via.placeholder.com/150/E0FF33/FFFFFF?text=Image+5',
+        link: '/post-detail?topicId=123&postId=related-5'
+    },
+    {
+        id: 'related-6',
+        title: 'Xây dựng PWA đầu tiên',
+        thumbnail: 'https://via.placeholder.com/150/5733FF/FFFFFF?text=Image+6',
+        link: '/post-detail?topicId=123&postId=related-6'
+    },
+];
 
 const PostDetail = () => {
     const [searchParams] = useSearchParams();
@@ -151,7 +191,7 @@ const PostDetail = () => {
             sx={{
                 p: 2,
                 borderRadius: 2,
-                width: '45vw',
+                width: '65vw', // Đã chỉnh lại 85vw
                 ml: 8,
                 height: 'calc(100vh - 64px)',
                 overflowY: 'auto',
@@ -264,6 +304,75 @@ const PostDetail = () => {
                             Đánh giá
                         </Button>
                     </Box>
+
+                    {/* --- Các bài viết tương tự --- */}
+                    <Divider sx={{ my: 4, borderColor: theme.palette.divider }} />
+                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: theme.palette.text.primary }}>
+                        Các bài viết tương tự
+                    </Typography>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            overflowX: 'auto', // Cho phép cuộn ngang nếu nhiều bài viết
+                            gap: 2, // Khoảng cách giữa các bài viết
+                            pb: 1, // Padding bottom để không bị cắt scrollbar
+                            '&::-webkit-scrollbar': {
+                                height: '8px',
+                            },
+                            '&::-webkit-scrollbar-thumb': {
+                                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+                                borderRadius: '10px',
+                            },
+                            '&::-webkit-scrollbar-track': {
+                                backgroundColor: 'transparent',
+                            },
+                        }}
+                    >
+                        {dummyRelatedPosts.map((relatedPost) => (
+                            <Card
+                                key={relatedPost.id}
+                                sx={{
+                                    minWidth: 180, // Chiều rộng tối thiểu cho mỗi card
+                                    maxWidth: 180, // Chiều rộng tối đa
+                                    boxShadow: 2,
+                                    borderRadius: 2,
+                                    transition: 'transform 0.2s ease-in-out',
+                                    '&:hover': { transform: 'translateY(-3px)', boxShadow: 4 },
+                                    cursor: 'pointer',
+                                    flexShrink: 0, // Quan trọng để các card không bị co lại
+                                    bgcolor: theme.palette.background.default, // Dùng background mặc định
+                                    color: theme.palette.text.primary,
+                                }}
+                                onClick={() => window.location.href = relatedPost.link} // Hoặc dùng <Link> từ react-router-dom
+                            >
+                                <CardMedia
+                                    component="img"
+                                    height="100"
+                                    image={relatedPost.thumbnail}
+                                    alt={relatedPost.title}
+                                    sx={{ borderTopLeftRadius: 8, borderTopRightRadius: 8 }}
+                                />
+                                <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                                    <Typography
+                                        variant="subtitle2"
+                                        component="div"
+                                        noWrap // Giới hạn tiêu đề trên một dòng
+                                        sx={{
+                                            fontWeight: 'medium',
+                                            color: theme.palette.text.primary,
+                                            // Tùy chỉnh hover nếu muốn
+                                            '&:hover': {
+                                                color: theme.palette.primary.main,
+                                            }
+                                        }}
+                                    >
+                                        {relatedPost.title}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </Box>
+                    {/* --- Kết thúc các bài viết tương tự --- */}
 
                     {/* Image Modal */}
                     <Dialog

@@ -1,6 +1,7 @@
-import React, { useContext } from 'react'; // Import useContext
-import { Box, Typography, List, ListItem, ListItemText, ListItemAvatar, Avatar, Divider, Tooltip } from '@mui/material';
-import { ThemeContext } from '../../context/ThemeContext'; // Import ThemeContext
+import React, { useContext } from 'react';
+import { Box, Typography, List, ListItem, ListItemText, ListItemAvatar, Avatar, Divider, Tooltip, Button } from '@mui/material'; // Import Button
+import { ThemeContext } from '../../context/ThemeContext';
+import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 
 // Dummy data for active members
 const activeMembers = [
@@ -11,34 +12,52 @@ const activeMembers = [
     { id: 5, name: 'Michael Green', avatar: 'https://i.pravatar.cc/150?img=5', status: 'online' },
 ];
 
-const RightColumn = () => { // Remove darkMode from props
-    const { mode } = useContext(ThemeContext); // Use useContext to get the current theme mode
-    const darkMode = mode === 'dark'; // Determine darkMode based on the context mode
+const RightColumn = () => {
+    const { mode } = useContext(ThemeContext);
+    const darkMode = mode === 'dark';
 
     return (
         <Box
             sx={{
                 p: 2,
-                backgroundColor: darkMode ? '#242526' : '#f0f2f5', // Adjusted for consistent dark mode background
+                backgroundColor: darkMode ? '#242526' : '#f0f2f5',
                 color: darkMode ? '#e4e6eb' : '#1c1e21',
                 borderRadius: 2,
-                width: '15vw', // Consider making this responsive, e.g., '280px' or percentages
+                width: '15vw',
                 ml: 10,
                 height: 'calc(100vh - 64px)',
                 overflowY: 'auto',
-                boxShadow: darkMode ? '0px 0px 5px rgba(255,255,255,0.1)' : '0px 0px 5px rgba(0,0,0,0.1)', // Add consistent shadow
+                boxShadow: darkMode ? '0px 0px 5px rgba(255,255,255,0.1)' : '0px 0px 5px rgba(0,0,0,0.1)',
                 transition: 'background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease',
                 border: 'none',
             }}
         >
             {/* Active Members Section */}
-            <Typography
-                variant="h6"
-                gutterBottom
-                sx={{ color: darkMode ? '#e4e6eb' : '#1c1e21', display: 'flex', alignItems: 'center' }}
-            >
-                🧑‍🤝‍🧑 Thành viên đang hoạt động
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}> {/* Added Box for flex alignment */}
+                <Typography
+                    variant="h6"
+                    sx={{ color: darkMode ? '#e4e6eb' : '#1c1e21', display: 'flex', alignItems: 'center' }}
+                >
+                    🧑‍🤝‍🧑 Thành viên đang hoạt động
+                </Typography>
+                <Button
+                    component={Link} // Use Link component for navigation
+                    to="/MembersList" // Specify the path to your MemberList page
+                    sx={{
+                        color: darkMode ? '#90caf9' : 'primary.main', // Adjust color for dark/light mode
+                        textTransform: 'none',
+                        fontSize: '0.875rem',
+                        minWidth: 'auto', // Adjust button size
+                        padding: '4px 8px', // Adjust padding
+                        '&:hover': {
+                            backgroundColor: 'transparent',
+                            textDecoration: 'underline',
+                        },
+                    }}
+                >
+                    Xem chi tiết
+                </Button>
+            </Box>
             <List dense sx={{ paddingLeft: 0 }}>
                 {activeMembers.map((member) => (
                     <ListItem
@@ -75,11 +94,11 @@ const RightColumn = () => { // Remove darkMode from props
                                             borderRadius: '50%',
                                             backgroundColor:
                                                 member.status === 'online'
-                                                    ? '#4CAF50' // Green
+                                                    ? '#4CAF50'
                                                     : member.status === 'away'
-                                                        ? '#FFC107' // Amber
-                                                        : '#757575', // Grey
-                                            border: `2px solid ${darkMode ? '#242526' : '#f0f2f5'}`, // Border color matches new background
+                                                        ? '#FFC107'
+                                                        : '#757575',
+                                            border: `2px solid ${darkMode ? '#242526' : '#f0f2f5'}`,
                                         }}
                                     />
                                 </Tooltip>
@@ -99,7 +118,7 @@ const RightColumn = () => { // Remove darkMode from props
                 ))}
             </List>
 
-            <Divider sx={{ my: 2, borderColor: darkMode ? '#3a3b3c' : '#eee' }} /> {/* Adjusted divider color */}
+            <Divider sx={{ my: 2, borderColor: darkMode ? '#3a3b3c' : '#eee' }} />
 
             {/* Favorite Posts Section */}
             <Typography
@@ -137,7 +156,7 @@ const RightColumn = () => { // Remove darkMode from props
                 ))}
             </List>
 
-            <Divider sx={{ my: 2, borderColor: darkMode ? '#3a3b3c' : '#eee' }} /> {/* Adjusted divider color */}
+            <Divider sx={{ my: 2, borderColor: darkMode ? '#3a3b3c' : '#eee' }} />
 
             {/* Advertisement Section */}
             <Typography
