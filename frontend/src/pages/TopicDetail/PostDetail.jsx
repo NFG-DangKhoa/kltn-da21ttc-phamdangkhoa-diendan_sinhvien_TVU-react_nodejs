@@ -1,21 +1,22 @@
-import React, { useEffect, useState, useRef, useContext } from 'react';
+import React, { useEffect, useState, useRef, useContext, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     Box, Typography, Button, Dialog, DialogTitle, DialogContent,
-    IconButton, List, ListItem, ListItemText, Divider, useTheme, Avatar, Card, CardContent, CardMedia
+    IconButton, Divider, useTheme, Card, CardContent, CardMedia,
+    Menu, MenuItem, // Import Menu and MenuItem
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-// Import the missing icons
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
+import MoreVertIcon from '@mui/icons-material/MoreVert'; // Import MoreVertIcon
 
 import CommentDialog from './CenterColumn/CommentDialog';
 import LikeDialog from './CenterColumn/LikeDialog';
 import { ThemeContext } from '../../context/ThemeContext';
-import usePostDetail from './usePostDetail'; // Import the new hook
-import { AuthContext } from '../../context/AuthContext'; // Assuming you have an AuthContext for user info
+import usePostDetail from './usePostDetail';
+import { AuthContext } from '../../context/AuthContext';
 
 // Dữ liệu giả định cho các bài viết tương tự
 const dummyRelatedPosts = [
@@ -23,7 +24,7 @@ const dummyRelatedPosts = [
         id: 'related-1',
         title: 'Tối ưu hóa hình ảnh cho Web',
         thumbnail: 'https://via.placeholder.com/150/FF5733/FFFFFF?text=Image+1',
-        link: '/post-detail?topicId=123&postId=related-1' // Ví dụ link
+        link: '/post-detail?topicId=123&postId=related-1'
     },
     {
         id: 'related-2',
@@ -57,16 +58,15 @@ const dummyRelatedPosts = [
     },
 ];
 
-const PostDetail = () => {
+const PostDetail = ({ setDetailedPosts, handleEditPostFromCenterColumn }) => {
     const [searchParams] = useSearchParams();
     const topicId = searchParams.get('topicId');
     const postId = searchParams.get('postId');
 
     const { mode } = useContext(ThemeContext);
     const theme = useTheme();
-    const { user } = useContext(AuthContext); // Get current user from AuthContext
+    const { user } = useContext(AuthContext);
 
-    // Use the custom hook for post details and interactions
     const {
         postDetail,
         currentCommentCount,
@@ -74,19 +74,52 @@ const PostDetail = () => {
         currentLikedUsers,
         isLikedByUser,
         handleLikeToggle,
-    } = usePostDetail(topicId, postId, user); // Pass user to the hook
+        handleDeletePost, // Lấy hàm xóa bài viết từ hook
+    } = usePostDetail(topicId, postId, user, setDetailedPosts); // Truyền setDetailedPosts
 
     const [openLikes, setOpenLikes] = useState(false);
     const [openComments, setOpenComments] = useState(false);
-    const [selectedPost, setSelectedPost] = useState(null); // Keep for CommentDialog
+    const [selectedPost, setSelectedPost] = useState(null);
 
     const [openImageModal, setOpenImageModal] = useState(false);
     const [modalImageSrc, setModalImageSrc] = useState('');
 
     const contentRef = useRef(null);
 
-    // State for showing replies (moved here, or could be in a more granular comment hook)
     const [showReplies, setShowReplies] = useState({});
+
+    // State và handler cho Menu dấu ba chấm
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [postToEditOrDelete, setPostToEditOrDelete] = useState(null);
+
+    const handleClickMenu = useCallback((event) => {
+        setAnchorEl(event.currentTarget);
+        setPostToEditOrDelete(postDetail); // Lưu postDetail vào state để thao tác
+    }, [postDetail]);
+
+    const handleCloseMenu = useCallback(() => {
+        setAnchorEl(null);
+        setPostToEditOrDelete(null);
+    }, []);
+
+    const handleDeleteClick = useCallback(async () => {
+        if (!postToEditOrDelete) return;
+        const success = await handleDeletePost(postToEditOrDelete._id);
+        if (success) {
+            handleCloseMenu();
+            // Sau khi xóa thành công, bạn có thể chuyển hướng người dùng hoặc hiển thị thông báo
+            // Ví dụ: window.location.href = '/some-other-page';
+            // Hoặc đơn giản là không hiển thị bài viết nữa (hook đã xử lý)
+        }
+    }, [postToEditOrDelete, handleDeletePost, handleCloseMenu]);
+
+    const handleEditPost = useCallback(() => {
+        handleCloseMenu();
+        if (handleEditPostFromCenterColumn && postToEditOrDelete) {
+            handleEditPostFromCenterColumn(postToEditOrDelete);
+        }
+    }, [handleCloseMenu, handleEditPostFromCenterColumn, postToEditOrDelete]);
+
     const toggleReplies = (commentId) => {
         setShowReplies((prev) => ({
             ...prev,
@@ -161,37 +194,37 @@ const PostDetail = () => {
                 img.onmouseleave = null;
             });
         };
-    }, [postDetail, mode]); // Dependency array: re-run when postDetail or mode changes
+    }, [postDetail, mode]);
 
-    const handleOpenLikes = () => {
+    const handleOpenLikes = useCallback(() => {
         setOpenLikes(true);
-    };
+    }, []);
 
-    const handleCloseLikes = () => {
+    const handleCloseLikes = useCallback(() => {
         setOpenLikes(false);
-    };
+    }, []);
 
-    const handleOpenComments = (post) => {
+    const handleOpenComments = useCallback((post) => {
         setSelectedPost(post);
         setOpenComments(true);
-    };
+    }, []);
 
-    const handleCloseComments = () => {
+    const handleCloseComments = useCallback(() => {
         setOpenComments(false);
         setSelectedPost(null);
-    };
+    }, []);
 
-    const handleCloseImageModal = () => {
+    const handleCloseImageModal = useCallback(() => {
         setOpenImageModal(false);
         setModalImageSrc('');
-    };
+    }, []);
 
     return (
         <Box
             sx={{
                 p: 2,
                 borderRadius: 2,
-                width: '65vw', // Đã chỉnh lại 85vw
+                width: '65vw',
                 ml: 8,
                 height: 'calc(100vh - 64px)',
                 overflowY: 'auto',
@@ -208,9 +241,51 @@ const PostDetail = () => {
             ) : (
                 <Box>
                     {/* Title and Author */}
-                    <Typography variant="subtitle2" color={theme.palette.text.secondary}>
-                        👤 {postDetail.authorId?.fullName}
-                    </Typography>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Typography variant="subtitle2" color={theme.palette.text.secondary}>
+                            👤 {postDetail.authorId?.fullName}
+                        </Typography>
+                        {user && user._id === postDetail.authorId?._id && (
+                            <>
+                                <IconButton
+                                    aria-label="more"
+                                    aria-controls="long-menu"
+                                    aria-haspopup="true"
+                                    onClick={handleClickMenu} // Sử dụng handleClickMenu
+                                    sx={{ color: mode === 'dark' ? '#e4e6eb' : '#1c1e21' }}
+                                >
+                                    <MoreVertIcon />
+                                </IconButton>
+                                <Menu
+                                    id="long-menu"
+                                    anchorEl={anchorEl}
+                                    open={Boolean(anchorEl) && postToEditOrDelete?._id === postDetail._id} // Đảm bảo đúng post
+                                    onClose={handleCloseMenu}
+                                    PaperProps={{
+                                        style: {
+                                            maxHeight: 48 * 4.5,
+                                            width: '20ch',
+                                            backgroundColor: mode === 'dark' ? '#3a3b3c' : '#ffffff',
+                                            color: mode === 'dark' ? '#e4e6eb' : '#1c1e21',
+                                        },
+                                    }}
+                                >
+                                    <MenuItem onClick={handleEditPost} sx={{
+                                        '&:hover': { backgroundColor: mode === 'dark' ? '#555' : '#f0f0f0' }
+                                    }}>
+                                        Chỉnh sửa
+                                    </MenuItem>
+                                    <MenuItem onClick={handleDeleteClick} sx={{
+                                        color: 'red',
+                                        '&:hover': { backgroundColor: mode === 'dark' ? '#555' : '#f0f0f0' }
+                                    }}>
+                                        Xóa
+                                    </MenuItem>
+                                </Menu>
+                            </>
+                        )}
+                    </Box>
+
                     <Typography variant="h5" gutterBottom color={theme.palette.text.primary}>
                         {postDetail.title}
                     </Typography>
@@ -313,9 +388,9 @@ const PostDetail = () => {
                     <Box
                         sx={{
                             display: 'flex',
-                            overflowX: 'auto', // Cho phép cuộn ngang nếu nhiều bài viết
-                            gap: 2, // Khoảng cách giữa các bài viết
-                            pb: 1, // Padding bottom để không bị cắt scrollbar
+                            overflowX: 'auto',
+                            gap: 2,
+                            pb: 1,
                             '&::-webkit-scrollbar': {
                                 height: '8px',
                             },
@@ -332,18 +407,18 @@ const PostDetail = () => {
                             <Card
                                 key={relatedPost.id}
                                 sx={{
-                                    minWidth: 180, // Chiều rộng tối thiểu cho mỗi card
-                                    maxWidth: 180, // Chiều rộng tối đa
+                                    minWidth: 180,
+                                    maxWidth: 180,
                                     boxShadow: 2,
                                     borderRadius: 2,
                                     transition: 'transform 0.2s ease-in-out',
                                     '&:hover': { transform: 'translateY(-3px)', boxShadow: 4 },
                                     cursor: 'pointer',
-                                    flexShrink: 0, // Quan trọng để các card không bị co lại
-                                    bgcolor: theme.palette.background.default, // Dùng background mặc định
+                                    flexShrink: 0,
+                                    bgcolor: theme.palette.background.default,
                                     color: theme.palette.text.primary,
                                 }}
-                                onClick={() => window.location.href = relatedPost.link} // Hoặc dùng <Link> từ react-router-dom
+                                onClick={() => window.location.href = relatedPost.link}
                             >
                                 <CardMedia
                                     component="img"
@@ -356,11 +431,10 @@ const PostDetail = () => {
                                     <Typography
                                         variant="subtitle2"
                                         component="div"
-                                        noWrap // Giới hạn tiêu đề trên một dòng
+                                        noWrap
                                         sx={{
                                             fontWeight: 'medium',
                                             color: theme.palette.text.primary,
-                                            // Tùy chỉnh hover nếu muốn
                                             '&:hover': {
                                                 color: theme.palette.primary.main,
                                             }
@@ -422,7 +496,7 @@ const PostDetail = () => {
                         open={openComments}
                         onClose={handleCloseComments}
                         post={selectedPost}
-                        user={user} // Pass user to CommentDialog
+                        user={user}
                         showReplies={showReplies}
                         toggleReplies={toggleReplies}
                         mode={mode}
@@ -432,9 +506,9 @@ const PostDetail = () => {
                     <LikeDialog
                         open={openLikes}
                         onClose={handleCloseLikes}
-                        likedUsers={currentLikedUsers} // Use currentLikedUsers from hook
-                        likeCount={currentLikeCount} // Pass currentLikeCount to LikeDialog
-                        mode={mode}
+                        likedUsers={currentLikedUsers}
+                        likeCount={currentLikeCount}
+                        darkMode={mode === 'dark'} // Pass darkMode prop to LikeDialog
                     />
                 </Box>
             )}

@@ -8,7 +8,7 @@ import {
     Divider,
     useTheme // Thêm useTheme để truy cập theme
 } from '@mui/material';
-import API from '../services/api';
+import API from '../services/api'; // Đảm bảo API đã được cấu hình đúng cách để gửi yêu cầu
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
@@ -24,40 +24,66 @@ const Login = () => {
         e.preventDefault();
         try {
             const res = await API.post('http://localhost:5000/api/auth/login', { email, password });
-            // Gọi login một lần duy nhất với dữ liệu nhận được từ API
-            login(res.data);
-            if (res.data.role === 'admin') {
+            // API.post sẽ trả về res.data (ví dụ: { user: { id, email, fullName, role, avatarUrl }, token: '...' })
+            // Hoặc trực tiếp { id, email, fullName, role, avatarUrl, token }
+
+            // Giả định backend trả về trực tiếp user object cùng với token
+            // Nếu backend trả về { user: {...}, token: '...' }, bạn cần truyền res.data.user và res.data.token
+            // AuthContext của bạn mong muốn một object chứa cả user data và token
+            login(res.data); // Truyền toàn bộ dữ liệu nhận được cho AuthContext
+
+            // Điều hướng dựa trên vai trò của người dùng
+            // Đảm bảo res.data có thuộc tính 'role' hoặc res.data.user.role
+            if (res.data.user && res.data.user.role === 'admin') { // Kiểm tra res.data.user nếu backend trả về cấu trúc đó
                 navigate('/admin');
-            } else {
+            } else if (res.data.role === 'admin') { // Trường hợp backend trả về trực tiếp role trong res.data
+                navigate('/admin');
+            }
+            else {
                 navigate('/');
             }
         } catch (err) {
-            console.error('Đăng nhập thất bại:', err); // Log lỗi chi tiết hơn
-            alert('Sai email hoặc mật khẩu');
+            console.error('Đăng nhập thất bại:', err.response ? err.response.data : err.message); // Log lỗi chi tiết hơn
+            alert(err.response?.data?.message || 'Sai email hoặc mật khẩu'); // Hiển thị thông báo lỗi từ backend hoặc thông báo chung
         }
     };
 
     const handleGoogleLoginSuccess = async (credentialResponse) => {
         try {
+            // Gửi ID token từ Google (credentialResponse.credential) tới backend
             const res = await API.post('http://localhost:5000/api/auth/google-login', {
-                token: credentialResponse.credential,
+                token: credentialResponse.credential, // Đây là ID Token mà backend sẽ xác minh
             });
-            console.log("Google login success response:", res.data); // Log để kiểm tra dữ liệu trả về
 
-            // Dữ liệu người dùng đã được cấu trúc trong res.data.user từ backend (theo như comment của bạn)
-            // AuthContext.js nên được thiết kế để nhận trực tiếp res.data hoặc res.data.user
-            // Nếu AuthContext.js mong đợi cấu trúc cụ thể, bạn có thể truyền nó vào
-            login(res.data); // Truyền toàn bộ res.data hoặc res.data.user tùy thuộc vào AuthContext
+            console.log("Google login success response:", res.data); // Log để kiểm tra dữ liệu trả về từ backend
 
-            if (res.data.user.role === 'admin') { // Đảm bảo truy cập đúng thuộc tính role
-                navigate('/admin');
+            // Backend của bạn **phải** trả về một object có chứa `avatarUrl`
+            // Cấu trúc mong muốn từ backend: { user: { id, email, fullName, role, avatarUrl }, token: '...' }
+            // Hoặc: { id, email, fullName, role, avatarUrl, token }
+
+            // Kiểm tra cấu trúc dữ liệu trả về và truyền cho hàm login
+            if (res.data.user) {
+                // Nếu backend trả về { user: { ... }, token: '...' }
+                login(res.data); // Truyền toàn bộ res.data, AuthContext sẽ lưu user và token
             } else {
+                // Nếu backend trả về trực tiếp user object (có avatarUrl) và token
+                login(res.data); // Giả định res.data đã có đủ các trường cần thiết, bao gồm avatarUrl và token
+            }
+
+            // Điều hướng dựa trên vai trò của người dùng
+            // Đảm bảo truy cập đúng thuộc tính role, kiểm tra cả res.data.user.role và res.data.role
+            if (res.data.user && res.data.user.role === 'admin') {
+                navigate('/admin');
+            } else if (res.data.role === 'admin') {
+                navigate('/admin');
+            }
+            else {
                 navigate('/');
             }
 
         } catch (err) {
-            console.error('Lỗi khi đăng nhập Google:', err); // Log lỗi chi tiết hơn
-            alert('Đăng nhập Google thất bại');
+            console.error('Lỗi khi đăng nhập Google:', err.response ? err.response.data : err.message); // Log lỗi chi tiết hơn
+            alert(err.response?.data?.message || 'Đăng nhập Google thất bại'); // Hiển thị thông báo lỗi từ backend hoặc thông báo chung
         }
     };
 
@@ -89,7 +115,6 @@ const Login = () => {
                     variant="outlined"
                     sx={{ mb: 2 }}
                     required
-                    // Áp dụng màu sắc từ theme cho TextField
                     InputLabelProps={{
                         style: { color: theme.palette.text.secondary }
                     }}
@@ -113,7 +138,6 @@ const Login = () => {
                     variant="outlined"
                     sx={{ mb: 3 }}
                     required
-                    // Áp dụng màu sắc từ theme cho TextField
                     InputLabelProps={{
                         style: { color: theme.palette.text.secondary }
                     }}
@@ -149,18 +173,18 @@ const Login = () => {
                 </Button>
             </form>
 
-            <Divider sx={{ my: 3, borderColor: theme.palette.divider }}>hoặc</Divider> {/* Sử dụng màu divider từ theme */}
+            <Divider sx={{ my: 3, borderColor: theme.palette.divider }}>hoặc</Divider>
 
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                 <GoogleLogin
                     onSuccess={handleGoogleLoginSuccess}
                     onError={() => {
-                        console.error('Google login failed from component.'); // Log lỗi chi tiết hơn
+                        console.error('Google login failed from component.');
                         alert('Lỗi khi đăng nhập Google');
                     }}
                     useOneTap
-                    theme={theme.palette.mode === 'dark' ? 'filled_blue' : 'outline'} // Điều chỉnh theme Google Login theo mode
-                    shape="rectangular" // Có thể dùng 'rectangular' cho phù hợp hơn với button thông thường
+                    theme={theme.palette.mode === 'dark' ? 'filled_blue' : 'outline'}
+                    shape="rectangular"
                 />
             </Box>
 

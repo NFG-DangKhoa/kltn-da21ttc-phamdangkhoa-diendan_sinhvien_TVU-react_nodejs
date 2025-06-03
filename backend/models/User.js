@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
     password: String,
     phone: String,
     address: String,
-    avatar: String,
+    avatarUrl: { type: String, default: '' }, // ✅ Đảm bảo trường này tồn tại và đúng tên
     role: { type: String, enum: ['user', 'editor', 'admin'], default: 'user' },
     createdAt: { type: Date, default: Date.now },
 });
