@@ -24,7 +24,7 @@ const usePostInteractions = (initialPost, currentUser, setDetailedPosts) => {
             isSocketConnected.current = true;
         }
         return () => {
-            // socket.disconnect(); // Tạm thời comment
+            // socket.disconnect(); // Tạm thời comment để giữ kết nối nếu hook được mount/unmount nhiều lần
             // isSocketConnected.current = false;
         };
     }, []);
@@ -51,6 +51,7 @@ const usePostInteractions = (initialPost, currentUser, setDetailedPosts) => {
     useEffect(() => {
         if (!post?._id) return;
 
+        // Tham gia vào room của bài viết để nhận các cập nhật liên quan đến bài viết này
         socket.emit('joinPostRoom', post._id);
 
         const handleNewComment = (newComment) => {
@@ -202,19 +203,39 @@ const usePostInteractions = (initialPost, currentUser, setDetailedPosts) => {
             }
         };
 
+        // --- Bắt đầu thêm xử lý cho updatedPost ---
+        const handleUpdatedPost = (updatedPostData) => {
+            // Kiểm tra xem bài viết được cập nhật có phải là bài viết mà hook này đang quản lý không
+            if (updatedPostData._id === post._id) {
+                // Cập nhật state 'post' với dữ liệu mới nhận được
+                setPost(updatedPostData);
+
+                // Nếu `setDetailedPosts` được truyền vào (ví dụ: từ một component cha quản lý danh sách bài viết)
+                // thì cập nhật cả danh sách đó. Điều này giúp đồng bộ hóa dữ liệu ở cấp độ cao hơn.
+                if (typeof setDetailedPosts === 'function') {
+                    setDetailedPosts(prevPosts =>
+                        prevPosts.map(p => (p._id === updatedPostData._id ? updatedPostData : p))
+                    );
+                }
+            }
+        };
+        // --- Kết thúc thêm xử lý cho updatedPost ---
+
         socket.on('newComment', handleNewComment);
         socket.on('deletedComment', handleDeletedComment);
         socket.on('updatedComment', handleUpdatedComment);
         socket.on('likeUpdate', handleLikeUpdate);
+        socket.on('updatedPost', handleUpdatedPost); // Đăng ký lắng nghe sự kiện updatedPost
 
         return () => {
             socket.off('newComment', handleNewComment);
             socket.off('deletedComment', handleDeletedComment);
             socket.off('updatedComment', handleUpdatedComment);
             socket.off('likeUpdate', handleLikeUpdate);
-            socket.emit('leavePostRoom', post._id);
+            socket.off('updatedPost', handleUpdatedPost); // Hủy đăng ký lắng nghe sự kiện updatedPost
+            socket.emit('leavePostRoom', post._id); // Rời khỏi room khi component unmount
         };
-    }, [post?._id, currentUser, setDetailedPosts, post]);
+    }, [post?._id, currentUser, setDetailedPosts, post]); // Đảm bảo 'post' có trong dependency array nếu các handler phụ thuộc vào nó
 
     const handleDeletePost = useCallback(async (postIdToDelete) => {
         const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa bài viết này không?");
@@ -230,6 +251,9 @@ const usePostInteractions = (initialPost, currentUser, setDetailedPosts) => {
                 }
             });
             alert('Bài viết đã được xóa thành công!');
+            // Việc cập nhật UI cục bộ cho danh sách bài viết sẽ do sự kiện 'deletedPost' của Socket.IO xử lý
+            // nếu hook này được sử dụng trong ngữ cảnh danh sách bài viết.
+            // Nếu chỉ quản lý một bài viết đơn lẻ, việc xóa sẽ dẫn đến chuyển hướng hoặc ẩn bài viết.
             if (setDetailedPosts) {
                 setDetailedPosts(prevPosts => prevPosts.filter(p => p._id !== postIdToDelete));
             }

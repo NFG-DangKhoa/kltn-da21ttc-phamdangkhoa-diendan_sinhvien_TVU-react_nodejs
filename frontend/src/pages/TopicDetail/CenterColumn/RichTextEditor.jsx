@@ -52,7 +52,7 @@ const setSelectionRange = (range) => {
     }
 };
 
-// Regex để kiểm tra URL ảnh cơ bản
+// Regex to check basic image URL
 export const IMAGE_URL_REGEX = /(https?:\/\/[^\s]+(\.png|\.jpg|\.jpeg|\.gif|\.webp))/g;
 
 const IMAGE_SIZES = [
@@ -71,7 +71,7 @@ const RichTextEditor = ({ content, onContentChange }) => {
 
     const [openLinkDialog, setOpenLinkDialog] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
-    const currentSelectionRange = useRef(null); // Sử dụng useRef để lưu range
+    const currentSelectionRange = useRef(null); // Use useRef to save range
 
     const [showImageControls, setShowImageControls] = useState(false);
 
@@ -97,12 +97,12 @@ const RichTextEditor = ({ content, onContentChange }) => {
     const inputHoverBorderColor = theme.palette.mode === 'dark' ? '#999' : '#999';
     const inputFocusBorderColor = theme.palette.primary.main; // Consistent with primary color
 
-    // --- Cập nhật nội dung editor khi prop 'content' thay đổi từ bên ngoài ---
-    // Chỉ cập nhật innerHTML nếu content prop thay đổi và khác với nội dung hiện tại của editor
+    // --- Update editor content when 'content' prop changes from outside ---
+    // Only update innerHTML if content prop changes and is different from current editor content
     useEffect(() => {
         if (editorRef.current && editorRef.current.innerHTML !== content) {
             editorRef.current.innerHTML = content;
-            // Đặt con trỏ ở cuối nội dung sau khi load ban đầu hoặc cập nhật từ prop
+            // Place cursor at the end of content after initial load or update from prop
             const range = document.createRange();
             const selection = window.getSelection();
             if (editorRef.current.lastChild) {
@@ -117,7 +117,7 @@ const RichTextEditor = ({ content, onContentChange }) => {
     }, [content]);
 
 
-    // Effect để xử lý logic chọn ảnh và lắng nghe sự kiện input
+    // Effect to handle image selection logic and listen to input events
     useEffect(() => {
         const editorElement = editorRef.current;
         if (!editorElement) return;
@@ -135,18 +135,18 @@ const RichTextEditor = ({ content, onContentChange }) => {
         };
 
         const handleInput = () => {
-            // Cập nhật nội dung thông qua onContentChange
+            // Update content via onContentChange
             onContentChange(editorRef.current.innerHTML);
-            // Lưu lại vùng chọn hiện tại sau mỗi lần gõ
+            // Save current selection range after each type
             currentSelectionRange.current = getSelectionRange();
         };
 
-        // Lắng nghe sự kiện click để chọn ảnh
+        // Listen for click event to select image
         editorElement.addEventListener('click', handleEditorClick);
-        // Lắng nghe sự kiện input để cập nhật nội dung sau mỗi lần gõ phím
+        // Listen for input event to update content after each keystroke
         editorElement.addEventListener('input', handleInput);
-        // Lắng nghe sự kiện keyup để cập nhật vùng chọn sau khi gõ
-        editorElement.addEventListener('keyup', handleInput); // Also listen to keyup for better cursor position handling
+        // Listen for keyup event to update selection range after typing
+        editorElement.addEventListener('keyup', handleInput);
 
         return () => {
             editorElement.removeEventListener('click', handleEditorClick);
@@ -158,12 +158,12 @@ const RichTextEditor = ({ content, onContentChange }) => {
 
     const handleFormat = useCallback((command, value = null) => {
         if (editorRef.current) {
-            editorRef.current.focus(); // Đảm bảo editor có focus
-            const range = getSelectionRange(); // Lưu vùng chọn trước khi thực hiện lệnh
+            editorRef.current.focus(); // Ensure editor has focus
+            const range = getSelectionRange(); // Save selection range before executing command
             document.execCommand(command, false, value);
-            setSelectionRange(range); // Khôi phục vùng chọn về vị trí cũ
+            setSelectionRange(range); // Restore selection to old position
 
-            // Sau khi định dạng, cập nhật nội dung
+            // After formatting, update content
             const newContent = editorRef.current.innerHTML;
             onContentChange(newContent);
         }
@@ -190,7 +190,7 @@ const RichTextEditor = ({ content, onContentChange }) => {
     const handleLinkClick = () => {
         const selection = window.getSelection();
         if (selection.toString().length > 0) {
-            currentSelectionRange.current = getSelectionRange(); // Lưu vùng chọn hiện tại vào useRef
+            currentSelectionRange.current = getSelectionRange(); // Save current selection range to useRef
             setOpenLinkDialog(true);
         } else {
             alert('Vui lòng chọn văn bản để tạo link.');
@@ -200,12 +200,12 @@ const RichTextEditor = ({ content, onContentChange }) => {
     const handleInsertLink = () => {
         if (editorRef.current && currentSelectionRange.current) {
             editorRef.current.focus();
-            setSelectionRange(currentSelectionRange.current); // Khôi phục vùng chọn đã lưu
-            handleFormat('createLink', linkUrl); // Gọi handleFormat để cập nhật nội dung
+            setSelectionRange(currentSelectionRange.current); // Restore saved selection range
+            handleFormat('createLink', linkUrl); // Call handleFormat to update content
         }
         setOpenLinkDialog(false);
         setLinkUrl('');
-        currentSelectionRange.current = null; // Xóa vùng chọn đã lưu
+        currentSelectionRange.current = null; // Clear saved selection range
     };
 
     const handleImageClick = () => {
@@ -216,7 +216,7 @@ const RichTextEditor = ({ content, onContentChange }) => {
         const file = event.target.files[0];
         if (!file) return;
 
-        const rangeBeforeFileRead = getSelectionRange(); // Lưu vị trí con trỏ trước khi đọc file
+        const rangeBeforeFileRead = getSelectionRange(); // Save cursor position before reading file
 
         const reader = new FileReader();
         reader.onload = async (e) => {
@@ -225,15 +225,15 @@ const RichTextEditor = ({ content, onContentChange }) => {
 
             if (editorRef.current && rangeBeforeFileRead) {
                 editorRef.current.focus();
-                setSelectionRange(rangeBeforeFileRead); // Khôi phục con trỏ
+                setSelectionRange(rangeBeforeFileRead); // Restore cursor
 
                 const initialWidth = IMAGE_SIZES[1].value;
                 const widthStyle = typeof initialWidth === 'number' ? `${initialWidth}px` : initialWidth;
 
-                // Chèn ảnh
+                // Insert image
                 document.execCommand('insertHTML', false, `<img src="${tempBase64Url}" data-filename="${fileName}" style="width:${widthStyle}; height:auto; display:block; margin:12px auto;">`);
 
-                // Tìm ảnh vừa chèn để set nó là ảnh đang chọn
+                // Find the just-inserted image to set it as the selected image
                 const imgs = editorRef.current.querySelectorAll(`img[src="${tempBase64Url}"]`);
                 const insertedImg = imgs[imgs.length - 1];
 
@@ -245,7 +245,7 @@ const RichTextEditor = ({ content, onContentChange }) => {
                 const newContent = editorRef.current.innerHTML;
                 onContentChange(newContent);
 
-                // Quan trọng: Đặt con trỏ sau hình ảnh đã chèn
+                // Important: Place cursor after the inserted image
                 const newRange = document.createRange();
                 newRange.setStartAfter(insertedImg);
                 newRange.collapse(true);
@@ -253,7 +253,7 @@ const RichTextEditor = ({ content, onContentChange }) => {
             }
         };
         reader.readAsDataURL(file);
-        event.target.value = null; // Xóa input để có thể chọn lại cùng một file
+        event.target.value = null; // Clear input so the same file can be selected again
     }, [onContentChange]);
 
     const handleImageSizeChange = useCallback((event) => {
@@ -262,11 +262,11 @@ const RichTextEditor = ({ content, onContentChange }) => {
         if (selectedImage) {
             const widthStyle = typeof newValue === 'number' ? `${newValue}px` : newValue;
             selectedImage.style.width = widthStyle;
-            selectedImage.style.height = 'auto'; // Giữ tỷ lệ khung hình
+            selectedImage.style.height = 'auto'; // Maintain aspect ratio
             const newContent = editorRef.current.innerHTML;
             onContentChange(newContent);
-            editorRef.current.focus(); // Giữ focus trên editor sau khi thay đổi
-            setSelectionRange(getSelectionRange()); // Cập nhật lại vùng chọn
+            editorRef.current.focus(); // Keep focus on editor after change
+            setSelectionRange(getSelectionRange()); // Update selection
         }
     }, [selectedImage, onContentChange]);
 
@@ -274,142 +274,128 @@ const RichTextEditor = ({ content, onContentChange }) => {
         if (selectedImage) {
             selectedImage.style.float = 'none'; // Reset float
             selectedImage.style.display = 'block';
-            selectedImage.style.margin = '12px auto'; // Mặc định căn giữa
+            selectedImage.style.margin = '12px auto'; // Default to center
 
             if (align === 'left') {
                 selectedImage.style.float = 'left';
-                selectedImage.style.margin = '12px 12px 12px 0'; // Margin cho ảnh căn trái
+                selectedImage.style.margin = '12px 12px 12px 0'; // Margin for left-aligned image
             } else if (align === 'right') {
                 selectedImage.style.float = 'right';
-                selectedImage.style.margin = '12px 0 12px 12px'; // Margin cho ảnh căn phải
+                selectedImage.style.margin = '12px 0 12px 12px'; // Margin for right-aligned image
             }
 
             const newContent = editorRef.current.innerHTML;
             onContentChange(newContent);
-            editorRef.current.focus(); // Giữ focus trên editor
-            setSelectionRange(getSelectionRange()); // Cập nhật lại vùng chọn
+            editorRef.current.focus(); // Keep focus on editor
+            setSelectionRange(getSelectionRange()); // Update selection
         } else {
-            // Áp dụng căn chỉnh văn bản
+            // Apply text alignment
             const range = getSelectionRange();
             handleFormat(`justify${align.charAt(0).toUpperCase() + align.slice(1)}`);
-            setSelectionRange(range); // Khôi phục vùng chọn
+            setSelectionRange(range); // Restore selection
         }
     }, [selectedImage, onContentChange, handleFormat]);
 
     const handlePaste = useCallback(async (event) => {
-        event.preventDefault();
+        event.preventDefault(); // Prevent default paste behavior
 
         const items = (event.clipboardData || event.originalEvent.clipboardData).items;
-        let handled = false;
-        const currentRange = getSelectionRange(); // Lưu vùng chọn trước khi dán
+        const currentRange = getSelectionRange(); // Save current selection range
 
+        let pastedHtml = null;
+        let pastedText = null;
+        let pastedImageFile = null;
+
+        // Iterate through clipboard items to find available data types
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
 
-            if (item.type.indexOf('image') !== -1) {
-                const file = item.getAsFile();
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const tempBase64Url = e.target.result;
-                        const fileName = `pasted_image_${Date.now()}.png`;
-                        const initialWidth = IMAGE_SIZES[1].value;
-                        const widthStyle = typeof initialWidth === 'number' ? `${initialWidth}px` : initialWidth;
-                        const imgTag = `<img src="${tempBase64Url}" data-filename="${fileName}" style="width:${widthStyle}; height:auto; display:block; margin:12px auto;">`;
-
-                        setSelectionRange(currentRange); // Khôi phục vùng chọn
-                        document.execCommand('insertHTML', false, imgTag);
-                        const newContent = editorRef.current.innerHTML;
-                        onContentChange(newContent);
-
-                        // Đặt con trỏ sau hình ảnh đã chèn
-                        const imgs = editorRef.current.querySelectorAll(`img[src="${tempBase64Url}"]`);
-                        const insertedImg = imgs[imgs.length - 1];
-                        if (insertedImg) {
-                            const newRange = document.createRange();
-                            newRange.setStartAfter(insertedImg);
-                            newRange.collapse(true);
-                            setSelectionRange(newRange);
-                        }
-                    };
-                    reader.readAsDataURL(file);
-                    handled = true;
-                    break;
-                }
-            }
-
-            if (item.type === 'text/plain') {
-                const text = await new Promise(resolve => item.getAsString(resolve));
-                if (IMAGE_URL_REGEX.test(text.trim())) {
-                    const imageUrl = text.trim();
-                    const initialWidth = IMAGE_SIZES[1].value;
-                    const widthStyle = typeof initialWidth === 'number' ? `${initialWidth}px` : initialWidth;
-                    const imgTag = `<img src="${imageUrl}" data-original-src="${imageUrl}" style="width:${widthStyle}; height:auto; display:block; margin:12px auto;">`;
-
-                    setSelectionRange(currentRange); // Khôi phục vùng chọn
-                    document.execCommand('insertHTML', false, imgTag);
-                    const newContent = editorRef.current.innerHTML;
-                    onContentChange(newContent);
-
-                    // Đặt con trỏ sau hình ảnh đã chèn
-                    const imgs = editorRef.current.querySelectorAll(`img[src="${imageUrl}"]`);
-                    const insertedImg = imgs[imgs.length - 1];
-                    if (insertedImg) {
-                        const newRange = document.createRange();
-                        newRange.setStartAfter(insertedImg);
-                        newRange.collapse(true);
-                        setSelectionRange(newRange);
-                    }
-                    handled = true;
-                    break;
-                }
-            }
-
             if (item.type === 'text/html') {
-                const html = await new Promise(resolve => item.getAsString(resolve));
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = html;
-                const imagesInPastedHtml = tempDiv.querySelectorAll('img');
-
-                if (imagesInPastedHtml.length > 0) {
-                    imagesInPastedHtml.forEach(img => {
-                        const src = img.getAttribute('src');
-                        if (src && IMAGE_URL_REGEX.test(src)) {
-                            img.setAttribute('data-original-src', src);
-                            const initialWidth = IMAGE_SIZES[1].value;
-                            const widthStyle = typeof initialWidth === 'number' ? `${initialWidth}px` : initialWidth;
-                            img.style.width = img.style.width || widthStyle;
-                            img.style.height = 'auto';
-                            img.style.display = 'block';
-                            img.style.margin = '12px auto';
-                        }
-                    });
-                    setSelectionRange(currentRange); // Khôi phục vùng chọn
-                    const sanitizedHtml = DOMPurify.sanitize(tempDiv.innerHTML); // Sanitize HTML from clipboard
-                    document.execCommand('insertHTML', false, sanitizedHtml);
-                    const newContent = editorRef.current.innerHTML;
-                    onContentChange(newContent);
-                    handled = true;
-                    break;
-                } else {
-                    setSelectionRange(currentRange); // Khôi phục vùng chọn
-                    const safeHtml = DOMPurify.sanitize(html);
-                    document.execCommand('insertHTML', false, safeHtml);
-                    const newContent = editorRef.current.innerHTML;
-                    onContentChange(newContent);
-                    handled = true;
-                    break;
-                }
+                pastedHtml = await new Promise(resolve => item.getAsString(resolve));
+            } else if (item.type === 'text/plain' && !pastedText) { // Get plain text if not already found
+                pastedText = await new Promise(resolve => item.getAsString(resolve));
+            } else if (item.type.indexOf('image') !== -1) {
+                pastedImageFile = item.getAsFile();
             }
         }
 
-        if (!handled) {
-            // Fallback for plain text if no image or rich HTML is found
-            const text = await new Promise(resolve => items[0].getAsString(resolve));
-            setSelectionRange(currentRange); // Khôi phục vùng chọn
-            document.execCommand('insertText', false, text);
-            const newContent = editorRef.current.innerHTML;
-            onContentChange(newContent);
+        // --- Handle Image First (if present) ---
+        if (pastedImageFile) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const tempBase64Url = e.target.result;
+                const fileName = `pasted_image_${Date.now()}.png`;
+                const initialWidth = IMAGE_SIZES[1].value;
+                const widthStyle = typeof initialWidth === 'number' ? `${initialWidth}px` : initialWidth;
+                const imgTag = `<img src="${tempBase64Url}" data-filename="${fileName}" style="width:${widthStyle}; height:auto; display:block; margin:12px auto;">`;
+
+                setSelectionRange(currentRange); // Restore selection
+                document.execCommand('insertHTML', false, imgTag);
+                onContentChange(editorRef.current.innerHTML);
+
+                // Place cursor after the inserted image
+                const imgs = editorRef.current.querySelectorAll(`img[src="${tempBase64Url}"]`);
+                const insertedImg = imgs[imgs.length - 1];
+                if (insertedImg) {
+                    const newRange = document.createRange();
+                    newRange.setStartAfter(insertedImg);
+                    newRange.collapse(true);
+                    setSelectionRange(newRange);
+                }
+            };
+            reader.readAsDataURL(pastedImageFile);
+        }
+        // --- Handle HTML (if present) ---
+        else if (pastedHtml) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = pastedHtml;
+            const imagesInPastedHtml = tempDiv.querySelectorAll('img');
+
+            imagesInPastedHtml.forEach(img => {
+                const src = img.getAttribute('src');
+                if (src && IMAGE_URL_REGEX.test(src)) {
+                    img.setAttribute('data-original-src', src);
+                    const initialWidth = IMAGE_SIZES[1].value;
+                    const widthStyle = typeof initialWidth === 'number' ? `${initialWidth}px` : initialWidth;
+                    img.style.width = img.style.width || widthStyle;
+                    img.style.height = 'auto';
+                    img.style.display = 'block';
+                    img.style.margin = '12px auto';
+                }
+            });
+
+            setSelectionRange(currentRange); // Restore selection
+            const sanitizedHtml = DOMPurify.sanitize(tempDiv.innerHTML); // Sanitize HTML from clipboard
+            document.execCommand('insertHTML', false, sanitizedHtml);
+            onContentChange(editorRef.current.innerHTML);
+        }
+        // --- Handle Plain Text (if present and no image/HTML was handled) ---
+        else if (pastedText) {
+            // Check if plain text is an image URL that wasn't caught by image item handler
+            if (IMAGE_URL_REGEX.test(pastedText.trim())) {
+                const imageUrl = pastedText.trim();
+                const initialWidth = IMAGE_SIZES[1].value;
+                const widthStyle = typeof initialWidth === 'number' ? `${initialWidth}px` : initialWidth;
+                const imgTag = `<img src="${imageUrl}" data-original-src="${imageUrl}" style="width:${widthStyle}; height:auto; display:block; margin:12px auto;">`;
+
+                setSelectionRange(currentRange); // Restore selection
+                document.execCommand('insertHTML', false, imgTag);
+                onContentChange(editorRef.current.innerHTML);
+
+                // Place cursor after the inserted image
+                const imgs = editorRef.current.querySelectorAll(`img[src="${imageUrl}"]`);
+                const insertedImg = imgs[imgs.length - 1];
+                if (insertedImg) {
+                    const newRange = document.createRange();
+                    newRange.setStartAfter(insertedImg);
+                    newRange.collapse(true);
+                    setSelectionRange(newRange);
+                }
+            } else {
+                setSelectionRange(currentRange); // Restore selection
+                document.execCommand('insertText', false, pastedText);
+                onContentChange(editorRef.current.innerHTML);
+            }
         }
     }, [onContentChange]);
 
@@ -432,23 +418,23 @@ const RichTextEditor = ({ content, onContentChange }) => {
             <Paper
                 elevation={0}
                 sx={{
-                    border: `1px solid ${paperBorderColor}`, // Màu border
+                    border: `1px solid ${paperBorderColor}`, // Border color
                     borderRadius: 1,
                     overflow: 'hidden',
                     mb: 1,
-                    backgroundColor: toolbarBgColor, // Nền của thanh công cụ
+                    backgroundColor: toolbarBgColor, // Toolbar background
                 }}
             >
                 <Box
                     sx={{
                         p: 1,
-                        borderBottom: `1px solid ${dividerColor}`, // Đường kẻ dưới
+                        borderBottom: `1px solid ${dividerColor}`, // Bottom border
                         display: 'flex',
                         gap: 0.5,
                         flexWrap: 'wrap',
                         alignItems: 'center',
-                        backgroundColor: toolbarBgColor, // Nền của các nút
-                        color: toolbarButtonColor, // Màu chữ cho các icon/text
+                        backgroundColor: toolbarBgColor, // Button background
+                        color: toolbarButtonColor, // Icon/text color
                     }}
                 >
                     {/* Text Formatting */}
@@ -488,7 +474,7 @@ const RichTextEditor = ({ content, onContentChange }) => {
                         </IconButton>
                     </Tooltip>
 
-                    <Divider orientation="vertical" flexItem sx={{ mx: 0.5, bgcolor: dividerColor }} /> {/* Màu divider */}
+                    <Divider orientation="vertical" flexItem sx={{ mx: 0.5, bgcolor: dividerColor }} /> {/* Divider color */}
 
                     {/* List & Link */}
                     <Tooltip title="Danh sách không thứ tự">
@@ -502,7 +488,7 @@ const RichTextEditor = ({ content, onContentChange }) => {
                         </IconButton>
                     </Tooltip>
 
-                    <Divider orientation="vertical" flexItem sx={{ mx: 0.5, bgcolor: dividerColor }} /> {/* Màu divider */}
+                    <Divider orientation="vertical" flexItem sx={{ mx: 0.5, bgcolor: dividerColor }} /> {/* Divider color */}
 
                     {/* Image Controls & Alignment */}
                     <Tooltip title="Chèn ảnh">
@@ -522,11 +508,11 @@ const RichTextEditor = ({ content, onContentChange }) => {
                                     label="Kích thước ảnh"
                                     onChange={handleImageSizeChange}
                                     sx={{
-                                        color: editorTextColor, // Màu chữ trong select
-                                        '.MuiOutlinedInput-notchedOutline': { borderColor: inputBorderColor }, // Màu border của select
-                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: inputFocusBorderColor }, // Màu border khi focus
+                                        color: editorTextColor, // Text color in select
+                                        '.MuiOutlinedInput-notchedOutline': { borderColor: inputBorderColor }, // Select border color
+                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: inputFocusBorderColor }, // Border color on focus
                                         '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: inputHoverBorderColor },
-                                        '.MuiSvgIcon-root': { color: toolbarButtonColor }, // Màu mũi tên dropdown
+                                        '.MuiSvgIcon-root': { color: toolbarButtonColor }, // Dropdown arrow color
                                     }}
                                 >
                                     {IMAGE_SIZES.map((size) => (
@@ -580,13 +566,13 @@ const RichTextEditor = ({ content, onContentChange }) => {
                 sx={{
                     minHeight: '350px',
                     p: 2,
-                    border: `1px solid ${paperBorderColor}`, // Border của editor
+                    border: `1px solid ${paperBorderColor}`, // Editor border
                     borderRadius: 1,
                     outline: 'none',
                     cursor: 'text',
-                    backgroundColor: editorBgColor, // Nền của khu vực soạn thảo
-                    color: editorTextColor, // Màu chữ chính
-                    '&:focus': { borderColor: inputFocusBorderColor, boxShadow: `0 0 0 1px ${inputFocusBorderColor}` }, // Highlight khi focus
+                    backgroundColor: editorBgColor, // Editing area background
+                    color: editorTextColor, // Main text color
+                    '&:focus': { borderColor: inputFocusBorderColor, boxShadow: `0 0 0 1px ${inputFocusBorderColor}` }, // Highlight on focus
                     wordBreak: 'break-word',
                     overflowWrap: 'break-word',
                     lineHeight: 1.6,
@@ -596,24 +582,24 @@ const RichTextEditor = ({ content, onContentChange }) => {
                     '& h1': { fontSize: '2em', margin: '0.67em 0', color: editorTextColor },
                     '& h2': { fontSize: '1.5em', margin: '0.75em 0', color: editorTextColor },
                     '& pre': {
-                        backgroundColor: codeBlockBgColor, // Nền của khối code
+                        backgroundColor: codeBlockBgColor, // Code block background
                         padding: '1em',
                         borderRadius: '4px',
                         overflowX: 'auto',
                         fontFamily: 'monospace',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',
-                        color: codeBlockTextColor, // Màu chữ trong khối code
+                        color: codeBlockTextColor, // Code block text color
                     },
                     '& img': {
                         maxWidth: '100%',
                         height: 'auto',
                         boxSizing: 'border-box',
-                        border: selectedImage ? `2px solid ${inputFocusBorderColor}` : '1px solid transparent', // Highlight ảnh khi chọn
-                        '&:hover': { outline: `1px dashed ${inputFocusBorderColor}` }, // Highlight ảnh khi hover
+                        border: selectedImage ? `2px solid ${inputFocusBorderColor}` : '1px solid transparent', // Highlight image when selected
+                        '&:hover': { outline: `1px dashed ${inputFocusBorderColor}` }, // Highlight image on hover
                     },
-                    // Thêm màu cho các phần tử HTML mặc định khác nếu cần
-                    '& a': { color: linkColor }, // Màu link
+                    // Add colors for other default HTML elements if needed
+                    '& a': { color: linkColor }, // Link color
                 }}
             />
 
@@ -632,8 +618,8 @@ const RichTextEditor = ({ content, onContentChange }) => {
                 fullWidth
                 PaperProps={{
                     sx: {
-                        backgroundColor: dialogBgColor, // Nền dialog
-                        color: dialogTextColor, // Màu chữ dialog
+                        backgroundColor: dialogBgColor, // Dialog background
+                        color: dialogTextColor, // Dialog text color
                     }
                 }}
             >
@@ -650,11 +636,11 @@ const RichTextEditor = ({ content, onContentChange }) => {
                         onChange={(e) => setLinkUrl(e.target.value)}
                         placeholder="e.g., https://example.com"
                         InputLabelProps={{
-                            sx: { color: inputLabelColor }, // Màu label input
+                            sx: { color: inputLabelColor }, // Input label color
                         }}
                         InputProps={{
                             sx: {
-                                color: editorTextColor, // Màu chữ input
+                                color: editorTextColor, // Input text color
                                 '.MuiOutlinedInput-notchedOutline': { borderColor: inputBorderColor },
                                 '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: inputHoverBorderColor },
                                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: inputFocusBorderColor },
@@ -665,9 +651,9 @@ const RichTextEditor = ({ content, onContentChange }) => {
                 <DialogActions>
                     <Button onClick={() => setOpenLinkDialog(false)} sx={{ color: theme.palette.text.secondary }}>Hủy</Button>
                     <Button onClick={handleInsertLink} variant="contained" sx={{
-                        backgroundColor: theme.palette.primary.main, // Sử dụng primary.main
+                        backgroundColor: theme.palette.primary.main, // Use primary.main
                         '&:hover': {
-                            backgroundColor: theme.palette.primary.dark, // Sử dụng primary.dark
+                            backgroundColor: theme.palette.primary.dark, // Use primary.dark
                         }
                     }}>Chèn</Button>
                 </DialogActions>

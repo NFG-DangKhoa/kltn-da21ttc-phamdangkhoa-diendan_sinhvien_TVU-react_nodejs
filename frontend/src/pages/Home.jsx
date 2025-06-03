@@ -112,13 +112,13 @@ const Home = () => {
                 sx={{
                     position: 'absolute',
                     top: 0,
-                    mt: 1,
-                    mr: 20,
+                    mt: 5,
+                    ml: 9.5,
                     left: '50 %', // Lỗi cú pháp ở đây: '50 %' phải là '50%'
                     transform: 'translateX(-50%)', // Thêm transform để căn giữa
-                    width: '90vw',
-                    height: 250,
-                    backgroundImage: 'url("/ghgfhgffhhf-9791.jpeg")',
+                    width: '75vw',
+                    height: 400,
+                    backgroundImage: 'url("/im.jpg")',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     zIndex: -1,
@@ -135,7 +135,7 @@ const Home = () => {
                 variant="h4"
                 align="center"
                 gutterBottom
-                mt={40}
+                mt={52}
                 sx={{
                     fontSize: '38px',
                     // Sử dụng màu chữ chính từ theme

@@ -35,6 +35,10 @@ export const ThemeContextProvider = ({ children }) => {
         setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
     }, []);
 
+    // Màu xanh dương đậm từ gradient để sử dụng cho hover
+    const gradientHoverColorLight = 'rgba(0, 86, 179, 0.15)'; // #0056b3 với alpha 0.15
+    const gradientHoverColorDark = 'rgba(0, 123, 255, 0.25)'; // #007bff với alpha 0.25, hoặc một màu đậm hơn chút
+
     // Tạo theme dựa trên chế độ hiện tại
     const theme = useMemo(
         () =>
@@ -50,16 +54,12 @@ export const ThemeContextProvider = ({ children }) => {
                         main: '#2ECC71', // Ví dụ màu phụ
                     },
                     background: {
-                        // Nền tổng thể: trắng cho sáng, đen cho tối
-                        default: mode === 'light' ? '#FFFFFF' : '#121212', // Đã chỉnh sửa: #FFFFFF cho light, #121212 cho dark
-                        // Nền cho các thẻ/box: trắng cho sáng, xám đậm cho tối
-                        paper: mode === 'light' ? '#FFFFFF' : '#1D1D1D',   // Đã chỉnh sửa: #FFFFFF cho light, #1D1D1D cho dark
+                        default: mode === 'light' ? '#F5F5F5' : '#1A1A1A',
+                        paper: mode === 'light' ? '#FFFFFF' : '#212121',
                     },
                     text: {
-                        // Màu chữ chính: đen cho sáng, trắng cho tối
-                        primary: mode === 'light' ? '#212121' : '#FFFFFF', // Đã chỉnh sửa: #212121 cho light, #FFFFFF cho dark
-                        // Màu chữ phụ: xám đậm cho sáng, xám nhạt cho tối
-                        secondary: mode === 'light' ? '#757575' : '#CCCCCC', // Đã chỉnh sửa: #757575 cho light, #CCCCCC cho dark
+                        primary: mode === 'light' ? '#212121' : '#E0E0E0',
+                        secondary: mode === 'light' ? '#757575' : '#B0B0B0',
                     },
                 },
                 typography: {
@@ -69,7 +69,8 @@ export const ThemeContextProvider = ({ children }) => {
                     MuiAppBar: {
                         styleOverrides: {
                             root: {
-                                backgroundColor: mode === 'light' ? '#2C3E50' : '#1A242E', // Màu header tùy theo mode
+                                // Background của AppBar vẫn giữ nguyên gradient
+                                // Các nút trong AppBar sẽ dùng màu hover từ theme
                             },
                         },
                     },
@@ -78,13 +79,27 @@ export const ThemeContextProvider = ({ children }) => {
                             root: {
                                 textTransform: 'none',
                                 borderRadius: '8px',
+                                '&:hover': {
+                                    // Sử dụng màu xanh đậm của gradient cho hiệu ứng hover
+                                    backgroundColor: mode === 'light' ? gradientHoverColorLight : gradientHoverColorDark,
+                                },
+                            },
+                        },
+                    },
+                    MuiIconButton: {
+                        styleOverrides: {
+                            root: {
+                                '&:hover': {
+                                    // Sử dụng màu xanh đậm của gradient cho hiệu ứng hover
+                                    backgroundColor: mode === 'light' ? gradientHoverColorLight : gradientHoverColorDark,
+                                },
                             },
                         },
                     },
                     MuiMenu: {
                         styleOverrides: {
                             paper: {
-                                backgroundColor: mode === 'light' ? '#FFFFFF' : '#1D1D1D', // Sử dụng background.paper
+                                backgroundColor: mode === 'light' ? '#FFFFFF' : '#212121',
                             },
                         },
                     },
@@ -92,16 +107,38 @@ export const ThemeContextProvider = ({ children }) => {
                         styleOverrides: {
                             root: {
                                 '&:hover': {
-                                    backgroundColor: mode === 'light' ? '#F0F0F0' : '#333333', // Màu hover cho item menu
+                                    // Sử dụng màu xanh đậm của gradient cho hiệu ứng hover
+                                    backgroundColor: mode === 'light' ? gradientHoverColorLight : gradientHoverColorDark,
                                 },
-                                color: mode === 'light' ? '#212121' : '#FFFFFF', // Sử dụng text.primary
+                                color: mode === 'light' ? '#212121' : '#E0E0E0',
+                            },
+                        },
+                    },
+                    MuiListItemButton: {
+                        styleOverrides: {
+                            root: {
+                                '&:hover': {
+                                    // Sử dụng màu xanh đậm của gradient cho hiệu ứng hover
+                                    backgroundColor: mode === 'light' ? gradientHoverColorLight : gradientHoverColorDark,
+                                },
+                            },
+                        },
+                    },
+                    MuiLink: {
+                        styleOverrides: {
+                            root: {
+                                '&:hover': {
+                                    // Màu hover nhẹ hơn cho Link
+                                    backgroundColor: mode === 'light' ? 'rgba(0, 86, 179, 0.08)' : 'rgba(0, 123, 255, 0.15)',
+                                    borderRadius: '4px',
+                                },
                             },
                         },
                     },
                     MuiInputLabel: {
                         styleOverrides: {
                             root: {
-                                color: mode === 'light' ? '#757575' : '#CCCCCC', // Sử dụng text.secondary
+                                color: mode === 'light' ? '#757575' : '#B0B0B0',
                             },
                         },
                     },
@@ -109,37 +146,47 @@ export const ThemeContextProvider = ({ children }) => {
                         styleOverrides: {
                             root: {
                                 '& .MuiOutlinedInput-notchedOutline': {
-                                    borderColor: mode === 'light' ? '#ccc' : '#555555', // Màu border của input
+                                    borderColor: mode === 'light' ? '#ccc' : '#606060',
                                 },
                                 '&:hover .MuiOutlinedInput-notchedOutline': {
-                                    borderColor: mode === 'light' ? '#999' : '#888888', // Màu border khi hover
+                                    borderColor: mode === 'light' ? '#999' : '#808080',
                                 },
                                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                    borderColor: mode === 'light' ? '#3498DB' : '#64B5F6', // Màu border khi focus
+                                    borderColor: mode === 'light' ? '#3498DB' : '#7AB9F6',
                                 },
-                                color: mode === 'light' ? '#212121' : '#FFFFFF', // Màu chữ trong input
+                                color: mode === 'light' ? '#212121' : '#E0E0E0',
                             },
                         },
                     },
                     MuiSelect: {
                         styleOverrides: {
                             icon: {
-                                color: mode === 'light' ? '#757575' : '#CCCCCC', // Màu icon mũi tên dropdown
+                                color: mode === 'light' ? '#757575' : '#B0B0B0',
                             },
                         },
                     },
                     MuiTooltip: {
                         styleOverrides: {
                             tooltip: {
-                                backgroundColor: mode === 'light' ? '#555' : '#444444', // Nền tooltip
-                                color: mode === 'light' ? '#fff' : '#FFFFFF', // Chữ tooltip
+                                backgroundColor: mode === 'light' ? '#555' : '#4F4F4F',
+                                color: mode === 'light' ? '#fff' : '#E0E0E0',
                             },
                         },
                     },
                     MuiDivider: {
                         styleOverrides: {
                             root: {
-                                backgroundColor: mode === 'light' ? '#bbb' : '#444444', // Màu divider
+                                backgroundColor: mode === 'light' ? '#bbb' : '#555555',
+                            },
+                        },
+                    },
+                    MuiCardActionArea: {
+                        styleOverrides: {
+                            root: {
+                                '&:hover': {
+                                    // Màu hover nhẹ hơn cho CardActionArea
+                                    backgroundColor: mode === 'light' ? 'rgba(0, 86, 179, 0.08)' : 'rgba(0, 123, 255, 0.15)',
+                                },
                             },
                         },
                     },
@@ -151,7 +198,7 @@ export const ThemeContextProvider = ({ children }) => {
     return (
         <ThemeContext.Provider value={{ toggleColorMode, mode }}>
             <ThemeProvider theme={theme}>
-                <CssBaseline /> {/* Giúp chuẩn hóa CSS và áp dụng màu nền cho body */}
+                <CssBaseline />
                 {children}
             </ThemeProvider>
         </ThemeContext.Provider>

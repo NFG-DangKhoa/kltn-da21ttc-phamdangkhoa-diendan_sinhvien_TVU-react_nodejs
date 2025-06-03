@@ -9,18 +9,17 @@ import TopicDetail from './pages/TopicDetail/TopicDetail';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import { AuthProvider } from './context/AuthContext';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import React from 'react'; // Không cần useState, useEffect nếu không sử dụng detailedPosts
+import React from 'react';
 import PostDetail from './pages/TopicDetail/PostDetail';
 import ScrollToTop from "./components/ScrollToTop";
 import CreatePostPage from './pages/CreatePostPage';
-// Import ThemeContextProvider thay vì ThemeWrapper nếu ThemeContext.js là nơi định nghĩa provider
-import { ThemeContextProvider, ThemeContext } from './context/ThemeContext'; // Import ThemeContextProvider và ThemeContext
-import { useContext } from 'react'; // Thêm useContext để dùng ThemeContext
+import { ThemeContextProvider, ThemeContext } from './context/ThemeContext';
+import { useContext } from 'react';
 import ProfilePage from './pages/profile/ProfilePage';
-import { Box, IconButton } from '@mui/material'; // Import Box và IconButton từ Material-UI
+import { Box, IconButton } from '@mui/material';
 import EditPostPage from './pages/TopicDetail/EditPostPage';
-import WbSunnyIcon from '@mui/icons-material/WbSunny'; // Icon mặt trời
-import NightlightRoundIcon from '@mui/icons-material/NightlightRound'; // Icon mặt trăng
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import NightlightRoundIcon from '@mui/icons-material/NightlightRound';
 import PostList from './pages/TopicDetail/PostList';
 import PostDetailSingleImage from './pages/TopicDetail/PostDetailSingleImage';
 import MembersList from './pages/TopicDetail/MemberList';
@@ -35,8 +34,8 @@ const App = () => {
           <Router>
             <ScrollToTop />
 
-            {/* Nút chuyển đổi theme cố định */}
-            <ThemeToggleButtonFixed />
+            {/* ĐÃ BỎ NÚT CHUYỂN ĐỔI THEME CỐ ĐỊNH TẠI ĐÂY */}
+            {/* <ThemeToggleButtonFixed /> */}
 
             <AppContent /> {/* Component con để xử lý logic Header/Footer và Routes */}
 
@@ -47,7 +46,8 @@ const App = () => {
   );
 };
 
-// Component riêng cho nút chuyển đổi theme cố định
+// Component ThemeToggleButtonFixed này không còn được sử dụng
+// Nhưng bạn có thể giữ lại hoặc xóa nó tùy ý nếu không muốn dùng nó ở bất kỳ đâu khác
 const ThemeToggleButtonFixed = () => {
   const { toggleColorMode, mode } = useContext(ThemeContext);
   const darkMode = mode === 'dark';
@@ -59,14 +59,13 @@ const ThemeToggleButtonFixed = () => {
         top: 16,
         right: 16,
         zIndex: 1000,
-        backgroundColor: 'rgba(0,0,0,0.1)', // Nền mờ cho nút
+        backgroundColor: 'rgba(0,0,0,0.1)',
         borderRadius: '50%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         p: 0.5,
-        // Đảm bảo nút không bị che bởi AppBar nếu có
-        '@media (min-width: 600px)': { // Ví dụ: trên màn hình lớn hơn, có thể điều chỉnh top
+        '@media (min-width: 600px)': {
           top: 24,
           right: 24,
         }
@@ -76,7 +75,7 @@ const ThemeToggleButtonFixed = () => {
         onClick={toggleColorMode}
         aria-label="toggle dark mode"
         sx={{
-          color: darkMode ? '#f9d71c' : '#4a4a4a', // Màu icon tùy thuộc vào mode
+          color: darkMode ? '#f9d71c' : '#4a4a4a',
           transition: 'color 0.3s ease',
           '&:hover': {
             color: darkMode ? '#fff176' : '#616161',
@@ -92,11 +91,11 @@ const ThemeToggleButtonFixed = () => {
 // Component AppContent mới để xử lý logic hiển thị Header/Footer và Routes
 const AppContent = () => {
   const location = useLocation();
-  const isAdminRoute = location.pathname.startsWith('/admin'); // Kiểm tra xem đường dẫn có bắt đầu bằng '/admin' không
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   return (
     <>
-      {!isAdminRoute && <Header />} {/* Chỉ hiển thị Header nếu không phải trang admin */}
+      {!isAdminRoute && <Header />}
 
       <Routes>
         <Route path="/" element={<Home />} />
@@ -110,14 +109,12 @@ const AppContent = () => {
         <Route path="/posts/detail" element={<PostDetail />} />
         <Route path="/admin/*" element={<AdminDashboard />} />
 
-        {/* Route cho trang chỉnh sửa bài viết */}
         <Route path="/edit-post/:postId" element={<EditPostPage />} />
 
-        {/* Route cho trang cá nhân ProfilePage */}
         <Route path="/profile/:userId" element={<ProfilePage />} />
       </Routes>
 
-      {!isAdminRoute && <Footer />} {/* Chỉ hiển thị Footer nếu không phải trang admin */}
+      {!isAdminRoute && <Footer />}
     </>
   );
 };

@@ -101,19 +101,7 @@ const TopicDetail = () => {
             }}
         >
             {/* Removed the IconButton for toggling dark/light mode - This was already removed, good! */}
-            {/* Hiển thị tên chủ đề */}
-            <Typography
-                variant="h4"
-                align="center"
-                sx={{
-                    fontWeight: 'bold',
-                    mb: 3,
-                    color: theme.palette.text.primary,
-                    transition: 'color 0.4s ease',
-                }}
-            >
-                Chủ đề: {topic ? topic.name : 'Đang tải...'}
-            </Typography>
+
 
             <Grid container spacing={2}>
                 <Grid item xs={12} md={3}>
