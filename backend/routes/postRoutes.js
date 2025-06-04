@@ -18,7 +18,7 @@ module.exports = (io) => {
     // Lấy danh sách bài viết theo chủ đề
     router.get('/topic/:topicId', postController.getPostsByTopic);
 
-    // Lấy danh sách bài viết theo topic id và post id
+    // Lấy danh sách bài viết theo topic id và post id = dành cho file chi tiết bài viết
     router.get('/topic/:topicId/post/:postId', postController.getPostByTopicAndPostIdWithDetails);
 
     // Lấy chi tiết bài viết theo ID

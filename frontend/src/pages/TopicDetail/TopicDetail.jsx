@@ -1,49 +1,68 @@
+// TopicDetail.jsx
 import React, { useEffect, useState, useContext } from 'react';
-import { Grid, Box, Typography, useTheme } from '@mui/material';
+import { Grid, Box, Typography, useTheme, CircularProgress } from '@mui/material';
 import { useParams, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
-// import { ThemeContext } from '../../context/ThemeContext'; // This line was already commented out, good!
 import LeftColumn from './LeftColumn';
 import CenterColumn from './CenterColumn/CenterColumn';
 import RightColumn from './RightColumn';
-// Removed WbSunnyIcon and NightlightRoundIcon imports - These were already removed, good!
+import CustomBreadcrumbs from '../../components/CustomBreadcrumbs';
 
 const TopicDetail = () => {
     const { topicId } = useParams();
     const [detailedPosts, setDetailedPosts] = useState([]);
     const [newPost, setNewPost] = useState({ title: '', content: '', tags: '' });
     const [topic, setTopic] = useState(null);
+    // Thay đổi trạng thái loading để bao gồm cả việc tải topic và posts
+    const [loadingTopic, setLoadingTopic] = useState(true);
+    const [loadingPosts, setLoadingPosts] = useState(true);
+    const [error, setError] = useState(null);
     const [showReplies, setShowReplies] = useState({});
     const [showComments, setShowComments] = useState({});
     const { user } = useContext(AuthContext);
-    // const { toggleColorMode, mode } = useContext(ThemeContext); // This line was already commented out, good!
 
-    const theme = useTheme(); // This hook is still useful for accessing theme properties like palette.text.primary
+    const theme = useTheme();
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const postsRes = await axios.get(`http://localhost:5000/api/posts/topic-details/${topicId}`);
-                setDetailedPosts(postsRes.data);
-            } catch (err) {
-                console.error('Lỗi khi tải dữ liệu:', err);
-            }
-        };
-        fetchData();
-    }, [topicId]);
-
-    // Lấy thông tin chủ đề
+    // Effect để tải thông tin chủ đề
     useEffect(() => {
         const fetchTopic = async () => {
             try {
-                const topicRes = await axios.get(`http://localhost:5000/api/topics/${topicId}`);
+                setLoadingTopic(true); // Bắt đầu tải topic
+                const topicRes = await axios.get(`http://localhost:5000/api/topics/topics/${topicId}`);
                 setTopic(topicRes.data);
+                setError(null); // Reset lỗi nếu thành công
             } catch (err) {
                 console.error('Lỗi khi tải thông tin chủ đề:', err);
+                setError('Không thể tải thông tin chủ đề. Vui lòng thử lại sau hoặc chủ đề không tồn tại.');
+            } finally {
+                setLoadingTopic(false); // Kết thúc tải topic
             }
         };
-        fetchTopic();
+        if (topicId) { // Đảm bảo topicId tồn tại trước khi fetch
+            fetchTopic();
+        }
+    }, [topicId]);
+
+    // Effect để tải bài viết chi tiết
+    useEffect(() => {
+        const fetchPosts = async () => {
+            try {
+                setLoadingPosts(true); // Bắt đầu tải posts
+                const postsRes = await axios.get(`http://localhost:5000/api/posts/topic-details/${topicId}`);
+                setDetailedPosts(postsRes.data);
+                setError(null); // Reset lỗi nếu thành công
+            } catch (err) {
+                console.error('Lỗi khi tải dữ liệu bài viết:', err);
+                // Giữ nguyên lỗi cũ nếu lỗi tải topic đã có, hoặc set lỗi mới nếu đây là lỗi đầu tiên
+                setError(prevError => prevError || 'Không thể tải bài viết. Vui lòng thử lại sau.');
+            } finally {
+                setLoadingPosts(false); // Kết thúc tải posts
+            }
+        };
+        if (topicId) { // Đảm bảo topicId tồn tại trước khi fetch
+            fetchPosts();
+        }
     }, [topicId]);
 
     const handlePostSubmit = async (postWithUserId) => {
@@ -55,22 +74,24 @@ const TopicDetail = () => {
                 return;
             }
             await axios.post(
-                `http://localhost:5000/api/posts/cr`, // <--- Check this endpoint, should it be '/posts/create' or similar?
+                `http://localhost:5000/api/posts/cr`,
                 {
                     ...postWithUserId,
                     topicId,
                 },
                 {
                     headers: {
-                        Authorization: `Bearer ${token}` // Đây là phần quan trọng
+                        Authorization: `Bearer ${token}`
                     }
                 }
             );
+            // Sau khi đăng bài thành công, tải lại danh sách bài viết
             const postsRes = await axios.get(`http://localhost:5000/api/posts/topic-details/${topicId}`);
             setDetailedPosts(postsRes.data);
             setNewPost({ title: '', content: '', tags: '' });
         } catch (err) {
             console.error('Lỗi khi đăng bài viết:', err);
+            alert('Có lỗi xảy ra khi đăng bài viết. Vui lòng thử lại.');
         }
     };
 
@@ -82,10 +103,29 @@ const TopicDetail = () => {
         setShowComments(prev => ({ ...prev, [postId]: !prev[postId] }));
     };
 
+    // Chuyển hướng nếu người dùng chưa đăng nhập
     if (!user) return <Navigate to="/login" replace />;
 
-    // Removed darkMode variable as it's no longer needed for the toggle button - This was already removed, good!
+    // Hiển thị trạng thái tải hoặc lỗi ban đầu
+    // Đợi cả topic và posts tải xong
+    if (loadingTopic || loadingPosts) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', mt: 8 }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Đang tải dữ liệu chủ đề...</Typography>
+            </Box>
+        );
+    }
 
+    if (error) {
+        return (
+            <Box sx={{ p: 2, textAlign: 'center', mt: 8 }}>
+                <Typography color="error">{error}</Typography>
+            </Box>
+        );
+    }
+
+    // Nếu không có lỗi và đã tải xong, hiển thị nội dung
     return (
         <Box
             sx={{
@@ -94,18 +134,19 @@ const TopicDetail = () => {
                 mt: 8,
                 minHeight: '100vh',
                 fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-                // The background color for TopicDetail itself should ideally be set in the App.js or main layout
-                // based on the global theme, not here. This Box should take the default theme background.
-                backgroundColor: theme.palette.background.default, // Ensure background adapts to theme
+                backgroundColor: theme.palette.background.default,
                 transition: 'background-color 0.4s ease',
             }}
         >
-            {/* Removed the IconButton for toggling dark/light mode - This was already removed, good! */}
-
+            <Box sx={{ mb: 3, ml: 16 }}>
+                {/* Đảm bảo topic đã có dữ liệu trước khi truy cập topic.name */}
+                {/* topic đã được đảm bảo có dữ liệu do có logic loading ở trên */}
+                <CustomBreadcrumbs topicName={topic ? topic.name : ''} />
+            </Box>
 
             <Grid container spacing={2}>
                 <Grid item xs={12} md={3}>
-                    <LeftColumn user={user} /> {/* Removed darkMode prop - Confirmed */}
+                    <LeftColumn user={user} />
                 </Grid>
                 <Grid item xs={12} md={6}>
                     <CenterColumn
@@ -121,11 +162,10 @@ const TopicDetail = () => {
                         toggleComments={toggleComments}
                         showReplies={showReplies}
                         toggleReplies={toggleReplies}
-                    // Removed darkMode prop - Confirmed
                     />
                 </Grid>
                 <Grid item xs={12} md={3}>
-                    <RightColumn /> {/* Removed darkMode prop - Confirmed */}
+                    <RightColumn />
                 </Grid>
             </Grid>
         </Box>

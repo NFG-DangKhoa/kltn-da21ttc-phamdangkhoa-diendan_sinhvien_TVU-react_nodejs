@@ -1,26 +1,31 @@
+// TopicCard.jsx
 import React from 'react';
-import { Card, CardContent, Typography, CardActionArea, Box, Link, Divider, useTheme } from '@mui/material'; // Import useTheme
+import { Card, CardContent, Typography, CardActionArea, Box, Link, Divider, useTheme } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { Comment, CalendarToday, Whatshot } from '@mui/icons-material';
 
-// Đổi tên prop 'darkMode' thành 'isDarkMode' để nhất quán
-const TopicCard = ({ topic, isDarkMode }) => {
+// Thêm 'variant' vào destructuring props
+const TopicCard = ({ topic, isDarkMode, variant }) => {
     const navigate = useNavigate();
-    const theme = useTheme(); // Lấy theme object hiện tại
+    const theme = useTheme();
 
     const handleCardClick = () => {
         navigate(`/topic/${topic._id}`);
     };
 
+    // Bạn có thể destructure các thuộc tính của topic nếu muốn
+    // const { _id, name, description, postCount, latestPost } = topic;
+
+    // Ví dụ về cách sử dụng prop 'variant' để thay đổi style
+    const isVertical = variant === 'vertical'; // Biến kiểm tra để dễ dùng
+    // Hoặc bạn có thể thêm các variant khác: 'horizontal', 'small', v.v.
+
     return (
         <Card
             sx={{
-                // Sử dụng theme.palette.background.paper cho nền Card
                 backgroundColor: theme.palette.background.paper,
-                // Sử dụng theme.palette.text.primary cho màu chữ mặc định của Card
                 color: theme.palette.text.primary,
                 borderRadius: '12px',
-                // Box shadow tùy chỉnh theo isDarkMode
                 boxShadow: isDarkMode ? '0px 4px 10px rgba(0,0,0,0.5)' : '0px 4px 10px rgba(0,0,0,0.08)',
                 transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
                 '&:hover': {
@@ -33,7 +38,8 @@ const TopicCard = ({ topic, isDarkMode }) => {
                 },
                 height: '100%',
                 display: 'flex',
-                flexDirection: 'column',
+                // Thay đổi flexDirection dựa trên variant
+                flexDirection: isVertical ? 'column' : 'row', // Mặc định là 'column' nếu là 'vertical', có thể là 'row' cho variant khác
                 justifyContent: 'space-between',
             }}
         >
@@ -45,7 +51,6 @@ const TopicCard = ({ topic, isDarkMode }) => {
                         component="div"
                         sx={{
                             fontWeight: 600,
-                            // Sử dụng theme.palette.primary.main cho tiêu đề chủ đề
                             color: theme.palette.primary.main,
                             fontFamily: 'Inter, sans-serif',
                             whiteSpace: 'nowrap',
@@ -57,7 +62,6 @@ const TopicCard = ({ topic, isDarkMode }) => {
                     </Typography>
                     <Typography
                         variant="body2"
-                        // Sử dụng theme.palette.text.secondary cho mô tả
                         color={theme.palette.text.secondary}
                         sx={{
                             mb: 2,
@@ -77,13 +81,11 @@ const TopicCard = ({ topic, isDarkMode }) => {
                             fontSize="small"
                             sx={{
                                 mr: 0.5,
-                                // Sử dụng theme.palette.info.light cho icon Comment
                                 color: theme.palette.info.light,
                             }}
                         />
                         <Typography
                             variant="body2"
-                            // Sử dụng theme.palette.text.secondary cho số lượng bài viết
                             color={theme.palette.text.secondary}
                             sx={{ fontFamily: 'Inter, sans-serif' }}
                         >
@@ -95,14 +97,12 @@ const TopicCard = ({ topic, isDarkMode }) => {
 
             {topic.latestPost && (
                 <CardContent sx={{ pt: 0, mx: 2, pb: '16px !important' }}>
-                    {/* Sử dụng theme.palette.divider cho đường phân cách */}
                     <Divider sx={{ my: 1.5, borderColor: theme.palette.divider }} />
                     <Box display="flex" alignItems="center" mb={0.5}>
                         <Whatshot
                             fontSize="small"
                             sx={{
                                 mr: 0.5,
-                                // Sử dụng theme.palette.warning.main cho icon Whatshot
                                 color: theme.palette.warning.main,
                             }}
                         />
@@ -110,7 +110,6 @@ const TopicCard = ({ topic, isDarkMode }) => {
                             variant="body2"
                             sx={{
                                 fontWeight: 500,
-                                // Sử dụng theme.palette.text.primary cho "Bài mới nhất:"
                                 color: theme.palette.text.primary,
                                 fontFamily: 'Inter, sans-serif',
                             }}
@@ -122,7 +121,6 @@ const TopicCard = ({ topic, isDarkMode }) => {
                         href={`/topic/${topic._id}?postId=${topic.latestPost._id}`}
                         sx={{
                             textDecoration: 'none',
-                            // Sử dụng theme.palette.primary.main cho màu link
                             color: theme.palette.primary.main,
                             '&:hover': {
                                 textDecoration: 'underline',
@@ -146,7 +144,6 @@ const TopicCard = ({ topic, isDarkMode }) => {
                     </Link>
                     <Typography
                         variant="caption"
-                        // Sử dụng theme.palette.text.secondary cho thông tin tác giả và ngày đăng
                         color={theme.palette.text.secondary}
                         sx={{ ml: 2, display: 'block', fontFamily: 'Inter, sans-serif' }}
                     >
@@ -157,13 +154,11 @@ const TopicCard = ({ topic, isDarkMode }) => {
                             fontSize="small"
                             sx={{
                                 mr: 0.5,
-                                // Sử dụng theme.palette.text.secondary cho icon Calendar
                                 color: theme.palette.text.secondary,
                             }}
                         />
                         <Typography
                             variant="caption"
-                            // Sử dụng theme.palette.text.secondary cho ngày đăng
                             color={theme.palette.text.secondary}
                             sx={{ fontFamily: 'Inter, sans-serif' }}
                         >

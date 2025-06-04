@@ -92,21 +92,6 @@ const CenterColumn = ({
                 transition: 'background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease',
             }}
         >
-            {topic && (
-                <>
-                    <Typography variant="h6" gutterBottom
-                        sx={{ fontSize: '1rem', wordBreak: 'break-word', color: darkMode ? '#e4e6eb' : '#1c1e21' }}
-                    >
-                        {topic.name}
-                    </Typography>
-                    <Typography variant="subtitle2" gutterBottom
-                        sx={{ fontSize: '0.875rem', color: darkMode ? '#b0b3b8' : 'text.secondary' }}
-                    >
-                        {topic.description || 'Chủ đề không có mô tả'}
-                    </Typography>
-                    <Divider sx={{ my: 2, borderColor: darkMode ? '#3a3b3c' : '#eee' }} />
-                </>
-            )}
 
             {!isEditingPost && (
                 <PostForm
