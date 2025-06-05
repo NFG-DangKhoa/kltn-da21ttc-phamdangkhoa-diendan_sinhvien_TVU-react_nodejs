@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react'; // <-- Đã thêm useContext vào đây!
 
 export const AuthContext = createContext();
 
@@ -63,4 +63,14 @@ export const AuthProvider = ({ children }) => {
             {children}
         </AuthContext.Provider>
     );
+};
+
+// Thêm custom hook này vào cuối file AuthContext.js
+export const useAuth = () => {
+    // Bây giờ useContext đã được import, lỗi sẽ không còn
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
 };

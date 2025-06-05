@@ -19,11 +19,11 @@ import ProfilePage from './pages/profile/ProfilePage';
 import { Box, IconButton } from '@mui/material';
 import EditPostPage from './pages/TopicDetail/EditPostPage';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import NightlightRoundIcon from '@mui/icons-material/NightlightRound';
+import NightlightRoundIcon from './pages/TopicDetail/PostList';
 import PostList from './pages/TopicDetail/PostList';
 import PostDetailSingleImage from './pages/TopicDetail/PostDetailSingleImage';
 import MembersList from './pages/TopicDetail/MemberList';
-
+import ChatbotWidget from './components/ChatbotWidget' // Đảm bảo dòng này đã có và đúng đường dẫn
 
 const App = () => {
   return (
@@ -115,6 +115,11 @@ const AppContent = () => {
       </Routes>
 
       {!isAdminRoute && <Footer />}
+
+      {/* --- THÊM DÒNG NÀY ĐỂ HIỂN THỊ CHATBOT --- */}
+      {/* Chatbot sẽ hiển thị trên mọi trang, ngoại trừ các trang admin nếu bạn không muốn */}
+      {!isAdminRoute && <ChatbotWidget />}
+      {/* --- KẾT THÚC PHẦN THÊM CHATBOT --- */}
     </>
   );
 };

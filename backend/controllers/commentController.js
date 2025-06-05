@@ -158,6 +158,8 @@ exports.deleteComment = async (req, res) => {
         }
 
         const postId = commentToDelete.postId; // Get postId before deleting
+        // Lấy parentCommentId của comment bị xóa (nếu nó là reply)
+        const parentCommentId = commentToDelete.parentCommentId;
 
         // Find all direct and nested replies of the comment to be deleted
         const commentsAndRepliesToDelete = await Comment.find({
@@ -176,8 +178,8 @@ exports.deleteComment = async (req, res) => {
         }
 
         // If the deleted comment was a reply, decrement replyCount on its parent
-        if (commentToDelete.parentCommentId) {
-            await Comment.findByIdAndUpdate(commentToDelete.parentCommentId, { $inc: { replyCount: -1 } });
+        if (parentCommentId) { // Sử dụng biến đã lấy ở trên
+            await Comment.findByIdAndUpdate(parentCommentId, { $inc: { replyCount: -1 } });
         }
 
         // Delete the comment and all its direct/indirect replies
@@ -189,7 +191,8 @@ exports.deleteComment = async (req, res) => {
 
         // Emit Socket.IO event for deleted comment
         if (io) {
-            io.emit('deletedComment', { commentId, postId }); // Emit commentId and postId
+            // THAY ĐỔI Ở ĐÂY: Thêm parentCommentId vào dữ liệu emit
+            io.emit('deletedComment', { commentId, postId, parentCommentId });
         }
 
         res.status(200).json({ message: 'Bình luận và các phản hồi liên quan đã được xóa.' });

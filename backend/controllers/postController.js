@@ -303,6 +303,7 @@ exports.updatePost = async (req, res) => {
         const postId = req.params.id; // Changed from req.params.postId for consistency with other functions
         const userId = req.user.id; // Assuming req.user.id is available from authentication middleware
 
+        // 1. Tìm bài viết cần cập nhật
         const post = await Post.findById(postId);
         if (!post) {
             return res.status(404).json({ message: 'Bài viết không tìm thấy' });
@@ -311,19 +312,21 @@ exports.updatePost = async (req, res) => {
             return res.status(403).json({ message: 'Bạn không có quyền chỉnh sửa bài viết này' });
         }
 
-        const oldContent = post.content || '';
+        const oldContent = post.content || ''; // Lưu nội dung cũ để quản lý ảnh
         let { title, content, topicId, tags } = req.body;
 
+        // 2. Cập nhật các trường của bài viết
         if (title !== undefined) post.title = title;
         if (content !== undefined) post.content = content;
         if (topicId !== undefined) post.topicId = topicId;
         if (tags !== undefined) post.tags = tags;
 
-        post.updatedAt = Date.now();
-        const savedPost = await post.save();
+        post.updatedAt = Date.now(); // Cập nhật thời gian chỉnh sửa
+        const savedPost = await post.save(); // Lưu các thay đổi vào DB
 
         // --- Logic quản lý ảnh vật lý và trong DB sau khi cập nhật bài viết ---
 
+        // Trích xuất URL ảnh cũ và mới từ nội dung
         const oldImageUrls = extractImageUrls(oldContent);
         const newImageUrls = extractImageUrls(savedPost.content);
 
@@ -333,16 +336,18 @@ exports.updatePost = async (req, res) => {
         // 2. Xóa các tệp ảnh vật lý đã bị xóa khỏi thư mục public/upload
         await Promise.all(removedImageUrls.map(async url => {
             const filename = extractFilenameFromUrl(url);
-            if (filename && isLocalImageUrl(url)) { // Only delete if it's a local image URL
+            // Chỉ xóa nếu là ảnh cục bộ
+            if (filename && isLocalImageUrl(url)) {
                 await deletePhysicalImage(filename);
             }
         }));
 
-        // 3. Cập nhật các bản ghi ảnh trong cơ sở dữ liệu (xóa cũ, thêm mới)
-        await Image.deleteMany({ refType: 'post', refId: savedPost._id });
+        // 3. Cập nhật các bản ghi ảnh trong cơ sở dữ liệu (xóa các bản ghi cũ, thêm các bản ghi mới)
+        await Image.deleteMany({ refType: 'post', refId: savedPost._id }); // Xóa tất cả ảnh liên kết cũ
 
         const imageDocs = await Promise.all(
             newImageUrls.map(async url => {
+                // Tạo bản ghi mới cho từng ảnh trong nội dung cập nhật
                 return Image.create({
                     refType: 'post',
                     refId: savedPost._id,
@@ -351,14 +356,22 @@ exports.updatePost = async (req, res) => {
             })
         );
 
+        // --- Populate thông tin tác giả trước khi gửi phản hồi và emit Socket.IO ---
+        // Tìm lại bài viết và populate thông tin tác giả
+        const populatedPost = await Post.findById(savedPost._id)
+            .populate('authorId', 'fullName avatar'); // Thêm các trường của tác giả bạn muốn hiển thị
+
         // Phát sự kiện Socket.IO khi có bài viết được cập nhật
+        // Gửi đối tượng bài viết đã được populate để client nhận đủ thông tin
         if (io) {
-            io.emit('updatedPost', savedPost);
+            io.emit('updatedPost', populatedPost);
         }
 
+        // Gửi phản hồi thành công về client
+        // Trả về đối tượng bài viết đã được populate
         res.json({
             message: 'Bài viết và ảnh liên kết đã được cập nhật thành công',
-            post: savedPost,
+            post: populatedPost, // Gửi bài viết đã có thông tin tác giả đầy đủ
             images: imageDocs,
         });
     } catch (error) {

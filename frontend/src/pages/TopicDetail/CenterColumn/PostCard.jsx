@@ -1,4 +1,3 @@
-// src/components/central/PostCard.js
 import React, { useRef, useState, useEffect, useContext, useCallback } from 'react';
 import {
     Box, Typography, Button, Divider,
@@ -10,9 +9,11 @@ import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'; // Icon tr�
 import FavoriteIcon from '@mui/icons-material/Favorite'; // Icon trái tim đầy
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
+import StarIcon from '@mui/icons-material/Star'; // Icon sao đầy
 
 import CommentDialog from './CommentDialog';
 import LikeDialog from './LikeDialog';
+import RatingDialog from './RatingDialog'; // Import RatingDialog
 import { ThemeContext } from '../../../context/ThemeContext';
 import usePostInteractions from './usePostInteractions'; // Import custom hook
 
@@ -29,9 +30,9 @@ const PostCard = ({
     const darkMode = mode === 'dark';
 
     const [openComments, setOpenComments] = useState(false);
-    // selectedPost sẽ luôn là `post` được trả về từ hook
     const [selectedPostForComments, setSelectedPostForComments] = useState(null);
     const [openLikes, setOpenLikes] = useState(false);
+    const [openRatingDialog, setOpenRatingDialog] = useState(false); // State cho RatingDialog
 
     const contentRef = useRef(null);
 
@@ -40,7 +41,7 @@ const PostCard = ({
 
     // Sử dụng custom hook để quản lý tất cả logic tương tác
     const {
-        post, // Bài viết đã được cập nhật từ hook (bao gồm comments, likes...)
+        post, // Bài viết đã được cập nhật từ hook (bao gồm comments, likes, ratings...)
         comments, // Danh sách bình luận đã được sắp xếp và cập nhật realtime
         currentCommentCount,
         currentLikeCount,
@@ -48,6 +49,11 @@ const PostCard = ({
         isLikedByUser,
         handleDeletePost, // Hàm xóa bài viết từ hook
         handleLikeToggle, // Hàm toggle like từ hook
+        averageRating, // Điểm trung bình từ hook
+        totalRatings, // Tổng số lượt đánh giá từ hook
+        userRating, // Điểm đánh giá của người dùng hiện tại từ hook
+        allRatings, // NEW: Danh sách tất cả các đánh giá chi tiết từ hook
+        handleRatePost, // Hàm gửi đánh giá từ hook
     } = usePostInteractions(initialPost, user, setDetailedPosts); // Truyền `initialPost` và `setDetailedPosts` vào hook
 
     // State cục bộ để kích hoạt việc áp dụng style ảnh lại khi nội dung thay đổi
@@ -55,8 +61,6 @@ const PostCard = ({
 
     // Effect để lắng nghe sự thay đổi của post.content (từ hook) và kích hoạt setImageContentKeyLocal
     useEffect(() => {
-        // Chỉ kích hoạt khi post.content thực sự thay đổi sau khi được cập nhật từ hook
-        // (ví dụ: khi bài viết được chỉnh sửa và post prop thay đổi)
         setImageContentKeyLocal(prevKey => prevKey + 1);
     }, [post.content]);
 
@@ -81,7 +85,6 @@ const PostCard = ({
                     cursor: 'pointer',
                 });
                 img.setAttribute('loading', 'lazy');
-                // Sử dụng goToDetail trực tiếp, đảm bảo post._id là chính xác
                 img.onclick = () => goToDetail(post._id);
                 img.onmouseenter = () => {
                     img.style.transform = 'scale(1.015)';
@@ -143,11 +146,9 @@ const PostCard = ({
     }, [handleCloseMenu, handleEditPostFromCenterColumn, post]);
 
     const handleOpenComments = useCallback(() => {
-        // selectedPostForComments sẽ luôn là `post` đã được cập nhật từ hook
         setSelectedPostForComments(post);
         setOpenComments(true);
-        // Không cần fetchComments ở đây nữa vì comments đã được cập nhật qua Socket.IO trong hook
-    }, [post]); // Thêm post vào dependencies
+    }, [post]);
 
     const handleCloseComments = useCallback(() => {
         setSelectedPostForComments(null);
@@ -161,6 +162,33 @@ const PostCard = ({
     const handleCloseLikes = useCallback(() => {
         setOpenLikes(false);
     }, []);
+
+    // Hàm mở dialog đánh giá
+    const handleOpenRating = useCallback(() => {
+        if (!user || !user._id) {
+            alert('Bạn cần đăng nhập để đánh giá bài viết.');
+            return;
+        }
+        setOpenRatingDialog(true);
+    }, [user]);
+
+    // Hàm đóng dialog đánh giá
+    const handleCloseRating = useCallback(() => {
+        setOpenRatingDialog(false);
+    }, []);
+
+    // Hàm xử lý gửi đánh giá, sẽ được truyền xuống RatingDialog
+    const handleRatingSubmit = useCallback(async (postId, userId, rating) => {
+        console.log("Attempting to submit rating for postId:", postId, "with rating:", rating);
+        try {
+            await handleRatePost(postId, userId, rating);
+            console.log("Rating submitted successfully for postId:", postId);
+        } catch (error) {
+            console.error("Error submitting rating from PostCard (caught by PostCard):", error);
+            throw error; // Ném lại lỗi để RatingDialog có thể xử lý
+        }
+    }, [handleRatePost]);
+
 
     return (
         <Card
@@ -284,12 +312,16 @@ const PostCard = ({
                         ❤️ {currentLikeCount}
                     </Typography>
 
-                    <Typography
-                        variant="body2"
-                        sx={{ fontSize: '0.8rem', color: darkMode ? '#b0b3b8' : 'text.secondary' }}
-                    >
-                        ⭐ {post.ratingCount || 0} lượt đánh giá
-                    </Typography>
+                    {/* Hiển thị điểm trung bình và tổng số lượt đánh giá */}
+                    <Box display="flex" alignItems="center">
+                        <StarIcon sx={{ fontSize: '1rem', color: '#ffb400', mr: 0.5 }} />
+                        <Typography
+                            variant="body2"
+                            sx={{ fontSize: '0.8rem', color: darkMode ? '#b0b3b8' : 'text.secondary' }}
+                        >
+                            {averageRating.toFixed(1)} ({totalRatings} lượt đánh giá)
+                        </Typography>
+                    </Box>
                 </Box>
 
                 <Divider sx={{ my: 1, borderColor: darkMode ? '#3a3b3c' : '#eee' }} />
@@ -317,7 +349,7 @@ const PostCard = ({
                     <Button
                         startIcon={<StarBorderIcon />}
                         sx={{ color: darkMode ? '#e4e6eb' : '#1c1e21', textTransform: 'none' }}
-                        onClick={() => { /* Logic xử lý đánh giá */ }}
+                        onClick={handleOpenRating} // Gọi hàm mở dialog đánh giá
                     >
                         Đánh giá
                     </Button>
@@ -327,9 +359,9 @@ const PostCard = ({
                 <CommentDialog
                     open={openComments}
                     onClose={handleCloseComments}
-                    post={selectedPostForComments} // Truyền post đã được cập nhật từ hook
+                    post={selectedPostForComments}
                     user={user}
-                    comments={comments} // Truyền danh sách bình luận đã được cập nhật realtime từ hook
+                    comments={comments}
                 />
                 {/* Like Dialog */}
                 <LikeDialog
@@ -339,6 +371,19 @@ const PostCard = ({
                     likeCount={currentLikeCount}
                     darkMode={darkMode}
                 />
+                {/* Rating Dialog */}
+                {post && user && ( // Chỉ render khi có đủ post và user
+                    <RatingDialog
+                        open={openRatingDialog}
+                        onClose={handleCloseRating}
+                        postId={post._id}
+                        userId={user._id}
+                        currentRating={userRating}
+                        onRatePost={handleRatingSubmit}
+                        totalRatings={totalRatings} // NEW: Truyền tổng số lượt đánh giá
+                        allRatings={allRatings} // NEW: Truyền danh sách chi tiết các đánh giá
+                    />
+                )}
             </CardContent>
         </Card>
     );

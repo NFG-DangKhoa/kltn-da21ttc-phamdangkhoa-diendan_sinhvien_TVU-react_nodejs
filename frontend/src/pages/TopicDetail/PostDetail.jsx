@@ -3,19 +3,21 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
     Box, Typography, Button, Dialog, DialogTitle, DialogContent,
     IconButton, Divider, useTheme, Card, CardContent, CardMedia,
-    Menu, MenuItem, CircularProgress // Import CircularProgress
+    Menu, MenuItem, CircularProgress, Rating // Import Rating from MUI
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
+import StarIcon from '@mui/icons-material/Star'; // NEW: Import StarIcon for average rating display
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import axios from 'axios'; // Import axios để gọi API cập nhật
+import axios from 'axios';
 
 import CommentDialog from './CenterColumn/CommentDialog';
 import LikeDialog from './CenterColumn/LikeDialog';
-import PostForm from './CenterColumn/PostForm'; // Import PostForm
+import RatingDialog from './CenterColumn/RatingDialog'; // NEW: Import RatingDialog
+import PostForm from './CenterColumn/PostForm';
 import { ThemeContext } from '../../context/ThemeContext';
 import usePostDetail from './usePostDetail';
 import { AuthContext } from '../../context/AuthContext';
@@ -74,22 +76,31 @@ const PostDetail = () => {
     const [isEditingPost, setIsEditingPost] = useState(false);
     const [currentEditingPost, setCurrentEditingPost] = useState(null);
 
+    // NEW: State for Rating Dialog
+    const [openRatingDialog, setOpenRatingDialog] = useState(false);
+
     const {
         postDetail,
-        setPostDetail, // Thêm setPostDetail để có thể cập nhật bài viết sau khi chỉnh sửa
+        setPostDetail,
+        comments, // Expose comments for CommentDialog
         currentCommentCount,
         currentLikeCount,
         currentLikedUsers,
         isLikedByUser,
         handleLikeToggle,
         handleDeletePost,
-        loading, // Thêm loading state từ hook
-        error // Thêm error state từ hook
-    } = usePostDetail(topicId, postId, user); // Bỏ setDetailedPosts vì nó chỉ dùng trong CenterColumn
+        averageRating,    // NEW: Get averageRating from hook
+        totalRatings,     // NEW: Get totalRatings from hook
+        userRating,       // NEW: Get userRating from hook
+        allRatings,       // NEW: Get allRatings from hook
+        handleRatePost,   // NEW: Get handleRatePost from hook
+        // loading, // Giữ loading và error nếu bạn muốn hiển thị trạng thái tải cho PostDetail
+        // error
+    } = usePostDetail(topicId, postId, user);
 
     const [openLikes, setOpenLikes] = useState(false);
     const [openComments, setOpenComments] = useState(false);
-    const [selectedPost, setSelectedPost] = useState(null);
+    const [selectedPost, setSelectedPost] = useState(null); // Used for CommentDialog
 
     const [openImageModal, setOpenImageModal] = useState(false);
     const [modalImageSrc, setModalImageSrc] = useState('');
@@ -127,8 +138,8 @@ const PostDetail = () => {
     const handleEditPost = useCallback(() => {
         handleCloseMenu();
         if (postDetail) {
-            setCurrentEditingPost(postDetail); // Thiết lập bài viết hiện tại để chỉnh sửa
-            setIsEditingPost(true); // Mở dialog chỉnh sửa
+            setCurrentEditingPost(postDetail);
+            setIsEditingPost(true);
         }
     }, [handleCloseMenu, postDetail]);
 
@@ -142,9 +153,11 @@ const PostDetail = () => {
                 }
             });
 
+            // PostForm's submission usually triggers a `updatedPost` socket event
+            // which `usePostDetail` already listens to. So no explicit setPostDetail here.
             alert('Bài viết đã được cập nhật thành công!');
-            setIsEditingPost(false); // Đóng dialog
-            setCurrentEditingPost(null); // Xóa dữ liệu bài viết đang chỉnh sửa
+            setIsEditingPost(false);
+            setCurrentEditingPost(null);
         } catch (error) {
             console.error('Lỗi khi cập nhật bài viết:', error);
             alert('Không thể cập nhật bài viết. Vui lòng thử lại.');
@@ -254,11 +267,43 @@ const PostDetail = () => {
         setModalImageSrc('');
     }, []);
 
-    // Xử lý trạng thái tải và lỗi
-    if (loading) {
+    // NEW: Hàm mở Dialog đánh giá
+    const handleOpenRating = useCallback(() => {
+        if (!user || !user._id) {
+            alert('Bạn cần đăng nhập để đánh giá bài viết.');
+            return;
+        }
+        setOpenRatingDialog(true);
+    }, [user]);
+
+    // NEW: Hàm đóng Dialog đánh giá
+    const handleCloseRating = useCallback(() => {
+        setOpenRatingDialog(false);
+    }, []);
+
+    // NEW: Hàm xử lý gửi đánh giá, sẽ được truyền xuống RatingDialog
+    const handleRatingSubmit = useCallback(async (postId, userId, rating) => {
+        console.log("Attempting to submit rating from PostDetail for postId:", postId, "with rating:", rating);
+        try {
+            await handleRatePost(postId, userId, rating);
+            console.log("Rating submitted successfully from PostDetail for postId:", postId);
+            // Rating states will be updated via Socket.IO, no explicit update here
+        } catch (error) {
+            console.error("Error submitting rating from PostDetail (caught by PostDetail):", error);
+            throw error; // Rethrow to RatingDialog for its error handling
+        }
+    }, [handleRatePost]);
+
+
+    // Simplified loading and error state from usePostDetail.
+    // If postDetail is null, it means either loading or error occurred.
+    // You might want to pass 'loading' and 'error' states explicitly from usePostDetail
+    // if you need more granular control over these messages.
+    if (!postDetail && (topicId && postId)) { // If postDetail is null, but IDs are present, it's loading or error
         return (
             <Box sx={{
                 display: 'flex',
+                flexDirection: 'column',
                 justifyContent: 'center',
                 alignItems: 'center',
                 height: 'calc(100vh - 64px)',
@@ -270,31 +315,12 @@ const PostDetail = () => {
                 borderRadius: 2
             }}>
                 <CircularProgress color="inherit" />
-                <Typography sx={{ ml: 2, color: theme.palette.text.primary }}>Đang tải bài viết...</Typography>
+                <Typography sx={{ ml: 2, mt: 2, color: theme.palette.text.primary }}>Đang tải bài viết...</Typography>
             </Box>
         );
     }
 
-    if (error) {
-        return (
-            <Box sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: 'calc(100vh - 64px)',
-                width: '65vw',
-                ml: 8,
-                mt: 10,
-                backgroundColor: theme.palette.background.paper,
-                color: theme.palette.error.main,
-                borderRadius: 2
-            }}>
-                <Typography variant="h6">{error}</Typography>
-            </Box>
-        );
-    }
-
-    if (!postDetail) {
+    if (!postDetail) { // If postDetail is still null after potential loading, means not found or general error
         return (
             <Box sx={{
                 display: 'flex',
@@ -308,7 +334,7 @@ const PostDetail = () => {
                 color: theme.palette.text.primary,
                 borderRadius: 2
             }}>
-                <Typography variant="h6">Không tìm thấy bài viết.</Typography>
+                <Typography variant="h6">Không tìm thấy bài viết hoặc có lỗi xảy ra.</Typography>
             </Box>
         );
     }
@@ -334,7 +360,7 @@ const PostDetail = () => {
                 {/* Title and Author */}
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Typography variant="subtitle2" color={theme.palette.text.secondary}>
-                        👤 {postDetail.authorId?.fullName}
+                        � {postDetail.authorId?.fullName}
                     </Typography>
                     {user && user._id === postDetail.authorId?._id && (
                         <>
@@ -414,12 +440,16 @@ const PostDetail = () => {
                         ❤️ {currentLikeCount} Lượt thích
                     </Typography>
 
-                    <Typography
-                        variant="body2"
-                        sx={{ fontSize: '0.8rem', mt: 1, color: theme.palette.text.secondary }}
-                    >
-                        ⭐ {postDetail.ratingCount || 0} lượt đánh giá
-                    </Typography>
+                    {/* NEW: Hiển thị điểm đánh giá trung bình và tổng số lượt đánh giá */}
+                    <Box display="flex" alignItems="center">
+                        <StarIcon sx={{ fontSize: '1rem', color: '#ffb400', mr: 0.5 }} />
+                        <Typography
+                            variant="body2"
+                            sx={{ fontSize: '0.8rem', color: theme.palette.text.secondary }}
+                        >
+                            {averageRating.toFixed(1)} ({totalRatings} lượt đánh giá)
+                        </Typography>
+                    </Box>
                 </Box>
 
                 {/* Button to open comment dialog */}
@@ -466,7 +496,7 @@ const PostDetail = () => {
                     <Button
                         startIcon={<StarBorderIcon sx={{ color: theme.palette.text.primary }} />}
                         sx={{ color: theme.palette.text.primary, textTransform: 'none' }}
-                        onClick={() => { /* Logic for rating */ }}
+                        onClick={handleOpenRating} // NEW: Gán hàm mở dialog đánh giá
                     >
                         Đánh giá
                     </Button>
@@ -538,7 +568,6 @@ const PostDetail = () => {
                         </Card>
                     ))}
                 </Box>
-                ---
 
                 {/* Image Modal */}
                 <Dialog
@@ -587,8 +616,9 @@ const PostDetail = () => {
                 <CommentDialog
                     open={openComments}
                     onClose={handleCloseComments}
-                    post={selectedPost}
+                    post={postDetail} // Changed from selectedPost to postDetail
                     user={user}
+                    comments={comments} // Pass comments from usePostDetail
                     showReplies={showReplies}
                     toggleReplies={toggleReplies}
                     mode={mode}
@@ -603,7 +633,7 @@ const PostDetail = () => {
                     darkMode={mode === 'dark'}
                 />
 
-                {/* Edit Post Dialog (New Addition) */}
+                {/* Edit Post Dialog */}
                 {isEditingPost && currentEditingPost && (
                     <Dialog
                         open={isEditingPost}
@@ -647,6 +677,20 @@ const PostDetail = () => {
                             />
                         </DialogContent>
                     </Dialog>
+                )}
+
+                {/* NEW: Rating Dialog */}
+                {postDetail && user && ( // Render only if postDetail and user are available
+                    <RatingDialog
+                        open={openRatingDialog}
+                        onClose={handleCloseRating}
+                        postId={postDetail._id}
+                        userId={user._id}
+                        currentRating={userRating}
+                        onRatePost={handleRatingSubmit}
+                        totalRatings={totalRatings}
+                        allRatings={allRatings}
+                    />
                 )}
             </Box>
         </Box>

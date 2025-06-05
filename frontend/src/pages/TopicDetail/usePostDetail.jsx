@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import socket from '../../socket'; // Adjust path if needed, ensure this is a connected socket instance
 
@@ -9,6 +9,12 @@ const usePostDetail = (topicId, postId, currentUser) => {
     const [currentLikeCount, setCurrentLikeCount] = useState(0);
     const [currentLikedUsers, setCurrentLikedUsers] = useState([]); // Stores user objects
     const [isLikedByUser, setIsLikedByUser] = useState(false);
+
+    // NEW: States for Rating
+    const [averageRating, setAverageRating] = useState(0);
+    const [totalRatings, setTotalRatings] = useState(0);
+    const [userRating, setUserRating] = useState(0); // Rating of the current user for this post (0 if not rated)
+    const [allRatings, setAllRatings] = useState([]); // List of all detailed rating objects
 
     // Fetch post detail on initial load or topicId/postId change
     useEffect(() => {
@@ -41,14 +47,50 @@ const usePostDetail = (topicId, postId, currentUser) => {
                     setIsLikedByUser(false);
                 }
 
+                // Reset rating states initially, fetchRatingData will populate them
+                setAverageRating(0);
+                setTotalRatings(0);
+                setUserRating(0);
+                setAllRatings([]);
+
             } catch (err) {
                 console.error('Lỗi khi tải chi tiết bài viết:', err);
-                // Handle error (e.g., show a toast notification, set postDetail to null)
                 setPostDetail(null);
             }
         };
+
         fetchPostDetail();
+        // Also fetch rating data separately here, so it runs when postDetail is available
+        // (will be called again by Socket.IO effect if postDetail is set)
+        // No need to call fetchRatingData here explicitly, as the main useEffect will handle it
     }, [topicId, postId, currentUser]); // Added currentUser to dependency array for re-evaluation if user changes
+
+    // NEW: Function to fetch rating data
+    const fetchRatingData = useCallback(async () => {
+        if (!postDetail?._id) return;
+        try {
+            const response = await axios.get(`http://localhost:5000/api/ratings/post/${postDetail._id}`);
+            const data = response.data;
+
+            setAverageRating(data.averageRating);
+            setTotalRatings(data.totalRatings);
+            setAllRatings(data.ratings || []); // Store all detailed ratings
+
+            if (currentUser && data.ratings) {
+                const foundRating = data.ratings.find(r => r.userId?._id === currentUser._id);
+                setUserRating(foundRating ? foundRating.rating : 0);
+            } else {
+                setUserRating(0);
+            }
+        } catch (error) {
+            console.error('Lỗi khi lấy dữ liệu đánh giá:', error);
+            setAverageRating(0);
+            setTotalRatings(0);
+            setUserRating(0);
+            setAllRatings([]);
+        }
+    }, [postDetail?._id, currentUser]);
+
 
     // Socket.IO Logic for Real-time Updates
     useEffect(() => {
@@ -56,9 +98,16 @@ const usePostDetail = (topicId, postId, currentUser) => {
 
         socket.emit('joinPostRoom', postDetail._id);
 
+        // NEW: Handle real-time rating updates
+        const handleRatingUpdate = (data) => {
+            if (data.postId === postDetail._id) {
+                // When a rating is updated, refetch all rating data to get the latest list of raters
+                fetchRatingData();
+            }
+        };
+
         const handleNewComment = (newComment) => {
             if (newComment.postId === postDetail._id) {
-                // Update comments array
                 setComments(prevComments => {
                     if (newComment.parentCommentId) {
                         return prevComments.map(c => c._id === newComment.parentCommentId
@@ -66,13 +115,11 @@ const usePostDetail = (topicId, postId, currentUser) => {
                             : c
                         );
                     }
-                    return [newComment, ...prevComments]; // Add new top-level comment to the beginning
+                    return [newComment, ...prevComments];
                 });
 
-                // Update comment count
                 setCurrentCommentCount(prevCount => prevCount + 1);
 
-                // Also update postDetail.comments for consistency if needed by other parts of postDetail
                 setPostDetail(prevPost => {
                     let updatedCommentsInPost = [...(prevPost.comments || [])];
                     if (newComment.parentCommentId) {
@@ -122,7 +169,6 @@ const usePostDetail = (topicId, postId, currentUser) => {
                     setPostDetail(prevPost => ({
                         ...prevPost,
                         commentCount: Math.max(0, (prevPost.commentCount || 0) - 1),
-                        // Potentially update postDetail.comments here too if you rely on that
                         comments: prevPost.comments ? (parentCommentId
                             ? prevPost.comments.map(c => c._id === parentCommentId ? { ...c, replies: c.replies.filter(r => r._id !== deletedCommentId), replyCount: Math.max(0, (c.replyCount || 0) - 1) } : c)
                             : prevPost.comments.filter(c => c._id !== deletedCommentId)
@@ -143,7 +189,6 @@ const usePostDetail = (topicId, postId, currentUser) => {
                         return c;
                     })
                 );
-                // Also update postDetail.comments for consistency
                 setPostDetail(prevPost => ({
                     ...prevPost,
                     comments: prevPost.comments.map(comment => {
@@ -164,7 +209,6 @@ const usePostDetail = (topicId, postId, currentUser) => {
 
                 if (action === 'liked' && likedUser) {
                     setCurrentLikedUsers(prevUsers => {
-                        // Ensure no duplicates and add the new likedUser (full user object)
                         if (!prevUsers.some(u => u._id === likedUser._id)) {
                             return [...prevUsers, likedUser];
                         }
@@ -174,17 +218,15 @@ const usePostDetail = (topicId, postId, currentUser) => {
                         setIsLikedByUser(true);
                     }
                 } else if (action === 'unliked') {
-                    setCurrentLikedUsers(prevUsers => prevUsers.filter(u => u._id !== userId)); // Filter by userId
+                    setCurrentLikedUsers(prevUsers => prevUsers.filter(u => u._id !== userId));
                     if (currentUser && userId === currentUser._id) {
                         setIsLikedByUser(false);
                     }
                 }
 
-                // Update postDetail's likes array if it exists to keep it in sync
                 setPostDetail(prevPost => {
                     let updatedLikes = [...(prevPost.likes || [])];
                     if (action === 'liked' && likedUser) {
-                        // Add a like object with userId being the full likedUser object
                         if (!updatedLikes.some(like => like.userId?._id === likedUser._id)) {
                             updatedLikes = [...updatedLikes, { _id: `temp_like_${likedUser._id}`, userId: likedUser }];
                         }
@@ -200,8 +242,7 @@ const usePostDetail = (topicId, postId, currentUser) => {
             if (updatedPost._id === postDetail._id) {
                 setPostDetail(updatedPost);
                 setCurrentCommentCount(updatedPost.commentCount || updatedPost.comments?.length || 0);
-                setCurrentLikeCount(updatedPost.likeCount || updatedPost.likedUsers?.length || 0); // Assuming updatedPost might send likedUsers directly
-                // Ensure currentLikedUsers is derived from 'likes' array if it exists in updatedPost
+                setCurrentLikeCount(updatedPost.likeCount || updatedPost.likedUsers?.length || 0);
                 const updatedLikedUsers = updatedPost.likes?.map(like => like.userId).filter(Boolean) || [];
                 setCurrentLikedUsers(updatedLikedUsers);
                 if (currentUser) {
@@ -209,7 +250,6 @@ const usePostDetail = (topicId, postId, currentUser) => {
                 } else {
                     setIsLikedByUser(false);
                 }
-                // Also update the comments state if updatedPost contains comments
                 const sortedUpdatedComments = [...(updatedPost.comments || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
                 setComments(sortedUpdatedComments);
             }
@@ -217,27 +257,31 @@ const usePostDetail = (topicId, postId, currentUser) => {
 
         const handleDeletedPost = (deletedPostId) => {
             if (deletedPostId === postDetail._id) {
-                setPostDetail(null); // Clear the post detail if the current post is deleted
+                setPostDetail(null);
                 setComments([]);
                 setCurrentCommentCount(0);
                 setCurrentLikeCount(0);
                 setCurrentLikedUsers([]);
                 setIsLikedByUser(false);
                 alert('Bài viết này đã bị xóa.');
-                // You might want to redirect the user or show a message here
             }
         };
 
 
+        socket.on('ratingUpdated', handleRatingUpdate); // NEW: Listen for rating updates
         socket.on('newComment', handleNewComment);
         socket.on('deletedComment', handleDeletedComment);
         socket.on('updatedComment', handleUpdatedComment);
         socket.on('likeUpdate', handleLikeUpdate);
         socket.on('updatedPost', handleUpdatedPost);
-        socket.on('deletedPost', handleDeletedPost); // Listen for post deletion
+        socket.on('deletedPost', handleDeletedPost);
+
+        // Fetch initial rating data when component mounts or postDetail changes
+        fetchRatingData();
 
         return () => {
             socket.emit('leavePostRoom', postDetail._id);
+            socket.off('ratingUpdated', handleRatingUpdate); // NEW: Clean up rating listener
             socket.off('newComment', handleNewComment);
             socket.off('deletedComment', handleDeletedComment);
             socket.off('updatedComment', handleUpdatedComment);
@@ -245,7 +289,8 @@ const usePostDetail = (topicId, postId, currentUser) => {
             socket.off('updatedPost', handleUpdatedPost);
             socket.off('deletedPost', handleDeletedPost);
         };
-    }, [postDetail, currentUser]); // Depend on postDetail to ensure effects re-run if postDetail itself changes (e.g., from updatedPost event)
+    }, [postDetail, currentUser, fetchRatingData]); // Added fetchRatingData to dependencies
+
 
     // API Call: Toggle Like
     const handleLikeToggle = useCallback(async () => {
@@ -274,7 +319,6 @@ const usePostDetail = (topicId, postId, currentUser) => {
         if (prevIsLikedByUser) {
             setCurrentLikedUsers(prevUsers => prevUsers.filter(u => u._id !== currentUser._id));
         } else {
-            // Add current user's essential info to the liked users list
             setCurrentLikedUsers(prevUsers => [...prevUsers, { _id: currentUser._id, fullName: currentUser.fullName, avatarUrl: currentUser.avatarUrl }]);
         }
 
@@ -320,7 +364,7 @@ const usePostDetail = (topicId, postId, currentUser) => {
                 }
             });
             alert('Bài viết đã được xóa thành công!');
-            setPostDetail(null); // Clear postDetail immediately
+            setPostDetail(null);
             setComments([]);
             setCurrentCommentCount(0);
             setCurrentLikeCount(0);
@@ -332,19 +376,53 @@ const usePostDetail = (topicId, postId, currentUser) => {
             alert('Không thể xóa bài viết. Vui lòng thử lại.');
             return false;
         }
-    }, [currentUser, postDetail]); // Dependency on postDetail to ensure postId is available
+    }, [currentUser, postDetail]);
+
+    // NEW: Function to handle rating submission
+    const handleRatePost = useCallback(async (postIdToRate, userIdToRate, ratingValue) => {
+        try {
+            const token = localStorage.getItem('token');
+            const payload = {
+                postId: postIdToRate,
+                userId: userIdToRate,
+                rating: ratingValue
+            };
+
+            const response = await axios.post('http://localhost:5000/api/ratings', payload, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (response.status !== 200 && response.status !== 201) {
+                const errorData = response.data;
+                throw new Error(errorData.message || 'Failed to submit rating');
+            }
+
+            console.log('Rating submitted/updated:', response.data);
+            setUserRating(ratingValue);
+            // averageRating, totalRatings, and allRatings will be updated via Socket.IO 'ratingUpdated' event
+        } catch (error) {
+            console.error('Lỗi khi gửi đánh giá:', error.message || error);
+            throw error;
+        }
+    }, []);
+
 
     return {
         postDetail,
-        comments, // Expose comments state
+        comments,
         currentCommentCount,
         currentLikeCount,
         currentLikedUsers,
         isLikedByUser,
         handleLikeToggle,
-        handleDeletePost, // Expose delete function
-        setPostDetail, // Expose setPostDetail to allow external updates if needed
-        setComments, // Expose setComments to allow external manipulation if needed (e.g., for adding a new comment optimistically before socket confirms)
+        handleDeletePost,
+        averageRating,    // NEW: Expose averageRating
+        totalRatings,     // NEW: Expose totalRatings
+        userRating,       // NEW: Expose userRating
+        allRatings,       // NEW: Expose allRatings
+        handleRatePost,   // NEW: Expose handleRatePost
+        setPostDetail,
+        setComments,
     };
 };
 
