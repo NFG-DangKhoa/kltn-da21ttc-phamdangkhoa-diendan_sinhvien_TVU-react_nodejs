@@ -1,44 +1,48 @@
 // src/App.js
+import React, { useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { Box, IconButton, CircularProgress, Typography } from '@mui/material'; // Import CircularProgress và Typography
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import NightlightRoundIcon from '@mui/icons-material/NightlightRound';
+
+// Components dùng chung
 import Header from './components/Header';
 import Footer from './components/Footer';
+import ScrollToTop from "./components/ScrollToTop";
+import ChatbotWidget from './components/ChatbotWidget';
+
+// Contexts
+import { AuthProvider, AuthContext } from './context/AuthContext'; // Import AuthContext để sử dụng useContext
+import { ThemeContextProvider, ThemeContext } from './context/ThemeContext';
+
+// Public Pages
+import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Home from './pages/Home';
-import TopicDetail from './pages/TopicDetail/TopicDetail';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import { AuthProvider } from './context/AuthContext';
-import { GoogleOAuthProvider } from '@react-oauth/google';
-import React from 'react';
-import PostDetail from './pages/TopicDetail/PostDetail';
-import ScrollToTop from "./components/ScrollToTop";
 import CreatePostPage from './pages/CreatePostPage';
-import { ThemeContextProvider, ThemeContext } from './context/ThemeContext';
-import { useContext } from 'react';
 import ProfilePage from './pages/profile/ProfilePage';
-import { Box, IconButton } from '@mui/material';
+
+// Topic/Post Related Pages
+import TopicDetail from './pages/TopicDetail/TopicDetail';
+import PostDetail from './pages/TopicDetail/PostDetail';
 import EditPostPage from './pages/TopicDetail/EditPostPage';
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import NightlightRoundIcon from './pages/TopicDetail/PostList';
 import PostList from './pages/TopicDetail/PostList';
 import PostDetailSingleImage from './pages/TopicDetail/PostDetailSingleImage';
 import MembersList from './pages/TopicDetail/MemberList';
-import ChatbotWidget from './components/ChatbotWidget' // Đảm bảo dòng này đã có và đúng đường dẫn
 
+// Admin Dashboard Layout
+import AdminDashboard from './layouts/AdminDashboard';
+
+// Đây là component chính của ứng dụng
 const App = () => {
   return (
-    // Sử dụng ThemeContextProvider từ context/ThemeContext.js
     <ThemeContextProvider>
       <GoogleOAuthProvider clientId="990724811150-jdm9kngkj7lfmkjl1pqake1hbhfju9tt.apps.googleusercontent.com">
         <AuthProvider>
           <Router>
             <ScrollToTop />
-
-            {/* ĐÃ BỎ NÚT CHUYỂN ĐỔI THEME CỐ ĐỊNH TẠI ĐÂY */}
-            {/* <ThemeToggleButtonFixed /> */}
-
-            <AppContent /> {/* Component con để xử lý logic Header/Footer và Routes */}
-
+            <AppContent />
           </Router>
         </AuthProvider>
       </GoogleOAuthProvider>
@@ -46,8 +50,7 @@ const App = () => {
   );
 };
 
-// Component ThemeToggleButtonFixed này không còn được sử dụng
-// Nhưng bạn có thể giữ lại hoặc xóa nó tùy ý nếu không muốn dùng nó ở bất kỳ đâu khác
+// Component ThemeToggleButtonFixed này không còn được sử dụng ở đây
 const ThemeToggleButtonFixed = () => {
   const { toggleColorMode, mode } = useContext(ThemeContext);
   const darkMode = mode === 'dark';
@@ -91,35 +94,68 @@ const ThemeToggleButtonFixed = () => {
 // Component AppContent mới để xử lý logic hiển thị Header/Footer và Routes
 const AppContent = () => {
   const location = useLocation();
+  // Xác định xem có phải là route admin hay không
   const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // Lấy trạng thái loading từ AuthContext
+  const { loading } = useContext(AuthContext); // <--- Đã thêm dòng này
+
+  // Hiển thị màn hình loading nếu AuthContext đang trong quá trình khôi phục trạng thái
+  if (loading) {
+    return (
+      <Box
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+        sx={{
+          backgroundColor: (theme) => (theme.palette.mode === 'dark' ? '#212121' : '#f0f0f0'),
+          color: (theme) => (theme.palette.mode === 'dark' ? '#ffffff' : '#333333'),
+        }}
+      >
+        <CircularProgress color="primary" size={60} />
+        <Typography variant="h6" sx={{ mt: 2 }}>
+          Đang tải ứng dụng và thông tin người dùng...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <>
+      {/* Hiển thị Header chỉ khi không phải là trang admin */}
       {!isAdminRoute && <Header />}
 
+      {/* Định tuyến các trang */}
       <Routes>
+        {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/CreatePostPage" element={<CreatePostPage />} />
+        <Route path="/profile/:userId" element={<ProfilePage />} />
+
+        {/* Topic and Post Routes */}
         <Route path="/topic/:topicId" element={<TopicDetail />} />
         <Route path="/PostList" element={<PostList />} />
         <Route path="/PostDetailSingleImage" element={<PostDetailSingleImage />} />
         <Route path="/MembersList" element={<MembersList />} />
         <Route path="/posts/detail" element={<PostDetail />} />
-        <Route path="/admin/*" element={<AdminDashboard />} />
-
         <Route path="/edit-post/:postId" element={<EditPostPage />} />
 
-        <Route path="/profile/:userId" element={<ProfilePage />} />
+        {/* Admin Dashboard Route */}
+        <Route path="/admin/*" element={<AdminDashboard />} />
+
+        {/* Catch-all route cho các trang không tìm thấy */}
+        <Route path="*" element={<div>404 Not Found</div>} />
       </Routes>
 
+      {/* Hiển thị Footer chỉ khi không phải là trang admin */}
       {!isAdminRoute && <Footer />}
 
-      {/* --- THÊM DÒNG NÀY ĐỂ HIỂN THỊ CHATBOT --- */}
-      {/* Chatbot sẽ hiển thị trên mọi trang, ngoại trừ các trang admin nếu bạn không muốn */}
+      {/* ChatbotWidget sẽ hiển thị trên mọi trang, ngoại trừ các trang admin */}
       {!isAdminRoute && <ChatbotWidget />}
-      {/* --- KẾT THÚC PHẦN THÊM CHATBOT --- */}
     </>
   );
 };

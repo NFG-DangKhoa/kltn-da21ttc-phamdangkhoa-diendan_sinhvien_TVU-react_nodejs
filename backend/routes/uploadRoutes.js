@@ -1,9 +1,7 @@
-// File: routes/uploadRoutes.js
-
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const { uploadImage } = require('../controllers/uploadController');
+const { uploadImage, uploadImageUrl } = require('../controllers/uploadController'); // Import hàm mới
 
 const router = express.Router();
 
@@ -20,7 +18,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Route upload ảnh
+// Route upload ảnh từ file
 router.post('/image', upload.single('image'), uploadImage);
+
+// Route upload ảnh từ URL
+router.post('/image-url', uploadImageUrl); // Route mới
 
 module.exports = router;

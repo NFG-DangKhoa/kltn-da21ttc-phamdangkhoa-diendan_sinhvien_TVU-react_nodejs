@@ -189,19 +189,22 @@ exports.createPost = async (req, res) => {
     try {
         const { authorId, title, content, topicId, tags } = req.body;
 
+        // Xử lý các ảnh Base64 trong nội dung trước khi tạo bài viết
+        let processedContent = await processBase64Images(content);
+
         // 1. Tạo bài viết
         const newPost = new Post({
             authorId,
             title,
-            content,
+            content: processedContent, // Sử dụng nội dung đã được xử lý ảnh Base64
             topicId,
             tags,
         });
 
         const savedPost = await newPost.save();
 
-        // 2. Tìm tất cả URL ảnh trong nội dung
-        const imageUrls = extractImageUrls(content);
+        // 2. Tìm tất cả URL ảnh trong nội dung (sau khi Base64 đã được xử lý)
+        const imageUrls = extractImageUrls(savedPost.content); // Lấy từ nội dung đã lưu
 
         // 3. Lưu ảnh gắn với post
         const imageDocs = await Promise.all(
@@ -231,24 +234,25 @@ exports.createPost = async (req, res) => {
 };
 
 // **Thêm hàm createPostWithImages ở đây**
+// Hàm này có thể giống createPost nếu bạn xử lý ảnh trong 'content'
+// hoặc bạn có thể thay đổi để nhận file upload riêng biệt nếu cần.
 exports.createPostWithImages = async (req, res) => {
-    // This function can be the same as createPost if it handles images within the 'content' field.
-    // If it's intended for a different image upload mechanism (e.g., direct file upload),
-    // you'll need to adjust the logic. For now, assuming it's similar to createPost.
     try {
         const { authorId, title, content, topicId, tags } = req.body;
+
+        let processedContent = await processBase64Images(content); // Xử lý Base64
 
         const newPost = new Post({
             authorId,
             title,
-            content,
+            content: processedContent, // Sử dụng nội dung đã được xử lý
             topicId,
             tags,
         });
 
         const savedPost = await newPost.save();
 
-        const imageUrls = extractImageUrls(content);
+        const imageUrls = extractImageUrls(savedPost.content); // Lấy từ nội dung đã lưu
 
         const imageDocs = await Promise.all(
             imageUrls.map(url => {
@@ -315,9 +319,13 @@ exports.updatePost = async (req, res) => {
         const oldContent = post.content || ''; // Lưu nội dung cũ để quản lý ảnh
         let { title, content, topicId, tags } = req.body;
 
+        // Xử lý các ảnh Base64 trong nội dung mới trước khi cập nhật
+        let processedContent = await processBase64Images(content);
+
+
         // 2. Cập nhật các trường của bài viết
         if (title !== undefined) post.title = title;
-        if (content !== undefined) post.content = content;
+        if (content !== undefined) post.content = processedContent; // Cập nhật với nội dung đã xử lý
         if (topicId !== undefined) post.topicId = topicId;
         if (tags !== undefined) post.tags = tags;
 
@@ -328,7 +336,7 @@ exports.updatePost = async (req, res) => {
 
         // Trích xuất URL ảnh cũ và mới từ nội dung
         const oldImageUrls = extractImageUrls(oldContent);
-        const newImageUrls = extractImageUrls(savedPost.content);
+        const newImageUrls = extractImageUrls(savedPost.content); // Lấy từ nội dung đã lưu
 
         // 1. Xác định các URL ảnh đã bị xóa khỏi nội dung bài viết
         const removedImageUrls = oldImageUrls.filter(url => !newImageUrls.includes(url));
@@ -453,7 +461,8 @@ exports.incrementViews = async (req, res) => {
 const extractImageUrls = (htmlContent) => {
     const imageUrls = [];
     // Regex này sẽ tìm các thẻ <img> và trích xuất giá trị của thuộc tính src
-    const imgTagRegex = /<img[^>]+src\s*=\s*['"]([^'"]+)['"]/gi;
+    // Bổ sung để bắt cả data:image/base64 và /upload/
+    const imgTagRegex = /<img[^>]+src\s*=\s*['"](data:image\/[^;]+;base64,[^'"]+|https?:\/\/[^'"]+|\/upload\/[^'"]+)['"]/gi;
     let match;
 
     while ((match = imgTagRegex.exec(htmlContent))) {
@@ -465,7 +474,7 @@ const extractImageUrls = (htmlContent) => {
 };
 
 // Hàm này sẽ trích xuất tên file ảnh từ các URL ảnh
-// Ví dụ: "http://localhost:5000/uploads/1678901234567-abc.png" => "1678901234567-abc.png"
+// Ví dụ: "http://localhost:5000/upload/1678901234567-abc.png" => "1678901234567-abc.png"
 function extractFilenameFromUrl(url) {
     try {
         const urlObj = new URL(url);
@@ -482,15 +491,13 @@ function isLocalImageUrl(url) {
     try {
         const urlObj = new URL(url);
         // Thay đổi 'localhost:5000' bằng domain và port thực tế của bạn trong production
-        // Hoặc kiểm tra xem pathname có bắt đầu bằng '/uploads/' không
-        // Cách 1: Kiểm tra hostname (tốt hơn cho môi trường production)
+        // Kiểm tra xem pathname có bắt đầu bằng '/upload/' không
         const localDomains = ['localhost:5000', 'yourdomain.com', 'www.yourdomain.com']; // Thêm các domain của bạn vào đây
         if (localDomains.includes(urlObj.host)) {
-            return urlObj.pathname.startsWith('/uploads/');
+            return urlObj.pathname.startsWith('/upload/'); // Đảm bảo đúng đường dẫn /upload/
         }
         // Cách 2: Chỉ kiểm tra pathname nếu bạn biết chắc rằng chỉ có ảnh upload mới có đường dẫn này
-        // return urlObj.pathname.startsWith('/uploads/');
-        return false; // Không phải ảnh local
+        return urlObj.pathname.startsWith('/upload/'); // Đảm bảo đúng đường dẫn /upload/
     } catch (e) {
         // console.warn("URL không hợp lệ khi kiểm tra local:", url);
         return false; // URL không hợp lệ thì không phải ảnh local
@@ -500,7 +507,7 @@ function isLocalImageUrl(url) {
 // Hàm để xóa các tệp ảnh vật lý khỏi thư mục public/upload
 function deletePhysicalImage(filename) {
     // Đảm bảo đường dẫn tới thư mục lưu trữ ảnh là chính xác
-    const filePath = path.join(__dirname, '../public/upload', filename);
+    const filePath = path.join(__dirname, '../public/upload', filename); // Thay đổi thành /upload/
 
     fs.unlink(filePath, (err) => {
         if (err) {
@@ -514,4 +521,59 @@ function deletePhysicalImage(filename) {
             console.log(`Đã xóa file ảnh vật lý: ${filePath}`);
         }
     });
+}
+
+/**
+ * Hàm mới: Xử lý các ảnh Base64 trong nội dung HTML, lưu chúng và thay thế bằng URL cục bộ.
+ * @param {string} htmlContent - Nội dung HTML có thể chứa ảnh Base64.
+ * @returns {Promise<string>} - Nội dung HTML đã được xử lý với các URL ảnh cục bộ.
+ */
+async function processBase64Images(htmlContent) {
+    let newHtmlContent = htmlContent;
+    const base64Regex = /<img[^>]+src\s*=\s*['"](data:image\/[^;]+;base64,[^'"]+)['"]/gi;
+    let match;
+    const imageDir = path.join(__dirname, '../public/upload'); // Đảm bảo thư mục này tồn tại và là 'public/upload'
+
+    // Tạo thư mục nếu nó chưa tồn tại
+    if (!fs.existsSync(imageDir)) {
+        fs.mkdirSync(imageDir, { recursive: true });
+    }
+
+    const imagesToProcess = [];
+    // Sử dụng vòng lặp while với exec để lấy tất cả các match
+    while ((match = base64Regex.exec(htmlContent))) {
+        imagesToProcess.push({
+            fullMatch: match[0], // Ví dụ: <img src="data:image/png;base64,..."
+            base64Url: match[1] // Ví dụ: data:image/png;base64,...
+        });
+    }
+
+    // Xử lý từng ảnh Base64 một cách tuần tự
+    for (const img of imagesToProcess) {
+        const { base64Url, fullMatch } = img;
+        try {
+            const parts = base64Url.split(';');
+            const mimeType = parts[0].split(':')[1]; // Ví dụ: image/png
+            const extension = mimeType.split('/')[1]; // Ví dụ: png
+            const base64Data = parts[1].split(',')[1];
+
+            const filename = `uploaded-${Date.now()}-${Math.round(Math.random() * 1E9)}.${extension}`;
+            const filePath = path.join(imageDir, filename);
+
+            await fs.promises.writeFile(filePath, base64Data, 'base64');
+            const newImageUrl = `/upload/${filename}`; // URL công khai của ảnh, phải là '/upload/'
+
+            // Thay thế URL Base64 bằng URL cục bộ trong nội dung HTML
+            // Sử dụng một phương pháp thay thế an toàn hơn nếu có nhiều hơn một lần xuất hiện của base64Url
+            // trong fullMatch hoặc nếu có nhiều fullMatch giống nhau.
+            // Trong trường hợp này, chúng ta sẽ thay thế fullMatch bằng một phiên bản đã sửa đổi của nó.
+            newHtmlContent = newHtmlContent.replace(fullMatch, fullMatch.replace(base64Url, newImageUrl));
+            console.log(`Đã lưu ảnh Base64 thành: ${newImageUrl}`);
+        } catch (error) {
+            console.error('Lỗi khi xử lý ảnh Base64:', error);
+            // Giữ nguyên URL Base64 nếu có lỗi để tránh làm hỏng nội dung
+        }
+    }
+
+    return newHtmlContent;
 }

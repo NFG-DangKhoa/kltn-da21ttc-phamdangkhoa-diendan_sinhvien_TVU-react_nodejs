@@ -12,7 +12,7 @@ const uploadImage = async (req, res) => {
 
         const image = new Image({
             postId,
-            url: `/uploads/${req.file.filename}`,
+            url: `/upload/${req.file.filename}`,
             caption,
             isMain: isMain || false,
         });

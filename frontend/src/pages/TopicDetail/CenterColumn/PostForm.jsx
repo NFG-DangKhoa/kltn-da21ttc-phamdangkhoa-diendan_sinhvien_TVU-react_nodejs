@@ -1,4 +1,3 @@
-// PostForm.js
 import React, { useContext, useState, useEffect } from 'react';
 import {
     Box,
@@ -18,15 +17,15 @@ import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 
 import { AuthContext } from '../../../context/AuthContext';
-import { ThemeContext } from '../../../context/ThemeContext'; // Import ThemeContext
+import { ThemeContext } from '../../../context/ThemeContext';
 import RichTextEditor from './RichTextEditor';
 
-import { IMAGE_URL_REGEX } from './RichTextEditor';
+// Đảm bảo IMAGE_URL_REGEX được định nghĩa hoặc import từ RichTextEditor
+// const IMAGE_URL_REGEX = /(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|gif|png|jpeg|webp|svg)/g; // Ví dụ regex
 
-// Loại bỏ prop `darkMode` vì chúng ta sẽ lấy từ ThemeContext
 const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false }) => {
     const { user } = useContext(AuthContext);
-    const { mode } = useContext(ThemeContext); // Lấy mode từ ThemeContext
+    const { mode } = useContext(ThemeContext);
     const [open, setOpen] = useState(false);
     const [editorContent, setEditorContent] = useState(newPost.content || '');
     const [title, setTitle] = useState(newPost.title || '');
@@ -84,19 +83,29 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false })
             return new File([u8arr], filename, { type: mime });
         };
 
-        const formData = new FormData();
-        if (isUrl) {
-            formData.append('imageUrl', imageData);
-        } else {
-            const file = dataURLtoFile(imageData, filename);
-            formData.append('image', file);
-        }
-
+        let response;
         try {
-            const response = await fetch('http://localhost:5000/api/uploads/image', {
-                method: 'POST',
-                body: formData,
-            });
+            if (isUrl) {
+                // Gửi URL ảnh đến endpoint mới
+                response = await fetch('http://localhost:5000/api/uploads/image-url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ imageUrl: imageData }),
+                });
+            } else {
+                // Gửi file Base64 như trước
+                const formData = new FormData();
+                const file = dataURLtoFile(imageData, filename);
+                formData.append('image', file);
+
+                response = await fetch('http://localhost:5000/api/uploads/image', {
+                    method: 'POST',
+                    body: formData,
+                });
+            }
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -120,16 +129,16 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false })
 
         for (const img of images) {
             const src = img.getAttribute('src');
-            const originalSrc = img.getAttribute('data-original-src');
-
+            // Kiểm tra nếu src là một URL hợp lệ (từ việc paste ảnh trực tiếp từ web)
+            // hoặc là một Base64 (từ việc dán ảnh từ clipboard hoặc kéo thả)
             if (src && src.startsWith('data:image/')) {
                 const filename = img.getAttribute('data-filename') || `uploaded_image_${Date.now()}.png`;
                 imagesToProcess.push({ element: img, type: 'base64', data: src, filename: filename });
-                uploadPromises.push(uploadImageToServer(src, filename, false));
-            } else if (originalSrc && IMAGE_URL_REGEX.test(originalSrc)) {
-                const filename = `pasted_web_image_${Date.now()}.png`;
-                imagesToProcess.push({ element: img, type: 'url', data: originalSrc, filename: filename });
-                uploadPromises.push(uploadImageToServer(originalSrc, filename, true));
+                uploadPromises.push(uploadImageToServer(src, filename, false)); // isUrl = false
+            } else if (src && src.startsWith('http')) { // Giả định đây là ảnh dán từ web
+                // Đây là trường hợp quan trọng để xử lý ảnh từ URL
+                imagesToProcess.push({ element: img, type: 'url', data: src, filename: null }); // filename không cần thiết cho URL
+                uploadPromises.push(uploadImageToServer(src, null, true)); // isUrl = true
             }
         }
 
@@ -140,10 +149,13 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false })
             const newUrl = uploadedUrls[i];
             if (newUrl) {
                 element.setAttribute('src', newUrl);
+                // Loại bỏ data-filename và data-original-src nếu có, vì ảnh đã được xử lý
                 element.removeAttribute('data-filename');
                 element.removeAttribute('data-original-src');
             } else {
                 console.warn('Không thể tải lên ảnh, giữ nguyên Base64/URL hoặc xóa ảnh:', element.outerHTML);
+                // Tùy chọn: Xóa ảnh nếu không thể tải lên
+                // element.remove();
             }
         }
 

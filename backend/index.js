@@ -24,6 +24,11 @@ const { Server } = require('socket.io'); // Import Server từ socket.io
 const dialogflow = require('@google-cloud/dialogflow'); // Import thư viện Dialogflow
 // --- HẾT PHẦN THÊM ---
 
+// --- IMPORT MỚI CHO ADMIN CONTROLLER VÀ ROUTES ---
+const adminPostController = require('./controllers/adminPostController'); // Import controller Admin
+const adminPostRoutes = require('./routes/adminPostRoutes'); // Import routes Admin
+// --- HẾT PHẦN IMPORT MỚI ---
+
 dotenv.config(); // Đảm bảo bạn gọi dotenv.config() đầu tiên để load các biến môi trường
 connectDB();
 
@@ -39,8 +44,14 @@ const io = new Server(server, {
     }
 });
 
-// Thiết lập thể hiện io trong likeController (nếu cần)
-// likeController.setIo(io); // Có thể không cần nếu likeRoutes cũng nhận io
+// Thiết lập thể hiện io trong các controller cần sử dụng Socket.IO
+// postController.setIo(io); // Nếu postController cũng cần io, hãy bỏ comment dòng này
+// likeController.setIo(io); // Đã có, giữ nguyên
+// commentController.setIo(io); // Giả định commentController cũng nhận io
+// ratingController.setIo(io); // Giả định ratingController cũng nhận io
+// THIẾT LẬP IO CHO ADMIN POST CONTROLLER MỚI
+adminPostController.setIo(io);
+// --- HẾT PHẦN THÊM ---
 
 // Bạn có thể xử lý các kết nối Socket.IO tại đây
 io.on('connection', (socket) => {
@@ -67,8 +78,7 @@ io.on('connection', (socket) => {
 // --- HẾT PHẦN SOCKET.IO INIT ---
 
 
-// Phục vụ thư mục public/upload tại đường dẫn /uploads
-app.use('/uploads', express.static(path.join(__dirname, 'public/upload')));
+
 
 // CORS phải được đặt trước các route
 app.use(cors({
@@ -76,7 +86,10 @@ app.use(cors({
     credentials: true,
 }));
 
-app.use(express.json());
+// --- ĐÂY LÀ ĐIỂM CHÚNG TA THAY ĐỔI: TĂNG GIỚI HẠN KÍCH THƯỚC REQUEST BODY ---
+app.use(express.json({ limit: '50mb' }));
+// --- KẾT THÚC ĐIỂM THAY ĐỔI ---
+
 
 // --- KHỞI TẠO DIALOGFLOW SESSION CLIENT ---
 // Đảm bảo bạn đã thêm DIALOGFLOW_PROJECT_ID vào file .env của mình
@@ -173,6 +186,10 @@ app.use('/api/uploads', uploadRoutes);
 app.use('/api/comments', commentRoutes(io)); // Truyền 'io' vào commentRoutes (giả định commentRoutes là một hàm nhận io)
 app.use('/api/likes', likeRoutes); // KHÔNG TRUYỀN 'io' VÀO likeRoutes, vì likeController đã được thiết lập
 app.use('/api/ratings', ratingRoutes(io)); // <--- ĐÃ CHỈNH SỬA TẠI ĐÂY: TRUYỀN 'io' VÀO ratingRoutes
+
+// --- ĐƯỜNG DẪN MỚI CHO ADMIN ---
+app.use('/api/admin/posts', adminPostRoutes); // Thêm routes admin
+// --- HẾT ĐƯỜNG DẪN MỚI CHO ADMIN ---
 
 const PORT = process.env.PORT || 5000;
 // --- THAY THẾ app.listen BẰNG server.listen ---

@@ -9,16 +9,16 @@ import {
     Typography,
     Divider,
     Box,
-    Button, // Import Button
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import SettingsIcon from '@mui/icons-material/Settings';
-import HomeIcon from '@mui/icons-material/Home'; // Import HomeIcon
+import HomeIcon from '@mui/icons-material/Home';
+import ArticleIcon from '@mui/icons-material/Article';
 import { styled } from '@mui/system';
-import { Link } from 'react-router-dom'; // Import Link từ react-router-dom
+import { Link } from 'react-router-dom';
 
 const drawerWidth = 240;
 
@@ -28,8 +28,8 @@ const StyledDrawer = styled(Drawer)(({ theme }) => ({
     [`& .MuiDrawer-paper`]: {
         width: drawerWidth,
         boxSizing: 'border-box',
-        backgroundColor: theme.palette.mode === 'dark' ? '#1a202c' : '#f8f9fa',
-        color: theme.palette.mode === 'dark' ? '#e0e0e0' : '#333',
+        backgroundColor: theme.palette.background.paper,
+        color: theme.palette.text.primary,
     },
 }));
 
@@ -37,23 +37,22 @@ const Sidebar = () => {
     return (
         <StyledDrawer variant="permanent" anchor="left">
             <Toolbar>
-                {/* Logo hoặc tên có thể click để về trang chủ nếu muốn */}
                 <Typography
                     variant="h6"
                     noWrap
-                    component={Link} // Sử dụng Link component
-                    to="/" // Đường dẫn về trang chủ
+                    component={Link}
+                    to="/admin" // Link về trang dashboard chính (overview)
                     sx={{
                         fontWeight: 'bold',
-                        textDecoration: 'none', // Bỏ gạch chân
-                        color: 'inherit', // Giữ màu chữ kế thừa từ theme
+                        textDecoration: 'none',
+                        color: 'inherit',
                         '&:hover': {
-                            textDecoration: 'none', // Bỏ gạch chân khi hover
+                            textDecoration: 'none',
                             opacity: 0.8,
                         }
                     }}
                 >
-                    Admin Dashboard
+                    Admin Panel
                 </Typography>
             </Toolbar>
             <Divider />
@@ -66,60 +65,50 @@ const Sidebar = () => {
                         </ListItemIcon>
                         <ListItemText primary="Trang Chủ" />
                     </ListItem>
-                    <Divider /> {/* Thêm divider để phân tách */}
+                    <Divider />
 
                     {/* Các mục Dashboard hiện có */}
-                    <ListItem button component={Link} to="/admin"> {/* Thêm Link cho Dashboard */}
+                    <ListItem button component={Link} to="/admin">
                         <ListItemIcon>
                             <DashboardIcon />
                         </ListItemIcon>
                         <ListItemText primary="Dashboard" />
                     </ListItem>
-                    <ListItem button component={Link} to="/admin/users"> {/* Ví dụ cho Users */}
+                    <ListItem button component={Link} to="/admin/posts">
+                        <ListItemIcon>
+                            <ArticleIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Quản lý Bài viết" />
+                    </ListItem>
+                    <ListItem button component={Link} to="/admin/users">
                         <ListItemIcon>
                             <PeopleIcon />
                         </ListItemIcon>
-                        <ListItemText primary="Users" />
+                        <ListItemText primary="Quản lý Người dùng" />
                     </ListItem>
-                    <ListItem button component={Link} to="/admin/products"> {/* Ví dụ cho Products */}
+                    <ListItem button component={Link} to="/admin/products">
                         <ListItemIcon>
                             <ShoppingCartIcon />
                         </ListItemIcon>
-                        <ListItemText primary="Products" />
+                        <ListItemText primary="Quản lý Sản phẩm" />
                     </ListItem>
-                    <ListItem button component={Link} to="/admin/reports"> {/* Ví dụ cho Reports */}
+                    <ListItem button component={Link} to="/admin/reports">
                         <ListItemIcon>
                             <BarChartIcon />
                         </ListItemIcon>
-                        <ListItemText primary="Reports" />
+                        <ListItemText primary="Báo cáo" />
                     </ListItem>
                 </List>
                 <Divider />
                 <List>
-                    <ListItem button component={Link} to="/admin/settings"> {/* Ví dụ cho Settings */}
+                    <ListItem button component={Link} to="/admin/settings">
                         <ListItemIcon>
                             <SettingsIcon />
                         </ListItemIcon>
-                        <ListItemText primary="Settings" />
+                        <ListItemText primary="Cài đặt" />
                     </ListItem>
                 </List>
             </Box>
-            {/* Nếu muốn thêm nút đăng xuất riêng */}
-            {/* <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                <Button
-                    variant="contained"
-                    color="error"
-                    fullWidth
-                    onClick={() => {
-                        // Logic đăng xuất ở đây
-                        console.log('Admin Logout');
-                        // Sau khi đăng xuất, chuyển hướng về trang chủ
-                        // navigate('/');
-                    }}
-                >
-                    Đăng xuất
-                </Button>
-            </Box> */}
         </StyledDrawer>
     );
 };
