@@ -267,14 +267,71 @@ const PostCard = ({
                 </Typography>
 
                 <div
-                    ref={contentRef}
+                    ref={(el) => {
+                        // Set contentRef
+                        contentRef.current = el;
+
+                        if (el) {
+                            // Debug DOM structure after render
+                            setTimeout(() => {
+                                console.log('🖼️ PostCard content loaded for post:', post.title);
+                                console.log('📝 Content preview:', post.content.substring(0, 200));
+                                console.log('🔍 Has images in content:', post.content.includes('<img'));
+                                console.log('🔗 Image URLs in content:', post.content.match(/<img[^>]+src=["']([^"']+)["']/g));
+
+                                // Check actual DOM
+                                const images = el.querySelectorAll('img');
+                                console.log('🎯 Images found in DOM:', images.length);
+                                images.forEach((img, index) => {
+                                    const computedStyle = window.getComputedStyle(img);
+
+                                    // Log detailed image info
+                                    console.log(`📸 Image ${index + 1} SRC:`, img.src);
+                                    console.log(`📸 Image ${index + 1} DIMENSIONS:`, `${img.width}x${img.height} (natural: ${img.naturalWidth}x${img.naturalHeight})`);
+                                    console.log(`📸 Image ${index + 1} DISPLAY:`, computedStyle.display);
+                                    console.log(`📸 Image ${index + 1} VISIBILITY:`, computedStyle.visibility);
+                                    console.log(`📸 Image ${index + 1} OPACITY:`, computedStyle.opacity);
+                                    console.log(`📸 Image ${index + 1} BORDER:`, computedStyle.border);
+                                    console.log(`📸 Image ${index + 1} BACKGROUND:`, computedStyle.backgroundColor);
+                                    console.log(`📸 Image ${index + 1} COMPLETE:`, img.complete);
+
+                                    // Log element position and size
+                                    const rect = img.getBoundingClientRect();
+                                    console.log(`📐 Image ${index + 1} POSITION:`, `top: ${rect.top}, left: ${rect.left}`);
+                                    console.log(`📐 Image ${index + 1} SIZE:`, `${rect.width}x${rect.height}`);
+                                    console.log(`📐 Image ${index + 1} VISIBLE:`, rect.width > 0 && rect.height > 0);
+
+                                    // Check if image is actually loaded
+                                    if (img.complete && img.naturalWidth > 0) {
+                                        console.log(`✅ Image ${index + 1} is loaded and has content`);
+                                    } else {
+                                        console.log(`❌ Image ${index + 1} is not loaded or has no content`);
+                                    }
+                                });
+
+                                // Check if images are loading
+                                images.forEach((img, index) => {
+                                    img.onload = () => console.log(`✅ Image ${index + 1} loaded successfully`);
+                                    img.onerror = () => console.log(`❌ Image ${index + 1} failed to load:`, img.src);
+                                });
+                            }, 100);
+                        }
+                    }}
                     className="post-content"
                     key={imageContentKeyLocal} // Sử dụng key để ép re-render styles ảnh
                     dangerouslySetInnerHTML={{
-                        __html:
-                            post.content.length > 300 && !expandedPosts[post._id]
+                        __html: (() => {
+                            let content = post.content.length > 300 && !expandedPosts[post._id]
                                 ? `${post.content.substring(0, 300)}...`
-                                : post.content,
+                                : post.content;
+
+                            // Fix URLs: replace localhost:5173 with localhost:5000
+                            content = content.replace(/http:\/\/localhost:5173\/upload\//g, 'http://localhost:5000/upload/');
+                            // Also fix relative URLs to absolute
+                            content = content.replace(/src="\/upload\//g, 'src="http://localhost:5000/upload/');
+
+                            return content;
+                        })(),
                     }}
                 />
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
     Box, TextField, Typography, Paper, CircularProgress,
     List, ListItem, ListItemText, InputAdornment, IconButton, Fab,
@@ -9,10 +9,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import { v4 as uuidv4 } from 'uuid';
 
 import chatbotAvatar from '/chatbot-avatar.png';
-// import userAvatar from '/user-avatar.png'; // BỎ DÒNG NÀY ĐI HOẶC COMMENT LẠI
 
-// Import useAuth từ AuthContext của bạn
-import { useAuth } from '../context/AuthContext'; // Đảm bảo đường dẫn này đúng
+import { useAuth } from '../context/AuthContext';
+import { ThemeContext } from '../context/ThemeContext';
 
 const BACKEND_API_URL = 'http://localhost:5000/api/dialogflow-text-input';
 
@@ -27,69 +26,49 @@ const ChatbotWidget = () => {
 
     const messagesEndRef = useRef(null);
 
-    // Lấy user object từ AuthContext
     const { user } = useAuth();
-    // Định nghĩa userAvatarUrl, ưu tiên avatarUrl từ user, nếu không có thì dùng avatar mặc định
-    const userAvatarUrl = user?.avatarUrl || '/user-avatar.png'; // Đường dẫn avatar mặc định
+    const userAvatarUrl = user?.avatarUrl || '/user-avatar.png';
 
-    // Initialize session ID
+    const { mode } = useContext(ThemeContext);
+    const darkMode = mode === 'dark';
+
     useEffect(() => {
         setSessionId(uuidv4());
     }, []);
 
-    // Scroll to bottom of messages
     useEffect(() => {
         if (isOpen) {
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }
     }, [messages, isOpen]);
 
-    // Manage greeting visibility: appear for 5 seconds, disappear, repeat every 5 seconds
     useEffect(() => {
         let greetingShowTimer;
         let greetingHideTimer;
 
         const startGreetingCycle = () => {
-            // Clear any existing timers to prevent multiple cycles
-            clearTimeout(greetingShowTimer);
-            clearTimeout(greetingHideTimer);
-
-            // Show greeting after 5 seconds
-            greetingShowTimer = setTimeout(() => {
-                if (!isOpen && messages.length === 0) { // Only show if chatbot is closed and no messages
+            if (!isOpen && messages.length === 0) {
+                greetingShowTimer = setTimeout(() => {
                     setShowGreeting(true);
-                    // Hide greeting after another 5 seconds
                     greetingHideTimer = setTimeout(() => {
                         setShowGreeting(false);
-                        // Start the cycle again after it has been hidden for the remaining time (5s - 5s = 0, but effectively after a short delay for next cycle)
-                        // To make it appear every 5 seconds (5s visible, then wait 0s, then 5s visible), we start the next show timer after the current one has finished.
-                        // If you want it to appear for 5s, then be hidden for 5s, then appear again, the total cycle is 10s.
-                        // Let's assume you want "appear for 5s, then hidden for 5s, then appear".
-                        startGreetingCycle(); // Loop the cycle
-                    }, 5000); // Hide after 5 seconds of being shown
-                } else {
-                    // If conditions are not met, don't show and try again later
-                    startGreetingCycle(); // Re-evaluate after a short delay
-                }
-            }, 5000); // First show after 5 seconds of component mount or previous hide
+                        setTimeout(startGreetingCycle, 5000);
+                    }, 5000);
+                }, 5000);
+            } else {
+                setShowGreeting(false);
+                clearTimeout(greetingShowTimer);
+                clearTimeout(greetingHideTimer);
+            }
         };
 
-        if (!isOpen) {
-            // Only start the cycle if the chatbot is not open
-            startGreetingCycle();
-        } else {
-            // If chatbot is open, hide greeting immediately and clear timers
-            setShowGreeting(false);
-            clearTimeout(greetingShowTimer);
-            clearTimeout(greetingHideTimer);
-        }
+        startGreetingCycle();
 
-        // Cleanup function
         return () => {
             clearTimeout(greetingShowTimer);
             clearTimeout(greetingHideTimer);
         };
-    }, [isOpen, messages.length]); // Re-run when chatbot opens/closes or messages change
+    }, [isOpen, messages.length]);
 
     const sendSuggestion = (text) => {
         setInput(text);
@@ -105,7 +84,7 @@ const ChatbotWidget = () => {
         setInput('');
         setLoading(true);
         setSuggestions([]);
-        setShowGreeting(false); // Hide greeting immediately when user sends a message
+        setShowGreeting(false);
 
         try {
             const response = await fetch(BACKEND_API_URL, {
@@ -125,12 +104,11 @@ const ChatbotWidget = () => {
             const data = await response.json();
             console.log('Data from Dialogflow (Frontend):', data);
 
-            const botMessage = { text: data.fulfillmentText || "Sorry, I didn't understand that.", sender: 'bot' };
+            const botMessage = { text: data.fulfillmentText || "Xin lỗi, tôi không hiểu.", sender: 'bot' };
             setMessages((prevMessages) => [...prevMessages, botMessage]);
 
             let newSuggestions = [];
 
-            // Helper function to extract protobuf values
             const extractProtobufValue = (valueObject) => {
                 if (valueObject === null || typeof valueObject !== 'object') {
                     return valueObject;
@@ -154,7 +132,6 @@ const ChatbotWidget = () => {
                     }
                     return extractedStruct;
                 }
-                // Fallback for objects that don't match specific protobuf types but might contain nested values
                 const extractedObject = {};
                 for (const key in valueObject) {
                     if (valueObject.hasOwnProperty(key)) {
@@ -164,11 +141,9 @@ const ChatbotWidget = () => {
                 return extractedObject;
             };
 
-            // Function to recursively find chips in richContent structure
             const findChipsInRichContent = (content) => {
                 if (!content) return null;
 
-                // Handle nested arrays and objects
                 if (Array.isArray(content)) {
                     for (const item of content) {
                         const result = findChipsInRichContent(item);
@@ -189,7 +164,6 @@ const ChatbotWidget = () => {
                 return null;
             };
 
-            // Prioritized search for suggestions
             if (data.richContent) {
                 newSuggestions = findChipsInRichContent(data.richContent);
             }
@@ -207,13 +181,13 @@ const ChatbotWidget = () => {
                 newSuggestions = findChipsInRichContent(data.webhookPayload.richContent);
             }
 
-            setSuggestions(newSuggestions || []); // Ensure suggestions is always an array
+            setSuggestions(newSuggestions || []);
 
         } catch (error) {
             console.error('Error sending message to Dialogflow:', error);
             setMessages((prevMessages) => [
                 ...prevMessages,
-                { text: 'Sorry, there was an error communicating with the chatbot. Please try again later.', sender: 'bot' }
+                { text: 'Xin lỗi, có lỗi xảy ra khi kết nối với chatbot. Vui lòng thử lại sau.', sender: 'bot' }
             ]);
         } finally {
             setLoading(false);
@@ -228,12 +202,16 @@ const ChatbotWidget = () => {
 
     const toggleChatbot = () => {
         setIsOpen(!isOpen);
-        setShowGreeting(false); // Hide greeting immediately when clicking the icon
+        setShowGreeting(false);
     };
 
     return (
-        <Box sx={{ position: 'fixed', bottom: 16, right: 16, zIndex: 1000 }}>
-            {/* Greeting text outside the icon */}
+        <Box sx={{
+            position: 'fixed',
+            bottom: 16,
+            right: 16,
+            zIndex: 1000,
+        }}>
             {showGreeting && (
                 <Typography
                     variant="body2"
@@ -241,24 +219,18 @@ const ChatbotWidget = () => {
                         position: 'absolute',
                         bottom: 24,
                         right: 80,
-                        bgcolor: 'background.paper',
-                        color: 'text.primary',
+                        bgcolor: darkMode ? '#4a4b4c' : 'background.paper',
+                        color: darkMode ? '#e4e6eb' : 'text.primary',
                         p: 1,
                         borderRadius: '8px',
                         boxShadow: 3,
                         whiteSpace: 'nowrap',
-                        animation: 'fadeInOut 4s infinite', // Keep this animation for smooth transition
-                        '@keyframes fadeInOut': {
-                            '0%, 100%': { opacity: 0 }, // Start and end hidden
-                            '25%, 75%': { opacity: 1 }, // Visible during the middle part
-                        },
-                        // You can remove this if you want it to snap
                         transition: 'opacity 0.3s ease-in-out',
                         opacity: showGreeting ? 1 : 0,
                         pointerEvents: 'none',
                     }}
                 >
-                    Hù , Bạn cần hổ trợ gì không nè!
+                    Hù, bạn cần hỗ trợ gì không nè!
                 </Typography>
             )}
 
@@ -273,6 +245,10 @@ const ChatbotWidget = () => {
                     boxShadow: 6,
                     transform: isOpen ? 'scale(0)' : 'scale(1)',
                     transition: 'transform 0.3s ease-in-out',
+                    backgroundColor: darkMode ? '#1877F2' : '#2196F3',
+                    '&:hover': {
+                        backgroundColor: darkMode ? '#166FEF' : '#1976D2',
+                    },
                 }}
             >
                 <Avatar
@@ -285,8 +261,9 @@ const ChatbotWidget = () => {
             <Paper
                 elevation={6}
                 sx={{
+                    mt: 20,
                     width: 350,
-                    height: 500,
+                    height: 420,
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 2,
@@ -296,13 +273,18 @@ const ChatbotWidget = () => {
                     opacity: isOpen ? 1 : 0,
                     pointerEvents: isOpen ? 'auto' : 'none',
                     boxShadow: 8,
+                    position: 'absolute',
+                    bottom: 40,
+                    right: 0,
+                    backgroundColor: darkMode ? '#3a3b3c' : '#f0f2f5',
+                    border: darkMode ? '1px solid #555' : '1px solid #ccc',
                 }}
             >
                 <Box
                     sx={{
                         p: 1.5,
-                        bgcolor: 'primary.main',
-                        color: 'white',
+                        bgcolor: darkMode ? '#242526' : 'primary.main',
+                        color: darkMode ? '#e4e6eb' : 'white',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -328,7 +310,7 @@ const ChatbotWidget = () => {
                         flexGrow: 1,
                         overflowY: 'auto',
                         p: 2,
-                        bgcolor: 'grey.100',
+                        bgcolor: darkMode ? '#2d2e2f' : 'grey.100',
                     }}
                 >
                     {messages.map((msg, index) => (
@@ -351,8 +333,10 @@ const ChatbotWidget = () => {
                                 sx={{
                                     p: 1.2,
                                     borderRadius: '16px',
-                                    bgcolor: msg.sender === 'user' ? 'primary.light' : 'white',
-                                    color: msg.sender === 'user' ? 'white' : 'text.primary',
+                                    bgcolor: msg.sender === 'user'
+                                        ? (darkMode ? '#1877F2' : 'primary.light')
+                                        : (darkMode ? '#4a4b4c' : 'white'),
+                                    color: msg.sender === 'user' ? 'white' : (darkMode ? '#e4e6eb' : 'text.primary'),
                                     maxWidth: '85%',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -365,7 +349,6 @@ const ChatbotWidget = () => {
                             {msg.sender === 'user' && (
                                 <Avatar
                                     alt="User Avatar"
-                                    // SỬ DỤNG userAvatarUrl TỪ AUTHCONTEXT Ở ĐÂY
                                     src={userAvatarUrl}
                                     sx={{ width: 32, height: 32, ml: 1, bgcolor: 'transparent' }}
                                 />
@@ -376,14 +359,30 @@ const ChatbotWidget = () => {
                 </List>
 
                 {suggestions.length > 0 && (
-                    <Box sx={{ p: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1, borderTop: '1px solid #e0e0e0', bgcolor: 'background.paper' }}>
+                    <Box sx={{
+                        p: 1.5,
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 1,
+                        borderTop: darkMode ? '1px solid #555' : '1px solid #e0e0e0',
+                        bgcolor: darkMode ? '#3a3b3c' : 'background.paper'
+                    }}>
                         {suggestions.map((sugg, idx) => (
                             <Button
                                 key={idx}
                                 variant="outlined"
                                 size="small"
                                 onClick={() => sendSuggestion(sugg.postback)}
-                                sx={{ borderRadius: '20px', textTransform: 'none' }}
+                                sx={{
+                                    borderRadius: '20px',
+                                    textTransform: 'none',
+                                    borderColor: darkMode ? '#65676b' : 'grey.400',
+                                    color: darkMode ? '#90caf9' : 'primary.main',
+                                    '&:hover': {
+                                        backgroundColor: darkMode ? '#555' : 'action.hover',
+                                        borderColor: darkMode ? '#90caf9' : 'primary.main',
+                                    }
+                                }}
                             >
                                 {sugg.text}
                             </Button>
@@ -391,7 +390,13 @@ const ChatbotWidget = () => {
                     </Box>
                 )}
 
-                <Box sx={{ p: 1.5, borderTop: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', bgcolor: 'background.paper' }}>
+                <Box sx={{
+                    p: 1.5,
+                    borderTop: darkMode ? '1px solid #555' : '1px solid #e0e0e0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    bgcolor: darkMode ? '#3a3b3c' : 'background.paper'
+                }}>
                     <TextField
                         fullWidth
                         variant="outlined"
@@ -405,16 +410,33 @@ const ChatbotWidget = () => {
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '25px',
                                 pr: 0.5,
+                                backgroundColor: darkMode ? '#4a4b4c' : 'white',
+                                color: darkMode ? '#e4e6eb' : 'text.primary',
+                                '& fieldset': {
+                                    borderColor: darkMode ? '#65676b' : 'grey.400',
+                                },
+                                '&:hover fieldset': {
+                                    borderColor: darkMode ? '#8a8d91' : 'primary.main',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: darkMode ? '#1877F2' : 'primary.main',
+                                },
+                            },
+                            // Thêm style cho phần input bên trong TextField
+                            '& .MuiOutlinedInput-input': {
+                                height: '24px', // Chiều cao cố định, có thể điều chỉnh**
+                                minHeight: '24px', // Đảm bảo chiều cao tối thiểu**
+                                padding: '8px 14px', // Điều chỉnh padding để văn bản hiển thị đẹp hơn
                             },
                         }}
                         InputProps={{
                             endAdornment: (
                                 <InputAdornment position="end">
                                     {loading ? (
-                                        <CircularProgress size={24} sx={{ color: 'primary.main' }} />
+                                        <CircularProgress size={24} sx={{ color: darkMode ? '#90caf9' : 'primary.main' }} />
                                     ) : (
                                         <IconButton onClick={() => sendMessage()} edge="end" color="primary" disabled={input.trim() === ''}>
-                                            <SendIcon />
+                                            <SendIcon sx={{ color: darkMode ? '#90caf9' : 'primary.main' }} />
                                         </IconButton>
                                     )}
                                 </InputAdornment>

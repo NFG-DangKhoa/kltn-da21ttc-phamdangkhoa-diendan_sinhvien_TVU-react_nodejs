@@ -1,5 +1,6 @@
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
+const CommentLike = require('../models/CommentLike');
 const Rating = require('../models/Rating');
 const Like = require('../models/Like');
 const Image = require('../models/Image');
@@ -14,10 +15,49 @@ exports.setIo = (socketIoInstance) => {
     io = socketIoInstance;
 };
 
+// Lấy danh sách bài viết
+exports.getPosts = async (req, res) => {
+    try {
+        const authorId = req.query.authorId;
+        let query = {};
+
+        if (authorId) {
+            query.author = authorId;
+        }
+
+        const posts = await Post.find(query)
+            .populate('author', 'username fullName avatarUrl')
+            .sort({ createdAt: -1 });
+
+        res.status(200).json(posts);
+    } catch (error) {
+        console.error("Lỗi khi lấy bài viết:", error);
+        res.status(500).json({ message: "Không thể lấy bài viết" });
+    }
+};
+
+// Lấy bài viết theo topic
+exports.getPostsByTopic = async (req, res) => {
+    try {
+        const topicId = req.params.topicId;
+        const posts = await Post.find({ topic: topicId })
+            .populate('author', 'username fullName avatarUrl')
+            .sort({ createdAt: -1 });
+
+        res.status(200).json(posts);
+    } catch (error) {
+        console.error("Lỗi khi lấy bài viết theo topic:", error);
+        res.status(500).json({ message: "Không thể lấy bài viết từ topic" });
+    }
+};
+
 // Lấy bài viết theo topic id
 exports.getPostsByTopicWithDetails = async (req, res) => {
     try {
         const { topicId } = req.params;
+
+        console.log(`🔍 DEBUG: Fetching posts for topicId: ${topicId}`);
+        console.log(`🔍 DEBUG: topicId type: ${typeof topicId}`);
 
         // Lấy bài viết và populate thông tin tác giả, chủ đề
         // Bao gồm luôn commentCount, likeCount, ratingCount từ Post model
@@ -26,6 +66,11 @@ exports.getPostsByTopicWithDetails = async (req, res) => {
             .populate('topicId', 'name')
             .select('title content commentCount likeCount ratingCount') // Chọn rõ ràng các trường mong muốn
             .lean(); // Sử dụng .lean() để nhận về plain JavaScript objects
+
+        console.log(`🔍 DEBUG: Found ${posts.length} posts for topicId ${topicId}`);
+        posts.forEach((post, index) => {
+            console.log(`  ${index + 1}. ${post.title} (topicId: ${post.topicId?._id})`);
+        });
 
         if (!posts || posts.length === 0) {
             return res.status(200).json([]); // Trả về mảng rỗng và status 200 nếu không tìm thấy bài viết
@@ -121,27 +166,85 @@ exports.getPostByTopicAndPostIdWithDetails = async (req, res) => {
         // 3. Lọc bình luận gốc
         const rootComments = allCommentsForPost.filter(comment => comment.parentCommentId === null);
 
-        // 4. Xử lý chi tiết từng bình luận gốc và các phản hồi của nó
-        const detailedComments = await Promise.all(rootComments.map(async (comment) => {
-            // Lọc các phản hồi trực tiếp của bình luận gốc này từ allCommentsForPost
-            const replies = allCommentsForPost.filter(reply =>
-                reply.parentCommentId && reply.parentCommentId.equals(comment._id)
-            );
+        // 4. Build nested comment tree using the same logic as commentController
+        const buildCommentTree = async (comments, allReplies) => {
+            // Build nested structure
+            const commentMap = new Map();
 
-            // Populate likes cho từng bình luận (nếu cần)
-            const commentLikes = await Like.find({ targetId: comment._id, targetType: 'comment' });
+            // Add root comments to map
+            comments.forEach(comment => {
+                commentMap.set(comment._id.toString(), {
+                    ...comment.toObject(),
+                    replies: []
+                });
+            });
 
-            // Tính toán số lượng like và phản hồi hiện tại dựa trên dữ liệu đã đọc
-            const currentReplyCount = replies.length;
-            const currentLikeCount = commentLikes.length;
+            // Add replies to map
+            allReplies.forEach(reply => {
+                commentMap.set(reply._id.toString(), {
+                    ...reply.toObject(),
+                    replies: []
+                });
+            });
 
-            return {
-                ...comment.toObject(),
-                likeCount: currentLikeCount,
-                replyCount: currentReplyCount, // Cập nhật replyCount dựa trên số lượng phản hồi được lấy ra
-                replies: replies.map(r => r.toObject()), // Chuyển phản hồi thành plain object
-            };
-        }));
+            // Build tree structure
+            allReplies.forEach(reply => {
+                const parentId = reply.parentCommentId.toString();
+                if (commentMap.has(parentId)) {
+                    commentMap.get(parentId).replies.push(commentMap.get(reply._id.toString()));
+                }
+            });
+
+            // Return root comments with nested replies
+            return comments.map(comment => commentMap.get(comment._id.toString()));
+        };
+
+        // Get all replies for the post (not just direct replies)
+        const allReplies = allCommentsForPost.filter(comment => comment.parentCommentId !== null);
+
+        // Build the nested comment tree
+        const detailedComments = await buildCommentTree(rootComments, allReplies);
+
+        // Add like information to all comments (using CommentLike model)
+        const allCommentIds = [...rootComments.map(c => c._id), ...allReplies.map(r => r._id)];
+
+        // Get like counts for all comments
+        const commentLikeCounts = await CommentLike.aggregate([
+            { $match: { commentId: { $in: allCommentIds } } },
+            { $group: { _id: '$commentId', count: { $sum: 1 } } }
+        ]);
+
+        const likeCountMap = new Map();
+        commentLikeCounts.forEach(item => {
+            likeCountMap.set(item._id.toString(), item.count);
+        });
+
+        // Get user's liked comments if user is authenticated
+        let userLikedCommentIds = new Set();
+        if (req.user && req.user.id) {
+            const userLikes = await CommentLike.find({
+                commentId: { $in: allCommentIds },
+                userId: req.user.id
+            }).lean();
+            userLikedCommentIds = new Set(userLikes.map(like => like.commentId.toString()));
+        }
+
+        // Update like counts and isLiked status in the comment tree
+        const updateLikeCounts = (comments) => {
+            return comments.map(comment => {
+                const updatedComment = {
+                    ...comment,
+                    likeCount: likeCountMap.get(comment._id.toString()) || 0,
+                    isLiked: userLikedCommentIds.has(comment._id.toString())
+                };
+                if (updatedComment.replies && updatedComment.replies.length > 0) {
+                    updatedComment.replies = updateLikeCounts(updatedComment.replies);
+                }
+                return updatedComment;
+            });
+        };
+
+        const finalDetailedComments = updateLikeCounts(detailedComments);
 
         // 5. Lấy thông tin về Rating
         const ratings = await Rating.find({ postId: post._id }).populate('userId', 'fullName avatar');
@@ -165,7 +268,7 @@ exports.getPostByTopicAndPostIdWithDetails = async (req, res) => {
         // 9. Chuẩn bị đối tượng bài viết chi tiết để gửi về client
         const detailedPost = {
             ...post.toObject(), // Sử dụng post.toObject() để lấy đối tượng thuần túy
-            comments: detailedComments, // Các bình luận gốc kèm phản hồi đã được xử lý
+            comments: finalDetailedComments, // Các bình luận gốc kèm phản hồi đã được xử lý với like counts
             ratedUsers,
             ratingCount, // Sử dụng ratingCount đã tính toán
             likeCount, // Sử dụng likeCount đã tính toán
@@ -189,24 +292,129 @@ exports.createPost = async (req, res) => {
     try {
         const { authorId, title, content, topicId, tags } = req.body;
 
-        // Xử lý các ảnh Base64 trong nội dung trước khi tạo bài viết
-        let processedContent = await processBase64Images(content);
+        console.log('🔄 Creating post with image processing...');
 
-        // 1. Tạo bài viết
+        // 1. Process images first (convert data URLs and external URLs to files)
+        let finalContent = content;
+        const { processImagesForPost } = require('./uploadController');
+        const axios = require('axios');
+
+        // Extract and process data URLs in content
+        const dataUrlRegex = /data:image\/([a-zA-Z]*);base64,([^"']*)/g;
+        const dataUrls = [];
+        let match;
+
+        while ((match = dataUrlRegex.exec(content)) !== null) {
+            dataUrls.push({
+                fullMatch: match[0],
+                format: match[1],
+                data: match[2],
+                type: 'dataUrl'
+            });
+        }
+
+        // Extract and process external image URLs
+        const externalUrlRegex = /<img[^>]+src=["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|webp|svg|bmp)(?:\?[^"']*)?)[^>]*>/gi;
+        const externalUrls = [];
+        let externalMatch;
+
+        while ((externalMatch = externalUrlRegex.exec(content)) !== null) {
+            externalUrls.push({
+                fullMatch: externalMatch[0],
+                url: externalMatch[1],
+                type: 'external'
+            });
+        }
+
+        console.log(`📸 Found ${dataUrls.length} data URLs and ${externalUrls.length} external URLs to process`);
+
+        // Process each data URL and save to public/upload
+        for (let i = 0; i < dataUrls.length; i++) {
+            const { fullMatch, format, data } = dataUrls[i];
+
+            try {
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                const filename = `${uniqueSuffix}.${format}`;
+                const filepath = path.join(__dirname, '../public/upload', filename);
+
+                // Convert base64 to buffer and save
+                const buffer = Buffer.from(data, 'base64');
+                fs.writeFileSync(filepath, buffer);
+
+                // Create new URL with full server path
+                const newUrl = `http://localhost:5000/upload/${filename}`;
+
+                // Replace data URL with file URL in content
+                finalContent = finalContent.replace(fullMatch, newUrl);
+
+                console.log(`✅ Processed data URL ${i + 1}: ${filename} (${buffer.length} bytes)`);
+
+            } catch (imageError) {
+                console.error(`❌ Error processing data URL ${i + 1}:`, imageError);
+            }
+        }
+
+        // Process each external URL and download to public/upload
+        for (let i = 0; i < externalUrls.length; i++) {
+            const { fullMatch, url } = externalUrls[i];
+
+            try {
+                console.log(`🌐 Downloading external image ${i + 1}: ${url}`);
+
+                // Download image from external URL
+                const response = await axios.get(url, {
+                    responseType: 'arraybuffer',
+                    timeout: 10000, // 10 second timeout
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                });
+
+                // Determine file extension from URL or content-type
+                const urlParts = url.split('.');
+                let extension = urlParts[urlParts.length - 1].split('?')[0]; // Remove query params
+                if (!['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension.toLowerCase())) {
+                    const contentType = response.headers['content-type'];
+                    extension = contentType ? contentType.split('/')[1] : 'jpg';
+                }
+
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                const filename = `external-${uniqueSuffix}.${extension}`;
+                const filepath = path.join(__dirname, '../public/upload', filename);
+
+                // Save downloaded image
+                fs.writeFileSync(filepath, response.data);
+
+                // Create new URL with full server path
+                const newUrl = `http://localhost:5000/upload/${filename}`;
+
+                // Replace external URL with local file URL in content
+                finalContent = finalContent.replace(url, newUrl);
+
+                console.log(`✅ Downloaded external image ${i + 1}: ${filename} (${response.data.length} bytes)`);
+
+            } catch (imageError) {
+                console.error(`❌ Error downloading external image ${i + 1} from ${url}:`, imageError.message);
+                // Keep original URL if download fails
+                console.log(`⚠️ Keeping original external URL: ${url}`);
+            }
+        }
+
+        // 2. Tạo bài viết với content đã được process
         const newPost = new Post({
             authorId,
             title,
-            content: processedContent, // Sử dụng nội dung đã được xử lý ảnh Base64
+            content: finalContent,
             topicId,
             tags,
         });
 
         const savedPost = await newPost.save();
 
-        // 2. Tìm tất cả URL ảnh trong nội dung (sau khi Base64 đã được xử lý)
-        const imageUrls = extractImageUrls(savedPost.content); // Lấy từ nội dung đã lưu
+        // 3. Tìm tất cả URL ảnh trong nội dung (sau khi process)
+        const imageUrls = extractImageUrls(finalContent);
 
-        // 3. Lưu ảnh gắn với post
+        // 4. Lưu ảnh gắn với post
         const imageDocs = await Promise.all(
             imageUrls.map(url => {
                 return Image.create({
@@ -217,6 +425,8 @@ exports.createPost = async (req, res) => {
             })
         );
 
+        console.log(`✅ Post created with ${imageDocs.length} images saved to public/upload`);
+
         // Phát sự kiện Socket.IO khi có bài viết mới
         if (io) {
             io.emit('newPost', savedPost);
@@ -226,6 +436,7 @@ exports.createPost = async (req, res) => {
             message: 'Tạo bài viết thành công',
             post: savedPost,
             images: imageDocs,
+            processedImages: dataUrls.length
         });
     } catch (error) {
         console.error('Lỗi tạo bài viết:', error);
@@ -234,25 +445,24 @@ exports.createPost = async (req, res) => {
 };
 
 // **Thêm hàm createPostWithImages ở đây**
-// Hàm này có thể giống createPost nếu bạn xử lý ảnh trong 'content'
-// hoặc bạn có thể thay đổi để nhận file upload riêng biệt nếu cần.
 exports.createPostWithImages = async (req, res) => {
+    // This function can be the same as createPost if it handles images within the 'content' field.
+    // If it's intended for a different image upload mechanism (e.g., direct file upload),
+    // you'll need to adjust the logic. For now, assuming it's similar to createPost.
     try {
         const { authorId, title, content, topicId, tags } = req.body;
-
-        let processedContent = await processBase64Images(content); // Xử lý Base64
 
         const newPost = new Post({
             authorId,
             title,
-            content: processedContent, // Sử dụng nội dung đã được xử lý
+            content,
             topicId,
             tags,
         });
 
         const savedPost = await newPost.save();
 
-        const imageUrls = extractImageUrls(savedPost.content); // Lấy từ nội dung đã lưu
+        const imageUrls = extractImageUrls(content);
 
         const imageDocs = await Promise.all(
             imageUrls.map(url => {
@@ -319,13 +529,115 @@ exports.updatePost = async (req, res) => {
         const oldContent = post.content || ''; // Lưu nội dung cũ để quản lý ảnh
         let { title, content, topicId, tags } = req.body;
 
-        // Xử lý các ảnh Base64 trong nội dung mới trước khi cập nhật
-        let processedContent = await processBase64Images(content);
+        console.log('🔄 Updating post with image processing...');
 
+        // 2. Process new images in content (convert data URLs and external URLs to files)
+        let finalContent = content;
+        if (content !== undefined) {
+            const dataUrlRegex = /data:image\/([a-zA-Z]*);base64,([^"']*)/g;
+            const dataUrls = [];
+            let match;
 
-        // 2. Cập nhật các trường của bài viết
+            while ((match = dataUrlRegex.exec(content)) !== null) {
+                dataUrls.push({
+                    fullMatch: match[0],
+                    format: match[1],
+                    data: match[2],
+                    type: 'dataUrl'
+                });
+            }
+
+            // Extract and process external image URLs
+            const externalUrlRegex = /<img[^>]+src=["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|webp|svg|bmp)(?:\?[^"']*)?)[^>]*>/gi;
+            const externalUrls = [];
+            let externalMatch;
+
+            while ((externalMatch = externalUrlRegex.exec(content)) !== null) {
+                externalUrls.push({
+                    fullMatch: externalMatch[0],
+                    url: externalMatch[1],
+                    type: 'external'
+                });
+            }
+
+            console.log(`📸 Found ${dataUrls.length} data URLs and ${externalUrls.length} external URLs to process`);
+
+            // Process each data URL and save to public/upload
+            for (let i = 0; i < dataUrls.length; i++) {
+                const { fullMatch, format, data } = dataUrls[i];
+
+                try {
+                    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                    const filename = `${uniqueSuffix}.${format}`;
+                    const filepath = path.join(__dirname, '../public/upload', filename);
+
+                    // Convert base64 to buffer and save
+                    const buffer = Buffer.from(data, 'base64');
+                    fs.writeFileSync(filepath, buffer);
+
+                    // Create new URL with full server path
+                    const newUrl = `http://localhost:5000/upload/${filename}`;
+
+                    // Replace data URL with file URL in content
+                    finalContent = finalContent.replace(fullMatch, newUrl);
+
+                    console.log(`✅ Processed new data URL ${i + 1}: ${filename} (${buffer.length} bytes)`);
+
+                } catch (imageError) {
+                    console.error(`❌ Error processing new data URL ${i + 1}:`, imageError);
+                }
+            }
+
+            // Process each external URL and download to public/upload
+            for (let i = 0; i < externalUrls.length; i++) {
+                const { fullMatch, url } = externalUrls[i];
+
+                try {
+                    console.log(`🌐 Downloading external image ${i + 1}: ${url}`);
+
+                    // Download image from external URL
+                    const response = await axios.get(url, {
+                        responseType: 'arraybuffer',
+                        timeout: 10000, // 10 second timeout
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }
+                    });
+
+                    // Determine file extension from URL or content-type
+                    const urlParts = url.split('.');
+                    let extension = urlParts[urlParts.length - 1].split('?')[0]; // Remove query params
+                    if (!['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension.toLowerCase())) {
+                        const contentType = response.headers['content-type'];
+                        extension = contentType ? contentType.split('/')[1] : 'jpg';
+                    }
+
+                    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                    const filename = `external-${uniqueSuffix}.${extension}`;
+                    const filepath = path.join(__dirname, '../public/upload', filename);
+
+                    // Save downloaded image
+                    fs.writeFileSync(filepath, response.data);
+
+                    // Create new URL with full server path
+                    const newUrl = `http://localhost:5000/upload/${filename}`;
+
+                    // Replace external URL with local file URL in content
+                    finalContent = finalContent.replace(url, newUrl);
+
+                    console.log(`✅ Downloaded external image ${i + 1}: ${filename} (${response.data.length} bytes)`);
+
+                } catch (imageError) {
+                    console.error(`❌ Error downloading external image ${i + 1} from ${url}:`, imageError.message);
+                    // Keep original URL if download fails
+                    console.log(`⚠️ Keeping original external URL: ${url}`);
+                }
+            }
+        }
+
+        // 3. Cập nhật các trường của bài viết
         if (title !== undefined) post.title = title;
-        if (content !== undefined) post.content = processedContent; // Cập nhật với nội dung đã xử lý
+        if (content !== undefined) post.content = finalContent;
         if (topicId !== undefined) post.topicId = topicId;
         if (tags !== undefined) post.tags = tags;
 
@@ -336,7 +648,7 @@ exports.updatePost = async (req, res) => {
 
         // Trích xuất URL ảnh cũ và mới từ nội dung
         const oldImageUrls = extractImageUrls(oldContent);
-        const newImageUrls = extractImageUrls(savedPost.content); // Lấy từ nội dung đã lưu
+        const newImageUrls = extractImageUrls(savedPost.content);
 
         // 1. Xác định các URL ảnh đã bị xóa khỏi nội dung bài viết
         const removedImageUrls = oldImageUrls.filter(url => !newImageUrls.includes(url));
@@ -406,22 +718,31 @@ exports.deletePost = async (req, res) => {
 
         // 1. Trích xuất URL ảnh từ nội dung bài viết trước khi xóa bài viết khỏi DB
         const imageUrlsToDeletePhysical = extractImageUrls(post.content || '');
+        console.log(`🔍 Found ${imageUrlsToDeletePhysical.length} images to delete:`, imageUrlsToDeletePhysical);
 
         // 2. Xóa bài viết khỏi cơ sở dữ liệu
         const deletePostResult = await Post.deleteOne({ _id: postId });
-        console.log(`Kết quả xóa bài viết từ DB:`, deletePostResult);
+        console.log(`✅ Kết quả xóa bài viết từ DB:`, deletePostResult);
 
         // 3. Xóa tất cả các bản ghi ảnh liên kết với bài viết này khỏi DB
         const deleteImageResult = await Image.deleteMany({ refType: 'post', refId: postId });
-        console.log(`Kết quả xóa ảnh liên kết từ DB:`, deleteImageResult);
+        console.log(`✅ Kết quả xóa ảnh liên kết từ DB:`, deleteImageResult);
 
         // 4. Xóa các tệp ảnh vật lý từ thư mục public/upload
+        console.log(`🗑️ Starting to delete physical image files...`);
         await Promise.all(imageUrlsToDeletePhysical.map(async url => {
             const filename = extractFilenameFromUrl(url);
+            console.log(`🔍 Processing image URL: ${url} → filename: ${filename}`);
+            console.log(`🔍 Is local image: ${isLocalImageUrl(url)}`);
             if (filename && isLocalImageUrl(url)) { // Only delete if it's a local image URL
+                console.log(`🗑️ Deleting physical file: ${filename}`);
                 await deletePhysicalImage(filename);
+            } else {
+                console.log(`⏭️ Skipping non-local image: ${url}`);
             }
         }));
+        console.log(`✅ Finished deleting physical image files`);
+
 
         // Phát sự kiện Socket.IO khi có bài viết bị xóa
         if (io) {
@@ -461,8 +782,7 @@ exports.incrementViews = async (req, res) => {
 const extractImageUrls = (htmlContent) => {
     const imageUrls = [];
     // Regex này sẽ tìm các thẻ <img> và trích xuất giá trị của thuộc tính src
-    // Bổ sung để bắt cả data:image/base64 và /upload/
-    const imgTagRegex = /<img[^>]+src\s*=\s*['"](data:image\/[^;]+;base64,[^'"]+|https?:\/\/[^'"]+|\/upload\/[^'"]+)['"]/gi;
+    const imgTagRegex = /<img[^>]+src\s*=\s*['"]([^'"]+)['"]/gi;
     let match;
 
     while ((match = imgTagRegex.exec(htmlContent))) {
@@ -475,10 +795,16 @@ const extractImageUrls = (htmlContent) => {
 
 // Hàm này sẽ trích xuất tên file ảnh từ các URL ảnh
 // Ví dụ: "http://localhost:5000/upload/1678901234567-abc.png" => "1678901234567-abc.png"
+// Hoặc: "/upload/1678901234567-abc.png" => "1678901234567-abc.png"
 function extractFilenameFromUrl(url) {
     try {
+        // Handle relative URLs (starting with /)
+        if (url.startsWith('/')) {
+            return path.basename(url);
+        }
+
+        // Handle absolute URLs
         const urlObj = new URL(url);
-        // Lấy phần pathname và sau đó lấy tên file cuối cùng
         return path.basename(urlObj.pathname);
     } catch (e) {
         console.error("URL ảnh không hợp lệ hoặc không thể trích xuất tên file:", url, e);
@@ -489,91 +815,46 @@ function extractFilenameFromUrl(url) {
 // Thêm hàm này vào phần "HÀM TRỢ GIÚP" của bạn
 function isLocalImageUrl(url) {
     try {
-        const urlObj = new URL(url);
-        // Thay đổi 'localhost:5000' bằng domain và port thực tế của bạn trong production
-        // Kiểm tra xem pathname có bắt đầu bằng '/upload/' không
-        const localDomains = ['localhost:5000', 'yourdomain.com', 'www.yourdomain.com']; // Thêm các domain của bạn vào đây
-        if (localDomains.includes(urlObj.host)) {
-            return urlObj.pathname.startsWith('/upload/'); // Đảm bảo đúng đường dẫn /upload/
+        // Check if it's a relative URL starting with /upload/
+        if (url.startsWith('/upload/')) {
+            return true;
         }
-        // Cách 2: Chỉ kiểm tra pathname nếu bạn biết chắc rằng chỉ có ảnh upload mới có đường dẫn này
-        return urlObj.pathname.startsWith('/upload/'); // Đảm bảo đúng đường dẫn /upload/
+
+        const urlObj = new URL(url);
+        // Check for localhost and upload path
+        const localDomains = ['localhost:5000', 'localhost:3000', '127.0.0.1:5000', '127.0.0.1:3000'];
+        if (localDomains.includes(urlObj.host)) {
+            return urlObj.pathname.startsWith('/upload/');
+        }
+
+        return false; // Không phải ảnh local
     } catch (e) {
-        // console.warn("URL không hợp lệ khi kiểm tra local:", url);
-        return false; // URL không hợp lệ thì không phải ảnh local
+        // If URL parsing fails, check if it's a relative path
+        return url.startsWith('/upload/');
     }
 }
 
 // Hàm để xóa các tệp ảnh vật lý khỏi thư mục public/upload
 function deletePhysicalImage(filename) {
-    // Đảm bảo đường dẫn tới thư mục lưu trữ ảnh là chính xác
-    const filePath = path.join(__dirname, '../public/upload', filename); // Thay đổi thành /upload/
+    return new Promise((resolve, reject) => {
+        // Đảm bảo đường dẫn tới thư mục lưu trữ ảnh là chính xác
+        const filePath = path.join(__dirname, '../public/upload', filename);
+        console.log(`🗑️ Attempting to delete file: ${filePath}`);
 
-    fs.unlink(filePath, (err) => {
-        if (err) {
-            // Xử lý các lỗi phổ biến như tệp không tồn tại (ENOENT)
-            if (err.code === 'ENOENT') {
-                console.warn(`File ảnh vật lý không tồn tại: ${filePath}. Có thể đã bị xóa trước đó.`);
+        fs.unlink(filePath, (err) => {
+            if (err) {
+                // Xử lý các lỗi phổ biến như tệp không tồn tại (ENOENT)
+                if (err.code === 'ENOENT') {
+                    console.warn(`⚠️ File ảnh vật lý không tồn tại: ${filePath}. Có thể đã bị xóa trước đó.`);
+                    resolve(); // Resolve anyway since file doesn't exist
+                } else {
+                    console.error(`❌ Lỗi khi xóa file ảnh vật lý ${filePath}:`, err);
+                    reject(err);
+                }
             } else {
-                console.error(`Lỗi khi xóa file ảnh vật lý ${filePath}:`, err);
+                console.log(`✅ Đã xóa file ảnh vật lý: ${filePath}`);
+                resolve();
             }
-        } else {
-            console.log(`Đã xóa file ảnh vật lý: ${filePath}`);
-        }
-    });
-}
-
-/**
- * Hàm mới: Xử lý các ảnh Base64 trong nội dung HTML, lưu chúng và thay thế bằng URL cục bộ.
- * @param {string} htmlContent - Nội dung HTML có thể chứa ảnh Base64.
- * @returns {Promise<string>} - Nội dung HTML đã được xử lý với các URL ảnh cục bộ.
- */
-async function processBase64Images(htmlContent) {
-    let newHtmlContent = htmlContent;
-    const base64Regex = /<img[^>]+src\s*=\s*['"](data:image\/[^;]+;base64,[^'"]+)['"]/gi;
-    let match;
-    const imageDir = path.join(__dirname, '../public/upload'); // Đảm bảo thư mục này tồn tại và là 'public/upload'
-
-    // Tạo thư mục nếu nó chưa tồn tại
-    if (!fs.existsSync(imageDir)) {
-        fs.mkdirSync(imageDir, { recursive: true });
-    }
-
-    const imagesToProcess = [];
-    // Sử dụng vòng lặp while với exec để lấy tất cả các match
-    while ((match = base64Regex.exec(htmlContent))) {
-        imagesToProcess.push({
-            fullMatch: match[0], // Ví dụ: <img src="data:image/png;base64,..."
-            base64Url: match[1] // Ví dụ: data:image/png;base64,...
         });
-    }
-
-    // Xử lý từng ảnh Base64 một cách tuần tự
-    for (const img of imagesToProcess) {
-        const { base64Url, fullMatch } = img;
-        try {
-            const parts = base64Url.split(';');
-            const mimeType = parts[0].split(':')[1]; // Ví dụ: image/png
-            const extension = mimeType.split('/')[1]; // Ví dụ: png
-            const base64Data = parts[1].split(',')[1];
-
-            const filename = `uploaded-${Date.now()}-${Math.round(Math.random() * 1E9)}.${extension}`;
-            const filePath = path.join(imageDir, filename);
-
-            await fs.promises.writeFile(filePath, base64Data, 'base64');
-            const newImageUrl = `/upload/${filename}`; // URL công khai của ảnh, phải là '/upload/'
-
-            // Thay thế URL Base64 bằng URL cục bộ trong nội dung HTML
-            // Sử dụng một phương pháp thay thế an toàn hơn nếu có nhiều hơn một lần xuất hiện của base64Url
-            // trong fullMatch hoặc nếu có nhiều fullMatch giống nhau.
-            // Trong trường hợp này, chúng ta sẽ thay thế fullMatch bằng một phiên bản đã sửa đổi của nó.
-            newHtmlContent = newHtmlContent.replace(fullMatch, fullMatch.replace(base64Url, newImageUrl));
-            console.log(`Đã lưu ảnh Base64 thành: ${newImageUrl}`);
-        } catch (error) {
-            console.error('Lỗi khi xử lý ảnh Base64:', error);
-            // Giữ nguyên URL Base64 nếu có lỗi để tránh làm hỏng nội dung
-        }
-    }
-
-    return newHtmlContent;
+    });
 }

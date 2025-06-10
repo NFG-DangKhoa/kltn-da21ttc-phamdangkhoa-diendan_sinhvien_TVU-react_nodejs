@@ -1,664 +1,1571 @@
-import React, { useState, useRef, useEffect, useCallback, useContext } from 'react';
+import React, { useContext, useRef, useMemo, useCallback, useEffect } from 'react';
 import {
     Box,
-    TextField,
-    Button,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    IconButton,
     Paper,
+    useTheme,
+    alpha,
+    Chip,
     Typography,
-    Select,
-    MenuItem,
-    FormControl,
-    InputLabel,
-    Divider,
-    Tooltip,
-    useTheme // Import useTheme to access the MUI theme
+    Fade,
+    Stack,
+    ButtonGroup,
+    Button,
+    Tooltip
 } from '@mui/material';
-import DOMPurify from 'dompurify';
-import CloseIcon from '@mui/icons-material/Close';
-import FormatBoldIcon from '@mui/icons-material/FormatBold';
-import FormatItalicIcon from '@mui/icons-material/FormatItalic';
-import FormatUnderlinedIcon from '@mui/icons-material/FormatUnderlined';
-import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import LinkIcon from '@mui/icons-material/Link';
-import InsertPhotoOutlinedIcon from '@mui/icons-material/InsertPhotoOutlined';
-import FormatAlignLeftIcon from '@mui/icons-material/FormatAlignLeft';
-import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter';
-import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight';
-import StrikethroughSIcon from '@mui/icons-material/StrikethroughS';
-import CodeIcon from '@mui/icons-material/Code';
-import LooksOneIcon from '@mui/icons-material/LooksOne';
-import LooksTwoIcon from '@mui/icons-material/LooksTwo';
-import { ThemeContext } from '../../../context/ThemeContext'; // Correctly import ThemeContext
-
-// --- Helper Functions ---
-const getSelectionRange = () => {
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-        return selection.getRangeAt(0);
-    }
-    return null;
-};
-
-const setSelectionRange = (range) => {
-    if (range) {
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
-    }
-};
-
-// Regex to check basic image URL
-export const IMAGE_URL_REGEX = /(https?:\/\/[^\s]+(\.png|\.jpg|\.jpeg|\.gif|\.webp))/g;
-
-const IMAGE_SIZES = [
-    { value: 150, label: 'Nhỏ (150px)' },
-    { value: 300, label: 'Vừa (300px)' },
-    { value: 500, label: 'Lớn (500px)' },
-    { value: 700, label: 'Rộng (700px)' },
-    { value: '100%', label: 'Đầy đủ (100%)' },
-];
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+import '../../../styles/quill-custom.css';
+import { ThemeContext } from '../../../context/ThemeContext';
+import {
+    PhotoSizeSelectSmall as SmallIcon,
+    PhotoSizeSelectActual as MediumIcon,
+    PhotoSizeSelectLarge as LargeIcon,
+    AspectRatio as FullIcon,
+    FormatAlignCenter as CenterIcon,
+    FormatAlignLeft as LeftIcon,
+    FormatAlignRight as RightIcon,
+    Delete as DeleteIcon
+} from '@mui/icons-material';
+import {
+    AutoAwesome as MagicIcon,
+    Keyboard as KeyboardIcon,
+    Image as ImageIcon,
+    Link as LinkIcon
+} from '@mui/icons-material';
 
 const RichTextEditor = ({ content, onContentChange }) => {
-    const editorRef = useRef(null);
-    const fileInputRef = useRef(null);
-    const [selectedImage, setSelectedImage] = useState(null);
-    const [imageWidth, setImageWidth] = useState(IMAGE_SIZES[1].value);
-
-    const [openLinkDialog, setOpenLinkDialog] = useState(false);
-    const [linkUrl, setLinkUrl] = useState('');
-    const currentSelectionRange = useRef(null); // Use useRef to save range
-
-    const [showImageControls, setShowImageControls] = useState(false);
-
-    // Get the current theme mode from ThemeContext
     const { mode } = useContext(ThemeContext);
-    const theme = useTheme(); // Use useTheme to access the Material-UI theme palette
+    const theme = useTheme();
+    const quillRef = useRef(null);
 
-    // Now, derive colors directly from the Material-UI theme palette
-    // This is the primary change to align with the theming approach
-    const paperBorderColor = theme.palette.mode === 'dark' ? '#555' : '#ccc';
-    const toolbarBgColor = theme.palette.mode === 'dark' ? '#222' : theme.palette.grey[100];
-    const toolbarButtonColor = theme.palette.text.primary; // Already correctly set by the theme's text.primary
-    const dividerColor = theme.palette.divider; // Using theme.palette.divider for consistency
-    const editorBgColor = theme.palette.background.default; // Using theme.palette.background.default
-    const editorTextColor = theme.palette.text.primary; // Using theme.palette.text.primary
-    const codeBlockBgColor = theme.palette.mode === 'dark' ? '#2d2d2d' : '#f4f4f4';
-    const codeBlockTextColor = theme.palette.mode === 'dark' ? '#a9b7c6' : '#333';
-    const linkColor = theme.palette.primary.main; // Already correctly set by the theme's primary.main
-    const dialogBgColor = theme.palette.background.paper; // Using theme.palette.background.paper
-    const dialogTextColor = theme.palette.text.primary; // Using theme.palette.text.primary
-    const inputLabelColor = theme.palette.text.secondary; // Using theme.palette.text.secondary
-    const inputBorderColor = theme.palette.mode === 'dark' ? '#777' : '#ccc';
-    const inputHoverBorderColor = theme.palette.mode === 'dark' ? '#999' : '#999';
-    const inputFocusBorderColor = theme.palette.primary.main; // Consistent with primary color
+    const isDarkMode = mode === 'dark';
 
-    // --- Update editor content when 'content' prop changes from outside ---
-    // Only update innerHTML if content prop changes and is different from current editor content
-    useEffect(() => {
-        if (editorRef.current && editorRef.current.innerHTML !== content) {
-            editorRef.current.innerHTML = content;
-            // Place cursor at the end of content after initial load or update from prop
-            const range = document.createRange();
-            const selection = window.getSelection();
-            if (editorRef.current.lastChild) {
-                range.setStartAfter(editorRef.current.lastChild);
-            } else {
-                range.setStart(editorRef.current, 0);
-            }
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-        }
-    }, [content]);
+    // Enhanced image click handler with better controls
+    const handleImageClick = useCallback((event) => {
+        console.log('🖱️ Image clicked!', event.target);
 
+        const img = event.target;
+        if (img.tagName === 'IMG') {
+            event.preventDefault();
+            event.stopPropagation();
 
-    // Effect to handle image selection logic and listen to input events
-    useEffect(() => {
-        const editorElement = editorRef.current;
-        if (!editorElement) return;
+            console.log('✅ Image click handler triggered');
 
-        const handleEditorClick = (e) => {
-            if (e.target.tagName === 'IMG') {
-                setSelectedImage(e.target);
-                const currentWidth = e.target.style.width || `${IMAGE_SIZES[1].value}px`;
-                setImageWidth(currentWidth.replace('px', '').replace('%', ''));
-                setShowImageControls(true);
-            } else {
-                setSelectedImage(null);
-                setShowImageControls(false);
-            }
-        };
-
-        const handleInput = () => {
-            // Update content via onContentChange
-            onContentChange(editorRef.current.innerHTML);
-            // Save current selection range after each type
-            currentSelectionRange.current = getSelectionRange();
-        };
-
-        // Listen for click event to select image
-        editorElement.addEventListener('click', handleEditorClick);
-        // Listen for input event to update content after each keystroke
-        editorElement.addEventListener('input', handleInput);
-        // Listen for keyup event to update selection range after typing
-        editorElement.addEventListener('keyup', handleInput);
-
-        return () => {
-            editorElement.removeEventListener('click', handleEditorClick);
-            editorElement.removeEventListener('input', handleInput);
-            editorElement.removeEventListener('keyup', handleInput);
-        };
-    }, [onContentChange]);
-
-
-    const handleFormat = useCallback((command, value = null) => {
-        if (editorRef.current) {
-            editorRef.current.focus(); // Ensure editor has focus
-            const range = getSelectionRange(); // Save selection range before executing command
-            document.execCommand(command, false, value);
-            setSelectionRange(range); // Restore selection to old position
-
-            // After formatting, update content
-            const newContent = editorRef.current.innerHTML;
-            onContentChange(newContent);
-        }
-    }, [onContentChange]);
-
-    const handleHeader = useCallback((level) => {
-        if (editorRef.current) {
-            editorRef.current.focus();
-            const range = getSelectionRange();
-            document.execCommand('formatBlock', false, `<h${level}>`);
-            setSelectionRange(range);
-            const newContent = editorRef.current.innerHTML;
-            onContentChange(newContent);
-        }
-    }, [onContentChange]);
-
-    const handleBold = () => handleFormat('bold');
-    const handleItalic = () => handleFormat('italic');
-    const handleUnderline = () => handleFormat('underline');
-    const handleStrikethrough = () => handleFormat('strikeThrough');
-    const handleCode = () => handleFormat('formatBlock', '<pre>');
-    const handleUnorderedList = () => handleFormat('insertUnorderedList');
-
-    const handleLinkClick = () => {
-        const selection = window.getSelection();
-        if (selection.toString().length > 0) {
-            currentSelectionRange.current = getSelectionRange(); // Save current selection range to useRef
-            setOpenLinkDialog(true);
-        } else {
-            alert('Vui lòng chọn văn bản để tạo link.');
-        }
-    };
-
-    const handleInsertLink = () => {
-        if (editorRef.current && currentSelectionRange.current) {
-            editorRef.current.focus();
-            setSelectionRange(currentSelectionRange.current); // Restore saved selection range
-            handleFormat('createLink', linkUrl); // Call handleFormat to update content
-        }
-        setOpenLinkDialog(false);
-        setLinkUrl('');
-        currentSelectionRange.current = null; // Clear saved selection range
-    };
-
-    const handleImageClick = () => {
-        fileInputRef.current.click();
-    };
-
-    const handleFileChange = useCallback(async (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const rangeBeforeFileRead = getSelectionRange(); // Save cursor position before reading file
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const tempBase64Url = e.target.result;
-            const fileName = file.name;
-
-            if (editorRef.current && rangeBeforeFileRead) {
-                editorRef.current.focus();
-                setSelectionRange(rangeBeforeFileRead); // Restore cursor
-
-                const initialWidth = IMAGE_SIZES[1].value;
-                const widthStyle = typeof initialWidth === 'number' ? `${initialWidth}px` : initialWidth;
-
-                // Insert image
-                document.execCommand('insertHTML', false, `<img src="${tempBase64Url}" data-filename="${fileName}" style="width:${widthStyle}; height:auto; display:block; margin:12px auto;">`);
-
-                // Find the just-inserted image to set it as the selected image
-                const imgs = editorRef.current.querySelectorAll(`img[src="${tempBase64Url}"]`);
-                const insertedImg = imgs[imgs.length - 1];
-
-                if (insertedImg) {
-                    setSelectedImage(insertedImg);
-                    setImageWidth(initialWidth);
-                    setShowImageControls(true);
-                }
-                const newContent = editorRef.current.innerHTML;
-                onContentChange(newContent);
-
-                // Important: Place cursor after the inserted image
-                const newRange = document.createRange();
-                newRange.setStartAfter(insertedImg);
-                newRange.collapse(true);
-                setSelectionRange(newRange);
-            }
-        };
-        reader.readAsDataURL(file);
-        event.target.value = null; // Clear input so the same file can be selected again
-    }, [onContentChange]);
-
-    const handleImageSizeChange = useCallback((event) => {
-        const newValue = event.target.value;
-        setImageWidth(newValue);
-        if (selectedImage) {
-            const widthStyle = typeof newValue === 'number' ? `${newValue}px` : newValue;
-            selectedImage.style.width = widthStyle;
-            selectedImage.style.height = 'auto'; // Maintain aspect ratio
-            const newContent = editorRef.current.innerHTML;
-            onContentChange(newContent);
-            editorRef.current.focus(); // Keep focus on editor after change
-            setSelectionRange(getSelectionRange()); // Update selection
-        }
-    }, [selectedImage, onContentChange]);
-
-    const handleAlign = useCallback((align) => {
-        if (selectedImage) {
-            selectedImage.style.float = 'none'; // Reset float
-            selectedImage.style.display = 'block';
-            selectedImage.style.margin = '12px auto'; // Default to center
-
-            if (align === 'left') {
-                selectedImage.style.float = 'left';
-                selectedImage.style.margin = '12px 12px 12px 0'; // Margin for left-aligned image
-            } else if (align === 'right') {
-                selectedImage.style.float = 'right';
-                selectedImage.style.margin = '12px 0 12px 12px'; // Margin for right-aligned image
+            // Remove existing controls
+            const existingControls = document.querySelector('.image-controls-overlay');
+            if (existingControls) {
+                existingControls.remove();
             }
 
-            const newContent = editorRef.current.innerHTML;
-            onContentChange(newContent);
-            editorRef.current.focus(); // Keep focus on editor
-            setSelectionRange(getSelectionRange()); // Update selection
-        } else {
-            // Apply text alignment
-            const range = getSelectionRange();
-            handleFormat(`justify${align.charAt(0).toUpperCase() + align.slice(1)}`);
-            setSelectionRange(range); // Restore selection
-        }
-    }, [selectedImage, onContentChange, handleFormat]);
+            // Create overlay controls
+            const overlay = document.createElement('div');
+            overlay.className = 'image-controls-overlay';
 
-    const handlePaste = useCallback(async (event) => {
-        event.preventDefault(); // Prevent default paste behavior
+            const imgRect = img.getBoundingClientRect();
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
 
-        const items = (event.clipboardData || event.originalEvent.clipboardData).items;
-        const currentRange = getSelectionRange(); // Save current selection range
+            overlay.style.cssText = `
+                position: absolute;
+                top: ${imgRect.top + scrollTop - 50}px;
+                left: ${imgRect.left + scrollLeft}px;
+                width: ${imgRect.width}px;
+                background: rgba(0, 0, 0, 0.8);
+                border-radius: 8px;
+                padding: 8px;
+                z-index: 1000;
+                display: flex;
+                gap: 4px;
+                justify-content: center;
+                animation: fadeInDown 0.2s ease;
+            `;
 
-        let pastedHtml = null;
-        let pastedText = null;
-        let pastedImageFile = null;
+            // Size buttons
+            const sizes = [
+                { label: '📱', width: '150px', tooltip: 'Nhỏ (150px)' },
+                { label: '💻', width: '300px', tooltip: 'Vừa (300px)' },
+                { label: '🖥️', width: '500px', tooltip: 'Lớn (500px)' },
+                { label: '📺', width: '100%', tooltip: 'Rộng (100%)' }
+            ];
 
-        // Iterate through clipboard items to find available data types
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
+            sizes.forEach(size => {
+                const btn = document.createElement('button');
+                btn.innerHTML = size.label;
+                btn.title = size.tooltip;
+                btn.style.cssText = `
+                    background: rgba(255, 255, 255, 0.9);
+                    border: none;
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 16px;
+                    transition: all 0.2s ease;
+                    color: #333;
+                `;
 
-            if (item.type === 'text/html') {
-                pastedHtml = await new Promise(resolve => item.getAsString(resolve));
-            } else if (item.type === 'text/plain' && !pastedText) { // Get plain text if not already found
-                pastedText = await new Promise(resolve => item.getAsString(resolve));
-            } else if (item.type.indexOf('image') !== -1) {
-                pastedImageFile = item.getAsFile();
-            }
-        }
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.background = '#1976d2';
+                    btn.style.color = 'white';
+                    btn.style.transform = 'scale(1.1)';
+                });
 
-        // --- Handle Image First (if present) ---
-        if (pastedImageFile) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const tempBase64Url = e.target.result;
-                const fileName = `pasted_image_${Date.now()}.png`;
-                const initialWidth = IMAGE_SIZES[1].value;
-                const widthStyle = typeof initialWidth === 'number' ? `${initialWidth}px` : initialWidth;
-                const imgTag = `<img src="${tempBase64Url}" data-filename="${fileName}" style="width:${widthStyle}; height:auto; display:block; margin:12px auto;">`;
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.background = 'rgba(255, 255, 255, 0.9)';
+                    btn.style.color = '#333';
+                    btn.style.transform = 'scale(1)';
+                });
 
-                setSelectionRange(currentRange); // Restore selection
-                document.execCommand('insertHTML', false, imgTag);
-                onContentChange(editorRef.current.innerHTML);
-
-                // Place cursor after the inserted image
-                const imgs = editorRef.current.querySelectorAll(`img[src="${tempBase64Url}"]`);
-                const insertedImg = imgs[imgs.length - 1];
-                if (insertedImg) {
-                    const newRange = document.createRange();
-                    newRange.setStartAfter(insertedImg);
-                    newRange.collapse(true);
-                    setSelectionRange(newRange);
-                }
-            };
-            reader.readAsDataURL(pastedImageFile);
-        }
-        // --- Handle HTML (if present) ---
-        else if (pastedHtml) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = pastedHtml;
-            const imagesInPastedHtml = tempDiv.querySelectorAll('img');
-
-            imagesInPastedHtml.forEach(img => {
-                const src = img.getAttribute('src');
-                if (src && IMAGE_URL_REGEX.test(src)) {
-                    img.setAttribute('data-original-src', src);
-                    const initialWidth = IMAGE_SIZES[1].value;
-                    const widthStyle = typeof initialWidth === 'number' ? `${initialWidth}px` : initialWidth;
-                    img.style.width = img.style.width || widthStyle;
+                btn.addEventListener('click', () => {
+                    img.style.width = size.width;
                     img.style.height = 'auto';
+                    img.style.maxWidth = '100%';
+                    overlay.remove();
+                    if (quillRef.current) {
+                        onContentChange(quillRef.current.getEditor().root.innerHTML);
+                    }
+                });
+
+                overlay.appendChild(btn);
+            });
+
+            // Alignment buttons
+            const alignments = [
+                { label: '⬅️', align: 'left', tooltip: 'Căn trái' },
+                { label: '⬆️', align: 'center', tooltip: 'Căn giữa' },
+                { label: '➡️', align: 'right', tooltip: 'Căn phải' }
+            ];
+
+            // Add separator
+            const separator = document.createElement('div');
+            separator.style.cssText = `
+                width: 1px;
+                background: rgba(255, 255, 255, 0.3);
+                margin: 0 4px;
+            `;
+            overlay.appendChild(separator);
+
+            alignments.forEach(alignment => {
+                const btn = document.createElement('button');
+                btn.innerHTML = alignment.label;
+                btn.title = alignment.tooltip;
+                btn.style.cssText = `
+                    background: rgba(255, 255, 255, 0.9);
+                    border: none;
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 16px;
+                    transition: all 0.2s ease;
+                    color: #333;
+                `;
+
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.background = '#4caf50';
+                    btn.style.color = 'white';
+                    btn.style.transform = 'scale(1.1)';
+                });
+
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.background = 'rgba(255, 255, 255, 0.9)';
+                    btn.style.color = '#333';
+                    btn.style.transform = 'scale(1)';
+                });
+
+                btn.addEventListener('click', () => {
+                    // Reset all alignment styles
                     img.style.display = 'block';
-                    img.style.margin = '12px auto';
+                    img.style.margin = '16px auto';
+                    img.style.float = 'none';
+
+                    if (alignment.align === 'left') {
+                        img.style.margin = '16px auto 16px 0';
+                    } else if (alignment.align === 'right') {
+                        img.style.margin = '16px 0 16px auto';
+                    } else if (alignment.align === 'center') {
+                        img.style.margin = '16px auto';
+                    }
+
+                    overlay.remove();
+                    if (quillRef.current) {
+                        onContentChange(quillRef.current.getEditor().root.innerHTML);
+                    }
+                });
+
+                overlay.appendChild(btn);
+            });
+
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '🗑️';
+            deleteBtn.title = 'Xóa ảnh';
+            deleteBtn.style.cssText = `
+                background: rgba(244, 67, 54, 0.9);
+                border: none;
+                padding: 8px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 16px;
+                transition: all 0.2s ease;
+                color: white;
+                margin-left: 8px;
+            `;
+
+            deleteBtn.addEventListener('mouseenter', () => {
+                deleteBtn.style.background = '#d32f2f';
+                deleteBtn.style.transform = 'scale(1.1)';
+            });
+
+            deleteBtn.addEventListener('mouseleave', () => {
+                deleteBtn.style.background = 'rgba(244, 67, 54, 0.9)';
+                deleteBtn.style.transform = 'scale(1)';
+            });
+
+            deleteBtn.addEventListener('click', () => {
+                img.remove();
+                overlay.remove();
+                if (quillRef.current) {
+                    onContentChange(quillRef.current.getEditor().root.innerHTML);
                 }
             });
 
-            setSelectionRange(currentRange); // Restore selection
-            const sanitizedHtml = DOMPurify.sanitize(tempDiv.innerHTML); // Sanitize HTML from clipboard
-            document.execCommand('insertHTML', false, sanitizedHtml);
-            onContentChange(editorRef.current.innerHTML);
+            overlay.appendChild(deleteBtn);
+            document.body.appendChild(overlay);
+
+            // Auto remove after 10 seconds or when clicking elsewhere
+            const removeOverlay = (e) => {
+                if (!overlay.contains(e.target) && e.target !== img) {
+                    overlay.remove();
+                    document.removeEventListener('click', removeOverlay);
+                }
+            };
+
+            setTimeout(() => {
+                document.addEventListener('click', removeOverlay);
+            }, 100);
+
+            setTimeout(() => {
+                if (overlay.parentNode) {
+                    overlay.remove();
+                }
+            }, 10000);
         }
-        // --- Handle Plain Text (if present and no image/HTML was handled) ---
-        else if (pastedText) {
-            // Check if plain text is an image URL that wasn't caught by image item handler
-            if (IMAGE_URL_REGEX.test(pastedText.trim())) {
-                const imageUrl = pastedText.trim();
-                const initialWidth = IMAGE_SIZES[1].value;
-                const widthStyle = typeof initialWidth === 'number' ? `${initialWidth}px` : initialWidth;
-                const imgTag = `<img src="${imageUrl}" data-original-src="${imageUrl}" style="width:${widthStyle}; height:auto; display:block; margin:12px auto;">`;
+    }, [onContentChange]);
 
-                setSelectionRange(currentRange); // Restore selection
-                document.execCommand('insertHTML', false, imgTag);
-                onContentChange(editorRef.current.innerHTML);
+    // Function to attach image event listeners
+    const attachImageListeners = useCallback(() => {
+        if (quillRef.current) {
+            const editorElement = quillRef.current.getEditor().root;
+            const images = editorElement.querySelectorAll('img');
 
-                // Place cursor after the inserted image
-                const imgs = editorRef.current.querySelectorAll(`img[src="${imageUrl}"]`);
-                const insertedImg = imgs[imgs.length - 1];
-                if (insertedImg) {
-                    const newRange = document.createRange();
-                    newRange.setStartAfter(insertedImg);
-                    newRange.collapse(true);
-                    setSelectionRange(newRange);
+            console.log(`🖼️ Found ${images.length} images, attaching listeners...`);
+
+            images.forEach((img, index) => {
+                // Remove existing listeners to prevent duplicates
+                img.removeEventListener('click', handleImageClick);
+
+                // Add click listener
+                img.addEventListener('click', handleImageClick);
+
+                // Style the image
+                img.style.cursor = 'pointer';
+                img.style.border = '2px solid transparent';
+                img.style.transition = 'all 0.2s ease';
+                img.style.position = 'relative';
+
+                // Add a visual indicator
+                img.setAttribute('data-clickable', 'true');
+                img.title = 'Click để thay đổi kích thước và căn chỉnh';
+
+                // Add hover effects
+                const handleMouseEnter = () => {
+                    img.style.border = '2px solid #1976d2';
+                    img.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.3)';
+                    img.style.transform = 'scale(1.02)';
+                };
+
+                const handleMouseLeave = () => {
+                    img.style.border = '2px solid transparent';
+                    img.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                    img.style.transform = 'scale(1)';
+                };
+
+                img.removeEventListener('mouseenter', handleMouseEnter);
+                img.removeEventListener('mouseleave', handleMouseLeave);
+                img.addEventListener('mouseenter', handleMouseEnter);
+                img.addEventListener('mouseleave', handleMouseLeave);
+
+                console.log(`✅ Image ${index + 1} listeners attached`);
+            });
+        }
+    }, []);
+
+    // Simple event delegation setup
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (quillRef.current) {
+                const editorElement = quillRef.current.getEditor().root;
+
+                // Simple click handler
+                const handleClick = (event) => {
+                    console.log('🔍 Click detected on:', event.target.tagName, event.target);
+
+                    if (event.target.tagName === 'IMG') {
+                        console.log('🖱️ Image clicked!', event.target);
+                        console.log('🎯 Creating overlay controls...');
+
+                        // Call the image click handler directly
+                        const img = event.target;
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        console.log('✅ Image click handler triggered');
+
+                        // Remove existing controls
+                        const existingControls = document.querySelector('.image-controls-overlay');
+                        if (existingControls) {
+                            existingControls.remove();
+                        }
+
+                        // Create overlay controls
+                        const overlay = document.createElement('div');
+                        overlay.className = 'image-controls-overlay';
+
+                        const imgRect = img.getBoundingClientRect();
+                        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+
+                        // Calculate better position
+                        const overlayTop = Math.max(10, imgRect.top + scrollTop - 60);
+                        const overlayLeft = imgRect.left + scrollLeft;
+
+                        overlay.style.cssText = `
+                            position: fixed;
+                            top: ${Math.max(10, imgRect.top - 60)}px;
+                            left: ${imgRect.left}px;
+                            min-width: 300px;
+                            background: rgba(0, 0, 0, 0.9);
+                            border-radius: 12px;
+                            padding: 12px;
+                            z-index: 9999;
+                            display: flex;
+                            gap: 6px;
+                            justify-content: center;
+                            animation: fadeInDown 0.2s ease;
+                            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                            border: 2px solid rgba(255, 255, 255, 0.1);
+                        `;
+
+                        // Size buttons
+                        const sizes = [
+                            { label: '📱', width: '150px', tooltip: 'Nhỏ (150px)' },
+                            { label: '💻', width: '300px', tooltip: 'Vừa (300px)' },
+                            { label: '🖥️', width: '500px', tooltip: 'Lớn (500px)' },
+                            { label: '📺', width: '100%', tooltip: 'Rộng (100%)' }
+                        ];
+
+                        sizes.forEach(size => {
+                            const btn = document.createElement('button');
+                            btn.innerHTML = size.label;
+                            btn.title = size.tooltip;
+                            btn.style.cssText = `
+                                background: rgba(255, 255, 255, 0.95);
+                                border: none;
+                                padding: 10px 16px;
+                                border-radius: 8px;
+                                cursor: pointer;
+                                font-size: 18px;
+                                font-weight: bold;
+                                transition: all 0.2s ease;
+                                color: #333;
+                                min-width: 50px;
+                                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                            `;
+
+                            btn.addEventListener('mouseenter', () => {
+                                btn.style.background = '#1976d2';
+                                btn.style.color = 'white';
+                                btn.style.transform = 'scale(1.1)';
+                            });
+
+                            btn.addEventListener('mouseleave', () => {
+                                btn.style.background = 'rgba(255, 255, 255, 0.9)';
+                                btn.style.color = '#333';
+                                btn.style.transform = 'scale(1)';
+                            });
+
+                            btn.addEventListener('click', () => {
+                                img.style.width = size.width;
+                                img.style.height = 'auto';
+                                img.style.maxWidth = '100%';
+                                overlay.remove();
+                                if (quillRef.current) {
+                                    onContentChange(quillRef.current.getEditor().root.innerHTML);
+                                }
+                            });
+
+                            overlay.appendChild(btn);
+                        });
+
+                        // Alignment buttons
+                        const alignments = [
+                            { label: '⬅️', align: 'left', tooltip: 'Căn trái' },
+                            { label: '⬆️', align: 'center', tooltip: 'Căn giữa' },
+                            { label: '➡️', align: 'right', tooltip: 'Căn phải' }
+                        ];
+
+                        // Add separator
+                        const separator = document.createElement('div');
+                        separator.style.cssText = `
+                            width: 1px;
+                            background: rgba(255, 255, 255, 0.3);
+                            margin: 0 4px;
+                        `;
+                        overlay.appendChild(separator);
+
+                        alignments.forEach(alignment => {
+                            const btn = document.createElement('button');
+                            btn.innerHTML = alignment.label;
+                            btn.title = alignment.tooltip;
+                            btn.style.cssText = `
+                                background: rgba(255, 255, 255, 0.95);
+                                border: none;
+                                padding: 10px 16px;
+                                border-radius: 8px;
+                                cursor: pointer;
+                                font-size: 18px;
+                                font-weight: bold;
+                                transition: all 0.2s ease;
+                                color: #333;
+                                min-width: 50px;
+                                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                            `;
+
+                            btn.addEventListener('mouseenter', () => {
+                                btn.style.background = '#4caf50';
+                                btn.style.color = 'white';
+                                btn.style.transform = 'scale(1.1)';
+                            });
+
+                            btn.addEventListener('mouseleave', () => {
+                                btn.style.background = 'rgba(255, 255, 255, 0.9)';
+                                btn.style.color = '#333';
+                                btn.style.transform = 'scale(1)';
+                            });
+
+                            btn.addEventListener('click', () => {
+                                // Reset all alignment styles
+                                img.style.display = 'block';
+                                img.style.margin = '16px auto';
+                                img.style.float = 'none';
+
+                                if (alignment.align === 'left') {
+                                    img.style.margin = '16px auto 16px 0';
+                                } else if (alignment.align === 'right') {
+                                    img.style.margin = '16px 0 16px auto';
+                                } else if (alignment.align === 'center') {
+                                    img.style.margin = '16px auto';
+                                }
+
+                                overlay.remove();
+                                if (quillRef.current) {
+                                    onContentChange(quillRef.current.getEditor().root.innerHTML);
+                                }
+                            });
+
+                            overlay.appendChild(btn);
+                        });
+
+                        // Delete button
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.innerHTML = '🗑️';
+                        deleteBtn.title = 'Xóa ảnh';
+                        deleteBtn.style.cssText = `
+                            background: rgba(244, 67, 54, 0.95);
+                            border: none;
+                            padding: 10px 16px;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 18px;
+                            font-weight: bold;
+                            transition: all 0.2s ease;
+                            color: white;
+                            margin-left: 12px;
+                            min-width: 50px;
+                            box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+                        `;
+
+                        deleteBtn.addEventListener('mouseenter', () => {
+                            deleteBtn.style.background = '#d32f2f';
+                            deleteBtn.style.transform = 'scale(1.1)';
+                        });
+
+                        deleteBtn.addEventListener('mouseleave', () => {
+                            deleteBtn.style.background = 'rgba(244, 67, 54, 0.9)';
+                            deleteBtn.style.transform = 'scale(1)';
+                        });
+
+                        deleteBtn.addEventListener('click', () => {
+                            img.remove();
+                            overlay.remove();
+                            if (quillRef.current) {
+                                onContentChange(quillRef.current.getEditor().root.innerHTML);
+                            }
+                        });
+
+                        overlay.appendChild(deleteBtn);
+                        document.body.appendChild(overlay);
+
+                        console.log('🎉 Overlay created and added to DOM!', overlay);
+                        console.log('📍 Overlay position:', overlay.style.top, overlay.style.left);
+
+                        // Auto remove after 10 seconds or when clicking elsewhere
+                        const removeOverlay = (e) => {
+                            if (!overlay.contains(e.target) && e.target !== img) {
+                                overlay.remove();
+                                document.removeEventListener('click', removeOverlay);
+                            }
+                        };
+
+                        setTimeout(() => {
+                            document.addEventListener('click', removeOverlay);
+                        }, 100);
+
+                        setTimeout(() => {
+                            if (overlay.parentNode) {
+                                overlay.remove();
+                            }
+                        }, 10000);
+                    }
+                };
+
+                editorElement.addEventListener('click', handleClick);
+                editorElement.addEventListener('dblclick', handleClick);
+
+                console.log('🎯 Event listeners attached to editor');
+
+                return () => {
+                    editorElement.removeEventListener('click', handleClick);
+                    editorElement.removeEventListener('dblclick', handleClick);
+                };
+            }
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [content, onContentChange]);
+
+    // Custom image handler with size control
+    const imageHandler = useCallback(() => {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+
+        input.onchange = async () => {
+            const file = input.files[0];
+            if (file) {
+                // Check file size (max 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Kích thước ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn 5MB.');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('image', file);
+
+                try {
+                    const response = await fetch('http://localhost:5000/api/uploads/image', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const quill = quillRef.current.getEditor();
+                        const range = quill.getSelection();
+
+                        // Insert image with controlled size
+                        quill.insertEmbed(range.index, 'image', data.url);
+
+                        // Set image size after insertion
+                        setTimeout(() => {
+                            const images = quill.container.querySelectorAll('img');
+                            const lastImage = images[images.length - 1];
+                            if (lastImage) {
+                                lastImage.style.maxWidth = '100%';
+                                lastImage.style.width = 'auto';
+                                lastImage.style.height = 'auto';
+                                lastImage.style.maxHeight = '400px';
+                            }
+                        }, 100);
+                    }
+                } catch (error) {
+                    console.error('Error uploading image:', error);
+                    alert('Lỗi khi tải ảnh lên. Vui lòng thử lại.');
+                }
+            }
+        };
+    }, []);
+
+    // Handle paste events for images
+    const handlePaste = useCallback(async (event) => {
+        const clipboardData = event.clipboardData || window.clipboardData;
+        const items = clipboardData.items;
+
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+
+            // Handle image files from clipboard
+            if (item.type.indexOf('image') !== -1) {
+                event.preventDefault();
+                const file = item.getAsFile();
+
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Kích thước ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn 5MB.');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('image', file);
+
+                try {
+                    const response = await fetch('http://localhost:5000/api/uploads/image', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const quill = quillRef.current.getEditor();
+                        const range = quill.getSelection();
+
+                        quill.insertEmbed(range.index, 'image', data.url);
+
+                        // Set image size
+                        setTimeout(() => {
+                            const images = quill.container.querySelectorAll('img');
+                            const lastImage = images[images.length - 1];
+                            if (lastImage) {
+                                lastImage.style.maxWidth = '100%';
+                                lastImage.style.width = 'auto';
+                                lastImage.style.height = 'auto';
+                                lastImage.style.maxHeight = '400px';
+                            }
+                        }, 100);
+                    }
+                } catch (error) {
+                    console.error('Error uploading pasted image:', error);
+                    alert('Lỗi khi tải ảnh lên. Vui lòng thử lại.');
+                }
+                return;
+            }
+
+            // Handle image URLs from clipboard
+            if (item.type === 'text/plain') {
+                item.getAsString(async (text) => {
+                    const imageUrlRegex = /^https?:\/\/.*\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i;
+                    if (imageUrlRegex.test(text.trim())) {
+                        event.preventDefault();
+
+                        try {
+                            const response = await fetch('http://localhost:5000/api/uploads/image-url', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ imageUrl: text.trim() }),
+                            });
+
+                            if (response.ok) {
+                                const data = await response.json();
+                                const quill = quillRef.current.getEditor();
+                                const range = quill.getSelection();
+
+                                quill.insertEmbed(range.index, 'image', data.url);
+
+                                // Set image size
+                                setTimeout(() => {
+                                    const images = quill.container.querySelectorAll('img');
+                                    const lastImage = images[images.length - 1];
+                                    if (lastImage) {
+                                        lastImage.style.maxWidth = '100%';
+                                        lastImage.style.width = 'auto';
+                                        lastImage.style.height = 'auto';
+                                        lastImage.style.maxHeight = '400px';
+                                    }
+                                }, 100);
+                            }
+                        } catch (error) {
+                            console.error('Error uploading image from URL:', error);
+                            // Fallback: insert URL directly
+                            const quill = quillRef.current.getEditor();
+                            const range = quill.getSelection();
+                            quill.insertEmbed(range.index, 'image', text.trim());
+                        }
+                    }
+                });
+            }
+        }
+    }, []);
+
+    // Custom toolbar ID for React Quill
+    const toolbarId = 'custom-toolbar';
+
+    // Image resize handlers
+    const resizeImage = useCallback((size) => {
+        if (quillRef.current) {
+            const editor = quillRef.current.getEditor();
+            const range = editor.getSelection();
+
+            if (range) {
+                const [leaf] = editor.getLeaf(range.index);
+                if (leaf && leaf.domNode && leaf.domNode.tagName === 'IMG') {
+                    const img = leaf.domNode;
+                    img.style.width = size;
+                    img.style.height = 'auto';
+                    img.style.maxWidth = '100%';
+                    onContentChange(editor.root.innerHTML);
+                    console.log(`🖼️ Image resized to: ${size}`);
+                } else {
+                    // Find selected image in a different way
+                    const images = editor.root.querySelectorAll('img');
+                    if (images.length > 0) {
+                        const lastImage = images[images.length - 1];
+                        lastImage.style.width = size;
+                        lastImage.style.height = 'auto';
+                        lastImage.style.maxWidth = '100%';
+                        onContentChange(editor.root.innerHTML);
+                        console.log(`🖼️ Last image resized to: ${size}`);
+                    } else {
+                        alert('Vui lòng chọn ảnh hoặc đặt con trỏ gần ảnh để thay đổi kích thước');
+                    }
                 }
             } else {
-                setSelectionRange(currentRange); // Restore selection
-                document.execCommand('insertText', false, pastedText);
-                onContentChange(editorRef.current.innerHTML);
+                // No selection, resize last image
+                const images = editor.root.querySelectorAll('img');
+                if (images.length > 0) {
+                    const lastImage = images[images.length - 1];
+                    lastImage.style.width = size;
+                    lastImage.style.height = 'auto';
+                    lastImage.style.maxWidth = '100%';
+                    onContentChange(editor.root.innerHTML);
+                    console.log(`🖼️ Last image resized to: ${size}`);
+                } else {
+                    alert('Không tìm thấy ảnh nào để thay đổi kích thước');
+                }
             }
         }
     }, [onContentChange]);
 
+    // Image alignment handlers
+    const alignImage = useCallback((alignment) => {
+        if (quillRef.current) {
+            const editor = quillRef.current.getEditor();
+            const range = editor.getSelection();
 
-    useEffect(() => {
-        const editorElement = editorRef.current;
-        if (editorElement) {
-            editorElement.addEventListener('paste', handlePaste);
-        }
-        return () => {
-            if (editorElement) {
-                editorElement.removeEventListener('paste', handlePaste);
+            let targetImage = null;
+
+            if (range) {
+                const [leaf] = editor.getLeaf(range.index);
+                if (leaf && leaf.domNode && leaf.domNode.tagName === 'IMG') {
+                    targetImage = leaf.domNode;
+                }
             }
-        };
-    }, [handlePaste]);
 
+            if (!targetImage) {
+                const images = editor.root.querySelectorAll('img');
+                if (images.length > 0) {
+                    targetImage = images[images.length - 1];
+                } else {
+                    alert('Không tìm thấy ảnh nào để căn chỉnh');
+                    return;
+                }
+            }
+
+            // Reset alignment styles
+            targetImage.style.display = 'block';
+            targetImage.style.margin = '16px auto';
+            targetImage.style.float = 'none';
+
+            // Apply new alignment
+            switch (alignment) {
+                case 'left':
+                    targetImage.style.margin = '16px auto 16px 0';
+                    break;
+                case 'center':
+                    targetImage.style.margin = '16px auto';
+                    break;
+                case 'right':
+                    targetImage.style.margin = '16px 0 16px auto';
+                    break;
+            }
+
+            onContentChange(editor.root.innerHTML);
+            console.log(`🖼️ Image aligned: ${alignment}`);
+        }
+    }, [onContentChange]);
+
+    // Quill modules configuration - simplified
+    const modules = useMemo(() => ({
+        toolbar: {
+            container: [
+                [{ 'header': [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                [{ 'indent': '-1' }, { 'indent': '+1' }],
+                [{ 'align': [] }],
+                ['blockquote', 'code-block'],
+                ['link', 'image', 'video'],
+                ['clean']
+            ],
+            handlers: {
+                image: imageHandler
+            }
+        },
+        clipboard: {
+            matchVisual: false,
+        }
+    }), [imageHandler]);
+
+    // Quill formats
+    const formats = [
+        'header', 'font', 'size',
+        'bold', 'italic', 'underline', 'strike', 'blockquote',
+        'list', 'bullet', 'indent',
+        'link', 'image', 'video',
+        'color', 'background',
+        'align', 'code-block'
+    ];
+
+    // Custom styles for Quill editor
+    const quillStyles = {
+        '& .ql-toolbar': {
+            borderTop: `1px solid ${theme.palette.divider}`,
+            borderLeft: `1px solid ${theme.palette.divider}`,
+            borderRight: `1px solid ${theme.palette.divider}`,
+            borderBottom: 'none',
+            backgroundColor: isDarkMode ? theme.palette.grey[800] : theme.palette.grey[50],
+            borderRadius: '12px 12px 0 0',
+            padding: '12px 16px',
+        },
+        '& .ql-container': {
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            borderLeft: `1px solid ${theme.palette.divider}`,
+            borderRight: `1px solid ${theme.palette.divider}`,
+            borderTop: 'none',
+            borderRadius: '0 0 12px 12px',
+            backgroundColor: theme.palette.background.paper,
+            backgroundImage: 'none',
+            fontSize: '16px',
+            fontFamily: theme.typography.fontFamily,
+        },
+        '& .ql-editor': {
+            minHeight: '250px',
+            padding: '20px',
+            color: theme.palette.text.primary,
+            lineHeight: 1.7,
+            '&.ql-blank::before': {
+                color: theme.palette.text.secondary,
+                fontStyle: 'normal',
+                opacity: 0.6,
+                fontSize: '16px',
+            },
+            '& p': {
+                marginBottom: '12px',
+            },
+            '& h1, & h2, & h3': {
+                marginTop: '20px',
+                marginBottom: '12px',
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+            },
+            '& h1': {
+                fontSize: '2rem',
+                borderBottom: `2px solid ${theme.palette.primary.main}`,
+                paddingBottom: '8px',
+            },
+            '& h2': {
+                fontSize: '1.5rem',
+                color: theme.palette.primary.main,
+            },
+            '& h3': {
+                fontSize: '1.25rem',
+            },
+            '& blockquote': {
+                borderLeft: `4px solid ${theme.palette.primary.main}`,
+                paddingLeft: '16px',
+                marginLeft: 0,
+                fontStyle: 'italic',
+                backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                padding: '16px 20px',
+                borderRadius: '8px',
+                margin: '16px 0',
+            },
+            '& pre': {
+                backgroundColor: isDarkMode ? theme.palette.grey[900] : theme.palette.grey[100],
+                padding: '16px',
+                borderRadius: '8px',
+                overflow: 'auto',
+                border: `1px solid ${theme.palette.divider}`,
+                fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+            },
+            '& img': {
+                maxWidth: '100%',
+                width: 'auto',
+                height: 'auto',
+                maxHeight: '400px',
+                borderRadius: '12px',
+                margin: '16px 0',
+                boxShadow: theme.shadows[2],
+                objectFit: 'contain',
+                display: 'block',
+            },
+            '& a': {
+                color: theme.palette.primary.main,
+                textDecoration: 'none',
+                fontWeight: 500,
+                '&:hover': {
+                    textDecoration: 'underline',
+                },
+            },
+            '& ul, & ol': {
+                paddingLeft: '24px',
+                marginBottom: '16px',
+            },
+            '& li': {
+                marginBottom: '4px',
+            },
+        },
+        '& .ql-toolbar .ql-stroke': {
+            stroke: theme.palette.text.primary,
+        },
+        '& .ql-toolbar .ql-fill': {
+            fill: theme.palette.text.primary,
+        },
+        '& .ql-toolbar button': {
+            borderRadius: '6px',
+            margin: '0 2px',
+            '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+            },
+            '&.ql-active': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.2),
+                color: theme.palette.primary.main,
+            },
+        },
+        '& .ql-picker-label': {
+            color: theme.palette.text.primary,
+        },
+        '& .ql-picker-options': {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: '8px',
+            boxShadow: theme.shadows[8],
+        },
+    };
+
+    // Custom Toolbar Component
+    const CustomToolbar = () => (
+        <Box id={toolbarId} sx={{
+            border: `1px solid ${theme.palette.divider}`,
+            borderBottom: 'none',
+            borderRadius: '12px 12px 0 0',
+            backgroundColor: isDarkMode ? theme.palette.grey[800] : theme.palette.grey[50],
+            padding: '8px 12px',
+        }}>
+            {/* Row 1: Basic formatting */}
+            <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                <select className="ql-header" defaultValue="">
+                    <option value="1">Heading 1</option>
+                    <option value="2">Heading 2</option>
+                    <option value="3">Heading 3</option>
+                    <option value="">Normal</option>
+                </select>
+
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <button className="ql-bold" title="Bold"></button>
+                    <button className="ql-italic" title="Italic"></button>
+                    <button className="ql-underline" title="Underline"></button>
+                    <button className="ql-strike" title="Strike"></button>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <select className="ql-color" title="Text Color"></select>
+                    <select className="ql-background" title="Background Color"></select>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <button className="ql-list" value="ordered" title="Ordered List"></button>
+                    <button className="ql-list" value="bullet" title="Bullet List"></button>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <button className="ql-indent" value="-1" title="Decrease Indent"></button>
+                    <button className="ql-indent" value="+1" title="Increase Indent"></button>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <select className="ql-align" title="Text Align"></select>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <button className="ql-blockquote" title="Blockquote"></button>
+                    <button className="ql-code-block" title="Code Block"></button>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <button className="ql-link" title="Link"></button>
+                    <button className="ql-image" title="Image"></button>
+                    <button className="ql-video" title="Video"></button>
+                </Box>
+
+                <button className="ql-clean" title="Remove Formatting"></button>
+            </Box>
+
+            {/* Row 2: Image controls */}
+            <Box sx={{
+                display: 'flex',
+                gap: 1,
+                alignItems: 'center',
+                pt: 1,
+                borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                flexWrap: 'wrap'
+            }}>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
+                    📷 Ảnh:
+                </Typography>
+
+                {/* Image size controls */}
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        className="ql-image-small"
+                        onClick={() => resizeImage('150px')}
+                        sx={{
+                            minWidth: 'auto',
+                            px: 1,
+                            py: 0.5,
+                            fontSize: '0.75rem',
+                            borderColor: alpha(theme.palette.primary.main, 0.3),
+                            '&:hover': {
+                                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                borderColor: theme.palette.primary.main,
+                            }
+                        }}
+                    >
+                        📱 Nhỏ
+                    </Button>
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        className="ql-image-medium"
+                        onClick={() => resizeImage('300px')}
+                        sx={{
+                            minWidth: 'auto',
+                            px: 1,
+                            py: 0.5,
+                            fontSize: '0.75rem',
+                            borderColor: alpha(theme.palette.primary.main, 0.3),
+                            '&:hover': {
+                                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                borderColor: theme.palette.primary.main,
+                            }
+                        }}
+                    >
+                        💻 Vừa
+                    </Button>
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        className="ql-image-large"
+                        onClick={() => resizeImage('500px')}
+                        sx={{
+                            minWidth: 'auto',
+                            px: 1,
+                            py: 0.5,
+                            fontSize: '0.75rem',
+                            borderColor: alpha(theme.palette.primary.main, 0.3),
+                            '&:hover': {
+                                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                borderColor: theme.palette.primary.main,
+                            }
+                        }}
+                    >
+                        🖥️ Lớn
+                    </Button>
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        className="ql-image-full"
+                        onClick={() => resizeImage('100%')}
+                        sx={{
+                            minWidth: 'auto',
+                            px: 1,
+                            py: 0.5,
+                            fontSize: '0.75rem',
+                            borderColor: alpha(theme.palette.primary.main, 0.3),
+                            '&:hover': {
+                                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                borderColor: theme.palette.primary.main,
+                            }
+                        }}
+                    >
+                        📺 Rộng
+                    </Button>
+                </Box>
+
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, ml: 2 }}>
+                    📐 Căn chỉnh:
+                </Typography>
+
+                {/* Image alignment controls */}
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        className="ql-align-left"
+                        onClick={() => alignImage('left')}
+                        sx={{
+                            minWidth: 'auto',
+                            px: 1,
+                            py: 0.5,
+                            fontSize: '0.75rem',
+                            borderColor: alpha(theme.palette.success.main, 0.3),
+                            color: theme.palette.success.main,
+                            '&:hover': {
+                                backgroundColor: alpha(theme.palette.success.main, 0.1),
+                                borderColor: theme.palette.success.main,
+                            }
+                        }}
+                    >
+                        ⬅️ Trái
+                    </Button>
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        className="ql-align-center"
+                        onClick={() => alignImage('center')}
+                        sx={{
+                            minWidth: 'auto',
+                            px: 1,
+                            py: 0.5,
+                            fontSize: '0.75rem',
+                            borderColor: alpha(theme.palette.success.main, 0.3),
+                            color: theme.palette.success.main,
+                            '&:hover': {
+                                backgroundColor: alpha(theme.palette.success.main, 0.1),
+                                borderColor: theme.palette.success.main,
+                            }
+                        }}
+                    >
+                        ⬆️ Giữa
+                    </Button>
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        className="ql-align-right"
+                        onClick={() => alignImage('right')}
+                        sx={{
+                            minWidth: 'auto',
+                            px: 1,
+                            py: 0.5,
+                            fontSize: '0.75rem',
+                            borderColor: alpha(theme.palette.success.main, 0.3),
+                            color: theme.palette.success.main,
+                            '&:hover': {
+                                backgroundColor: alpha(theme.palette.success.main, 0.1),
+                                borderColor: theme.palette.success.main,
+                            }
+                        }}
+                    >
+                        ➡️ Phải
+                    </Button>
+                </Box>
+            </Box>
+        </Box>
+    );
 
     return (
-        <React.Fragment>
-            <Paper
-                elevation={0}
-                sx={{
-                    border: `1px solid ${paperBorderColor}`, // Border color
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                    mb: 1,
-                    backgroundColor: toolbarBgColor, // Toolbar background
-                }}
-            >
-                <Box
+        <Box sx={{ mb: 3 }}>
+            {/* Header with tips */}
+            <Fade in timeout={500}>
+                <Box sx={{ mb: 2 }}>
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            mb: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            color: theme.palette.text.primary,
+                            fontWeight: 600
+                        }}
+                    >
+                        <MagicIcon sx={{ color: theme.palette.primary.main }} />
+                        Soạn thảo nội dung
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Sử dụng trình soạn thảo với toolbar mở rộng để tùy chỉnh ảnh dễ dàng
+                    </Typography>
+                </Box>
+            </Fade>
+
+            {/* Image Controls Panel */}
+            <Fade in timeout={600}>
+                <Paper
+                    elevation={0}
                     sx={{
-                        p: 1,
-                        borderBottom: `1px solid ${dividerColor}`, // Bottom border
-                        display: 'flex',
-                        gap: 0.5,
-                        flexWrap: 'wrap',
-                        alignItems: 'center',
-                        backgroundColor: toolbarBgColor, // Button background
-                        color: toolbarButtonColor, // Icon/text color
+                        p: 2,
+                        mb: 1,
+                        borderRadius: 2,
+                        border: `1px solid ${theme.palette.divider}`,
+                        backgroundColor: alpha(theme.palette.primary.main, 0.02),
                     }}
                 >
-                    {/* Text Formatting */}
-                    <Tooltip title="In đậm">
-                        <IconButton size="small" onClick={handleBold} sx={{ color: toolbarButtonColor }}>
-                            <FormatBoldIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="In nghiêng">
-                        <IconButton size="small" onClick={handleItalic} sx={{ color: toolbarButtonColor }}>
-                            <FormatItalicIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Gạch chân">
-                        <IconButton size="small" onClick={handleUnderline} sx={{ color: toolbarButtonColor }}>
-                            <FormatUnderlinedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Gạch ngang">
-                        <IconButton size="small" onClick={handleStrikethrough} sx={{ color: toolbarButtonColor }}>
-                            <StrikethroughSIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Tiêu đề lớn (H1)">
-                        <IconButton size="small" onClick={() => handleHeader(1)} sx={{ color: toolbarButtonColor }}>
-                            <LooksOneIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Tiêu đề vừa (H2)">
-                        <IconButton size="small" onClick={() => handleHeader(2)} sx={{ color: toolbarButtonColor }}>
-                            <LooksTwoIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Khối code">
-                        <IconButton size="small" onClick={handleCode} sx={{ color: toolbarButtonColor }}>
-                            <CodeIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: theme.palette.primary.main }}>
+                        🖼️ Tùy chỉnh ảnh
+                    </Typography>
 
-                    <Divider orientation="vertical" flexItem sx={{ mx: 0.5, bgcolor: dividerColor }} /> {/* Divider color */}
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {/* Size controls */}
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, minWidth: 'fit-content' }}>
+                                Kích thước:
+                            </Typography>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => resizeImage('150px')}
+                                sx={{
+                                    minWidth: 'auto',
+                                    px: 1.5,
+                                    py: 0.5,
+                                    fontSize: '0.8rem',
+                                    borderColor: alpha(theme.palette.primary.main, 0.3),
+                                    '&:hover': {
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                        borderColor: theme.palette.primary.main,
+                                    }
+                                }}
+                            >
+                                📱 Nhỏ
+                            </Button>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => resizeImage('300px')}
+                                sx={{
+                                    minWidth: 'auto',
+                                    px: 1.5,
+                                    py: 0.5,
+                                    fontSize: '0.8rem',
+                                    borderColor: alpha(theme.palette.primary.main, 0.3),
+                                    '&:hover': {
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                        borderColor: theme.palette.primary.main,
+                                    }
+                                }}
+                            >
+                                💻 Vừa
+                            </Button>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => resizeImage('500px')}
+                                sx={{
+                                    minWidth: 'auto',
+                                    px: 1.5,
+                                    py: 0.5,
+                                    fontSize: '0.8rem',
+                                    borderColor: alpha(theme.palette.primary.main, 0.3),
+                                    '&:hover': {
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                        borderColor: theme.palette.primary.main,
+                                    }
+                                }}
+                            >
+                                🖥️ Lớn
+                            </Button>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => resizeImage('100%')}
+                                sx={{
+                                    minWidth: 'auto',
+                                    px: 1.5,
+                                    py: 0.5,
+                                    fontSize: '0.8rem',
+                                    borderColor: alpha(theme.palette.primary.main, 0.3),
+                                    '&:hover': {
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                        borderColor: theme.palette.primary.main,
+                                    }
+                                }}
+                            >
+                                📺 Rộng
+                            </Button>
+                        </Box>
 
-                    {/* List & Link */}
-                    <Tooltip title="Danh sách không thứ tự">
-                        <IconButton size="small" onClick={handleUnorderedList} sx={{ color: toolbarButtonColor }}>
-                            <FormatListBulletedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Chèn liên kết">
-                        <IconButton size="small" onClick={handleLinkClick} sx={{ color: toolbarButtonColor }}>
-                            <LinkIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
+                        {/* Alignment controls */}
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, minWidth: 'fit-content' }}>
+                                Căn chỉnh:
+                            </Typography>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => alignImage('left')}
+                                sx={{
+                                    minWidth: 'auto',
+                                    px: 1.5,
+                                    py: 0.5,
+                                    fontSize: '0.8rem',
+                                    borderColor: alpha(theme.palette.success.main, 0.3),
+                                    color: theme.palette.success.main,
+                                    '&:hover': {
+                                        backgroundColor: alpha(theme.palette.success.main, 0.1),
+                                        borderColor: theme.palette.success.main,
+                                    }
+                                }}
+                            >
+                                ⬅️ Trái
+                            </Button>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => alignImage('center')}
+                                sx={{
+                                    minWidth: 'auto',
+                                    px: 1.5,
+                                    py: 0.5,
+                                    fontSize: '0.8rem',
+                                    borderColor: alpha(theme.palette.success.main, 0.3),
+                                    color: theme.palette.success.main,
+                                    '&:hover': {
+                                        backgroundColor: alpha(theme.palette.success.main, 0.1),
+                                        borderColor: theme.palette.success.main,
+                                    }
+                                }}
+                            >
+                                ⬆️ Giữa
+                            </Button>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => alignImage('right')}
+                                sx={{
+                                    minWidth: 'auto',
+                                    px: 1.5,
+                                    py: 0.5,
+                                    fontSize: '0.8rem',
+                                    borderColor: alpha(theme.palette.success.main, 0.3),
+                                    color: theme.palette.success.main,
+                                    '&:hover': {
+                                        backgroundColor: alpha(theme.palette.success.main, 0.1),
+                                        borderColor: theme.palette.success.main,
+                                    }
+                                }}
+                            >
+                                ➡️ Phải
+                            </Button>
+                        </Box>
+                    </Box>
+                </Paper>
+            </Fade>
 
-                    <Divider orientation="vertical" flexItem sx={{ mx: 0.5, bgcolor: dividerColor }} /> {/* Divider color */}
+            {/* Quill Editor */}
+            <Fade in timeout={700}>
+                <Paper
+                    elevation={0}
+                    sx={{
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        border: `2px solid ${theme.palette.divider}`,
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                            borderColor: alpha(theme.palette.primary.main, 0.5),
+                            boxShadow: `0 0 0 1px ${alpha(theme.palette.primary.main, 0.2)}`,
+                        },
+                        '&:focus-within': {
+                            borderColor: theme.palette.primary.main,
+                            boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.2)}`,
+                        },
+                        ...quillStyles,
+                    }}
+                >
+                    <ReactQuill
+                        ref={quillRef}
+                        theme="snow"
+                        value={content}
+                        onChange={(value) => {
+                            onContentChange(value);
+                            // Style images after content changes
+                            setTimeout(() => {
+                                if (quillRef.current) {
+                                    const images = quillRef.current.getEditor().root.querySelectorAll('img');
+                                    console.log(`📸 Styling ${images.length} images...`);
+                                    images.forEach((img, i) => {
+                                        img.style.cursor = 'pointer';
+                                        img.style.border = '2px solid transparent';
+                                        img.style.transition = 'all 0.2s ease';
+                                        img.title = 'Click để thay đổi kích thước và căn chỉnh';
 
-                    {/* Image Controls & Alignment */}
-                    <Tooltip title="Chèn ảnh">
-                        <IconButton size="small" onClick={handleImageClick} sx={{ color: toolbarButtonColor }}>
-                            <InsertPhotoOutlinedIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
+                                        // Add hover effect
+                                        img.addEventListener('mouseenter', () => {
+                                            img.style.border = '2px solid #1976d2';
+                                            img.style.transform = 'scale(1.02)';
+                                            img.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.3)';
+                                        });
 
-                    {showImageControls && selectedImage ? (
-                        <>
-                            <FormControl sx={{ ml: 1, minWidth: 120 }} size="small">
-                                <InputLabel id="image-size-select-label" sx={{ color: inputLabelColor }}>Kích thước ảnh</InputLabel>
-                                <Select
-                                    labelId="image-size-select-label"
-                                    id="image-size-select"
-                                    value={imageWidth}
-                                    label="Kích thước ảnh"
-                                    onChange={handleImageSizeChange}
-                                    sx={{
-                                        color: editorTextColor, // Text color in select
-                                        '.MuiOutlinedInput-notchedOutline': { borderColor: inputBorderColor }, // Select border color
-                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: inputFocusBorderColor }, // Border color on focus
-                                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: inputHoverBorderColor },
-                                        '.MuiSvgIcon-root': { color: toolbarButtonColor }, // Dropdown arrow color
-                                    }}
-                                >
-                                    {IMAGE_SIZES.map((size) => (
-                                        <MenuItem key={size.value} value={size.value} sx={{ bgcolor: theme.palette.background.paper, color: theme.palette.text.primary }}>
-                                            {size.label}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                            <Tooltip title="Căn trái ảnh">
-                                <IconButton size="small" onClick={() => handleAlign('left')} sx={{ color: toolbarButtonColor }}>
-                                    <FormatAlignLeftIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Căn giữa ảnh">
-                                <IconButton size="small" onClick={() => handleAlign('center')} sx={{ color: toolbarButtonColor }}>
-                                    <FormatAlignCenterIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Căn phải ảnh">
-                                <IconButton size="small" onClick={() => handleAlign('right')} sx={{ color: toolbarButtonColor }}>
-                                    <FormatAlignRightIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                        </>
-                    ) : (
-                        <>
-                            <Tooltip title="Căn trái văn bản">
-                                <IconButton size="small" onClick={() => handleAlign('left')} sx={{ color: toolbarButtonColor }}>
-                                    <FormatAlignLeftIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Căn giữa văn bản">
-                                <IconButton size="small" onClick={() => handleAlign('center')} sx={{ color: toolbarButtonColor }}>
-                                    <FormatAlignCenterIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Căn phải văn bản">
-                                <IconButton size="small" onClick={() => handleAlign('right')} sx={{ color: toolbarButtonColor }}>
-                                    <FormatAlignRightIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                        </>
-                    )}
-                </Box>
-            </Paper>
+                                        img.addEventListener('mouseleave', () => {
+                                            img.style.border = '2px solid transparent';
+                                            img.style.transform = 'scale(1)';
+                                            img.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                                        });
 
-            <Box
-                ref={editorRef}
-                contentEditable="true"
-                sx={{
-                    minHeight: '350px',
-                    p: 2,
-                    border: `1px solid ${paperBorderColor}`, // Editor border
-                    borderRadius: 1,
-                    outline: 'none',
-                    cursor: 'text',
-                    backgroundColor: editorBgColor, // Editing area background
-                    color: editorTextColor, // Main text color
-                    '&:focus': { borderColor: inputFocusBorderColor, boxShadow: `0 0 0 1px ${inputFocusBorderColor}` }, // Highlight on focus
-                    wordBreak: 'break-word',
-                    overflowWrap: 'break-word',
-                    lineHeight: 1.6,
-                    fontSize: '1rem',
-                    '& p': { margin: '0.8em 0' },
-                    '& ul, & ol': { margin: '0.8em 0', paddingLeft: '2.5em' },
-                    '& h1': { fontSize: '2em', margin: '0.67em 0', color: editorTextColor },
-                    '& h2': { fontSize: '1.5em', margin: '0.75em 0', color: editorTextColor },
-                    '& pre': {
-                        backgroundColor: codeBlockBgColor, // Code block background
-                        padding: '1em',
-                        borderRadius: '4px',
-                        overflowX: 'auto',
-                        fontFamily: 'monospace',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-all',
-                        color: codeBlockTextColor, // Code block text color
-                    },
-                    '& img': {
-                        maxWidth: '100%',
-                        height: 'auto',
-                        boxSizing: 'border-box',
-                        border: selectedImage ? `2px solid ${inputFocusBorderColor}` : '1px solid transparent', // Highlight image when selected
-                        '&:hover': { outline: `1px dashed ${inputFocusBorderColor}` }, // Highlight image on hover
-                    },
-                    // Add colors for other default HTML elements if needed
-                    '& a': { color: linkColor }, // Link color
-                }}
-            />
-
-            <input
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-            />
-
-            <Dialog
-                open={openLinkDialog}
-                onClose={() => setOpenLinkDialog(false)}
-                maxWidth="xs"
-                fullWidth
-                PaperProps={{
-                    sx: {
-                        backgroundColor: dialogBgColor, // Dialog background
-                        color: dialogTextColor, // Dialog text color
-                    }
-                }}
-            >
-                <DialogTitle sx={{ color: dialogTextColor }}>Chèn Liên Kết</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="URL"
-                        type="url"
-                        fullWidth
-                        variant="outlined"
-                        value={linkUrl}
-                        onChange={(e) => setLinkUrl(e.target.value)}
-                        placeholder="e.g., https://example.com"
-                        InputLabelProps={{
-                            sx: { color: inputLabelColor }, // Input label color
+                                        console.log(`✅ Image ${i + 1} styled and ready`);
+                                    });
+                                }
+                            }, 300);
                         }}
-                        InputProps={{
-                            sx: {
-                                color: editorTextColor, // Input text color
-                                '.MuiOutlinedInput-notchedOutline': { borderColor: inputBorderColor },
-                                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: inputHoverBorderColor },
-                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: inputFocusBorderColor },
-                            },
+                        modules={modules}
+                        formats={formats}
+                        onPaste={handlePaste}
+                        placeholder="✍️ Bắt đầu viết nội dung của bạn...
+
+💡 Mẹo hữu ích:
+• Sử dụng tiêu đề (H1, H2, H3) để tổ chức nội dung
+• Thêm hình ảnh bằng nút 📷 trong toolbar
+• Sử dụng toolbar để thay đổi kích thước và căn chỉnh ảnh
+• Sử dụng danh sách để dễ đọc
+• Thêm liên kết để tham khảo
+• Sử dụng blockquote để nhấn mạnh
+• Thêm code block cho ví dụ lập trình
+• Copy-paste ảnh từ web hoặc clipboard"
+                        style={{
+                            backgroundColor: 'transparent',
                         }}
                     />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenLinkDialog(false)} sx={{ color: theme.palette.text.secondary }}>Hủy</Button>
-                    <Button onClick={handleInsertLink} variant="contained" sx={{
-                        backgroundColor: theme.palette.primary.main, // Use primary.main
-                        '&:hover': {
-                            backgroundColor: theme.palette.primary.dark, // Use primary.dark
-                        }
-                    }}>Chèn</Button>
-                </DialogActions>
-            </Dialog>
-        </React.Fragment>
+                </Paper>
+            </Fade>
+
+            {/* Quick tips */}
+            <Fade in timeout={900}>
+                <Box sx={{ mt: 2 }}>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        <Chip
+                            icon={<KeyboardIcon />}
+                            size="small"
+                            label="Ctrl+B: In đậm"
+                            variant="outlined"
+                            sx={{
+                                fontSize: '0.75rem',
+                                height: 28,
+                                borderColor: alpha(theme.palette.primary.main, 0.3),
+                                color: theme.palette.text.secondary,
+                                '&:hover': {
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                                },
+                            }}
+                        />
+                        <Chip
+                            icon={<ImageIcon />}
+                            size="small"
+                            label="📷 Toolbar: resize + căn chỉnh ảnh"
+                            variant="outlined"
+                            onClick={() => {
+                                console.log('🔧 Testing image listeners...');
+                                if (quillRef.current) {
+                                    const images = quillRef.current.getEditor().root.querySelectorAll('img');
+                                    console.log(`Found ${images.length} images`);
+                                    images.forEach((img, i) => {
+                                        img.style.border = '2px solid red';
+                                        img.style.cursor = 'pointer';
+                                        console.log(`Image ${i + 1} styled`);
+                                    });
+                                }
+                            }}
+                            sx={{
+                                fontSize: '0.75rem',
+                                height: 28,
+                                borderColor: alpha(theme.palette.primary.main, 0.3),
+                                color: theme.palette.text.secondary,
+                                cursor: 'pointer',
+                                '&:hover': {
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                                },
+                            }}
+                        />
+                        <Chip
+                            icon={<LinkIcon />}
+                            size="small"
+                            label="Ctrl+K: Liên kết"
+                            variant="outlined"
+                            sx={{
+                                fontSize: '0.75rem',
+                                height: 28,
+                                borderColor: alpha(theme.palette.primary.main, 0.3),
+                                color: theme.palette.text.secondary,
+                                '&:hover': {
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                                },
+                            }}
+                        />
+                        <Chip
+                            size="small"
+                            label="🧪 Test Overlay"
+                            variant="filled"
+                            color="secondary"
+                            onClick={() => {
+                                console.log('🧪 Creating test overlay...');
+
+                                // Create test overlay
+                                const overlay = document.createElement('div');
+                                overlay.className = 'image-controls-overlay';
+                                overlay.style.cssText = `
+                                    position: fixed;
+                                    top: 50%;
+                                    left: 50%;
+                                    transform: translate(-50%, -50%);
+                                    background: rgba(0, 0, 0, 0.8);
+                                    border-radius: 8px;
+                                    padding: 16px;
+                                    z-index: 1000;
+                                    display: flex;
+                                    gap: 8px;
+                                    color: white;
+                                    font-family: Arial;
+                                `;
+
+                                overlay.innerHTML = `
+                                    <button style="background: #1976d2; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">📱 Nhỏ</button>
+                                    <button style="background: #1976d2; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">💻 Vừa</button>
+                                    <button style="background: #1976d2; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">🖥️ Lớn</button>
+                                    <button style="background: #4caf50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">⬅️ Trái</button>
+                                    <button style="background: #4caf50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">⬆️ Giữa</button>
+                                    <button style="background: #4caf50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">➡️ Phải</button>
+                                    <button style="background: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">🗑️ Xóa</button>
+                                `;
+
+                                document.body.appendChild(overlay);
+
+                                setTimeout(() => {
+                                    overlay.remove();
+                                }, 3000);
+
+                                console.log('✅ Test overlay created!');
+                            }}
+                            sx={{
+                                fontSize: '0.75rem',
+                                height: 28,
+                                cursor: 'pointer',
+                            }}
+                        />
+                    </Stack>
+                </Box>
+            </Fade>
+        </Box>
     );
 };
 

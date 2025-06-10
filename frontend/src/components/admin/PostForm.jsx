@@ -3,8 +3,7 @@ import {
     TextField, Button, Box, FormControl, InputLabel, Select, MenuItem, Chip, OutlinedInput, Typography,
     CircularProgress, Alert
 } from '@mui/material';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css'; // Import styles
+import CustomEditor from '../../pages/TopicDetail/CenterColumn/CustomEditor';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 
@@ -21,7 +20,7 @@ const PostForm = ({ post, onSubmit, onCancel }) => {
     const [loadingTopics, setLoadingTopics] = useState(true);
     const [errorTopics, setErrorTopics] = useState('');
 
-    const quillRef = useRef(null);
+    // Removed quillRef as we're using CustomEditor now
 
     useEffect(() => {
         if (post) {
@@ -61,137 +60,11 @@ const PostForm = ({ post, onSubmit, onCancel }) => {
         fetchTopics();
     }, [getToken]);
 
-    // Custom image handler cho ReactQuill (upload từ file)
-    const imageHandler = useCallback(() => {
-        const editor = quillRef.current.getEditor();
-        const range = editor.getSelection(); // Lấy vùng chọn hiện tại
+    // Removed imageHandler - CustomEditor handles image upload internally
 
-        const input = document.createElement('input');
-        input.setAttribute('type', 'file');
-        input.setAttribute('accept', 'image/*');
-        input.click();
+    // Removed handlePaste - CustomEditor handles paste internally
 
-        input.onchange = () => {
-            const file = input.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const base64data = reader.result; // Kết quả là Data URL (Base64)
-                    // Sử dụng range.index nếu có, nếu không thì chèn vào cuối
-                    const insertIndex = range ? range.index : editor.getLength();
-                    editor.insertEmbed(insertIndex, 'image', base64data);
-                    editor.setSelection(insertIndex + 1);
-                };
-                reader.readAsDataURL(file); // Đọc file thành Data URL
-            }
-        };
-    }, []);
-
-    // Xử lý sự kiện paste
-    const handlePaste = useCallback(async (evt) => {
-        const clipboardData = evt.clipboardData || window.clipboardData;
-        const items = clipboardData.items;
-        const editor = quillRef.current.getEditor();
-        let range = editor.getSelection(); // Lấy vùng chọn hiện tại
-
-        // Nếu không có vùng chọn, đặt vùng chọn về cuối nội dung để chèn vào đó
-        if (!range) {
-            const length = editor.getLength();
-            editor.setSelection(length, 0); // Đặt con trỏ ở cuối
-            range = editor.getSelection(); // Lấy lại vùng chọn sau khi đã set
-        }
-
-        let imageHandled = false;
-
-        // Ưu tiên xử lý các item là ảnh trực tiếp (từ clipboard)
-        for (const item of items) {
-            // console.log('Paste item:', item.type, item.kind); // Debugging line
-
-            if (item.type.startsWith('image/') && item.kind === 'file') {
-                evt.preventDefault(); // Ngăn Quill xử lý mặc định
-                const file = item.getAsFile();
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        const base64data = reader.result;
-                        editor.insertEmbed(range.index, 'image', base64data);
-                        editor.setSelection(range.index + 1);
-                    };
-                    reader.readAsDataURL(file);
-                    imageHandled = true;
-                    break;
-                }
-            }
-        }
-
-        // Nếu không có ảnh trực tiếp nào được xử lý, kiểm tra text/plain cho URL ảnh
-        if (!imageHandled) {
-            for (const item of items) {
-                if (item.type === 'text/plain' && item.kind === 'string') {
-                    item.getAsString((text) => {
-                        const imageUrlRegex = /(https?:\/\/[^\s$.?#].[^\s]*?\.(?:jpe?g|gif|png|webp|svg|bmp|tiff))/gi;
-                        const matches = text.match(imageUrlRegex);
-                        if (matches && matches.length > 0) {
-                            evt.preventDefault();
-                            const urlToEmbed = matches[0];
-                            editor.insertEmbed(range.index, 'image', urlToEmbed);
-                            editor.setSelection(range.index + 1);
-                            imageHandled = true;
-                        }
-                    });
-                    if (imageHandled) {
-                        break;
-                    }
-                }
-            }
-        }
-    }, []);
-
-    // Xử lý sự kiện Drop (kéo thả ảnh)
-    const handleDrop = useCallback(async (evt) => {
-        evt.preventDefault();
-        const editor = quillRef.current.getEditor();
-        let range = editor.getSelection(); // Lấy vùng chọn hiện tại
-
-        // Nếu không có vùng chọn, đặt vùng chọn về cuối nội dung để chèn vào đó
-        if (!range) {
-            const length = editor.getLength();
-            editor.setSelection(length, 0); // Đặt con trỏ ở cuối
-            range = editor.getSelection(); // Lấy lại vùng chọn sau khi đã set
-        }
-
-        const files = evt.dataTransfer.files;
-        if (files.length > 0) {
-            for (const file of files) {
-                if (file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        const base64data = reader.result;
-                        editor.insertEmbed(range.index, 'image', base64data);
-                        editor.setSelection(range.index + 1);
-                    };
-                    reader.readAsDataURL(file);
-                }
-            }
-        }
-    }, []);
-
-    useEffect(() => {
-        if (quillRef.current) {
-            const editor = quillRef.current.getEditor();
-            editor.getModule('toolbar').addHandler('image', imageHandler);
-
-            const quillEditorEl = editor.root;
-            quillEditorEl.addEventListener('paste', handlePaste);
-            quillEditorEl.addEventListener('drop', handleDrop);
-
-            // Cleanup function
-            return () => {
-                quillEditorEl.removeEventListener('paste', handlePaste);
-                quillEditorEl.removeEventListener('drop', handleDrop);
-            };
-        }
-    }, [imageHandler, handlePaste, handleDrop]);
+    // Removed handleDrop and useEffect - CustomEditor handles all interactions internally
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -224,22 +97,7 @@ const PostForm = ({ post, onSubmit, onCancel }) => {
         setTags(typeof value === 'string' ? value.split(',') : value);
     };
 
-    const modules = {
-        toolbar: {
-            container: [
-                [{ 'header': [1, 2, false] }],
-                ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-                [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
-                ['link', 'image', 'video'],
-                ['clean']
-            ],
-        },
-    };
-
-    const formats = [
-        'header', 'bold', 'italic', 'underline', 'strike', 'blockquote',
-        'list', 'bullet', 'indent', 'link', 'image', 'video'
-    ];
+    // Removed ReactQuill modules and formats - using CustomEditor instead
 
     return (
         <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -321,14 +179,10 @@ const PostForm = ({ post, onSubmit, onCancel }) => {
             </FormControl>
 
             <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>Nội dung:</Typography>
-            <Box sx={{ '& .ql-container': { minHeight: '300px' } }}>
-                <ReactQuill
-                    ref={quillRef}
-                    theme="snow"
-                    value={content}
-                    onChange={setContent}
-                    modules={modules}
-                    formats={formats}
+            <Box sx={{ mt: 2 }}>
+                <CustomEditor
+                    content={content}
+                    onContentChange={setContent}
                 />
             </Box>
 

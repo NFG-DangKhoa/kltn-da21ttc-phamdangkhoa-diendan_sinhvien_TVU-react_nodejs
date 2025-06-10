@@ -17,6 +17,10 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import SettingsIcon from '@mui/icons-material/Settings';
 import HomeIcon from '@mui/icons-material/Home';
 import ArticleIcon from '@mui/icons-material/Article';
+import TopicIcon from '@mui/icons-material/Topic';
+import AnalyticsIcon from '@mui/icons-material/Analytics';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import CommentIcon from '@mui/icons-material/Comment';
 import { styled } from '@mui/system';
 import { Link } from 'react-router-dom';
 
@@ -86,6 +90,24 @@ const Sidebar = () => {
                         </ListItemIcon>
                         <ListItemText primary="Quản lý Người dùng" />
                     </ListItem>
+                    <ListItem button component={Link} to="/admin/topics">
+                        <ListItemIcon>
+                            <TopicIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Quản lý Chủ đề" />
+                    </ListItem>
+                    <ListItem button component={Link} to="/admin/analytics">
+                        <ListItemIcon>
+                            <AnalyticsIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Thống kê & Phân tích" />
+                    </ListItem>
+                    <ListItem button component={Link} to="/admin/chatbot">
+                        <ListItemIcon>
+                            <SmartToyIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Quản lý Chatbot" />
+                    </ListItem>
                     <ListItem button component={Link} to="/admin/products">
                         <ListItemIcon>
                             <ShoppingCartIcon />
@@ -97,6 +119,12 @@ const Sidebar = () => {
                             <BarChartIcon />
                         </ListItemIcon>
                         <ListItemText primary="Báo cáo" />
+                    </ListItem>
+                    <ListItem button component={Link} to="/admin/comments">
+                        <ListItemIcon>
+                            <CommentIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Quản lý Bình luận" />
                     </ListItem>
                 </List>
                 <Divider />

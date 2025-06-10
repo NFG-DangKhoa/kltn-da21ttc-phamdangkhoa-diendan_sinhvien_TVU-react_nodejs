@@ -12,13 +12,25 @@ import {
     Avatar,
     useMediaQuery,
     useTheme,
+    Paper,
+    Chip,
+    Stack,
+    Fade,
+    Slide,
+    alpha,
+    Divider
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import SendIcon from '@mui/icons-material/Send';
+import {
+    Close as CloseIcon,
+    Send as SendIcon,
+    Edit as EditIcon,
+    Add as AddIcon,
+    AutoAwesome as MagicIcon
+} from '@mui/icons-material';
 
 import { AuthContext } from '../../../context/AuthContext';
 import { ThemeContext } from '../../../context/ThemeContext';
-import RichTextEditor from './RichTextEditor';
+import CustomEditor from './CustomEditor';
 
 // Đảm bảo IMAGE_URL_REGEX được định nghĩa hoặc import từ RichTextEditor
 // const IMAGE_URL_REGEX = /(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|gif|png|jpeg|webp|svg)/g; // Ví dụ regex
@@ -118,63 +130,41 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false })
     };
 
     const handleSubmit = async () => {
-        let finalContent = editorContent;
+        if (!title.trim() || !editorContent.trim()) {
+            alert('Vui lòng nhập đầy đủ tiêu đề và nội dung bài viết');
+            return;
+        }
 
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(editorContent, 'text/html');
-        const images = doc.querySelectorAll('img');
+        try {
+            console.log('🔄 Processing post submission...');
 
-        const uploadPromises = [];
-        const imagesToProcess = [];
+            // Prepare post data - backend sẽ tự động process images
+            const postDataToSend = {
+                title: title,
+                content: editorContent, // Gửi content với data URLs, backend sẽ process
+                tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+                topicId: topicId,
+                authorId: user?._id,
+            };
 
-        for (const img of images) {
-            const src = img.getAttribute('src');
-            // Kiểm tra nếu src là một URL hợp lệ (từ việc paste ảnh trực tiếp từ web)
-            // hoặc là một Base64 (từ việc dán ảnh từ clipboard hoặc kéo thả)
-            if (src && src.startsWith('data:image/')) {
-                const filename = img.getAttribute('data-filename') || `uploaded_image_${Date.now()}.png`;
-                imagesToProcess.push({ element: img, type: 'base64', data: src, filename: filename });
-                uploadPromises.push(uploadImageToServer(src, filename, false)); // isUrl = false
-            } else if (src && src.startsWith('http')) { // Giả định đây là ảnh dán từ web
-                // Đây là trường hợp quan trọng để xử lý ảnh từ URL
-                imagesToProcess.push({ element: img, type: 'url', data: src, filename: null }); // filename không cần thiết cho URL
-                uploadPromises.push(uploadImageToServer(src, null, true)); // isUrl = true
+            if (isEditMode) {
+                delete postDataToSend.authorId;
             }
+
+            // Submit post - backend sẽ tự động:
+            // 1. Convert data URLs thành files trong public/upload
+            // 2. Update content với server URLs
+            // 3. Lưu post vào database
+            console.log('📝 Submitting post (backend will process images)...');
+            handlePostSubmit(postDataToSend);
+            handleDialogClose();
+
+            console.log('✅ Post submitted successfully!');
+
+        } catch (error) {
+            console.error('❌ Error submitting post:', error);
+            alert('Có lỗi xảy ra khi đăng bài. Vui lòng thử lại.');
         }
-
-        const uploadedUrls = await Promise.all(uploadPromises);
-
-        for (let i = 0; i < imagesToProcess.length; i++) {
-            const { element } = imagesToProcess[i];
-            const newUrl = uploadedUrls[i];
-            if (newUrl) {
-                element.setAttribute('src', newUrl);
-                // Loại bỏ data-filename và data-original-src nếu có, vì ảnh đã được xử lý
-                element.removeAttribute('data-filename');
-                element.removeAttribute('data-original-src');
-            } else {
-                console.warn('Không thể tải lên ảnh, giữ nguyên Base64/URL hoặc xóa ảnh:', element.outerHTML);
-                // Tùy chọn: Xóa ảnh nếu không thể tải lên
-                // element.remove();
-            }
-        }
-
-        finalContent = doc.body.innerHTML;
-
-        const postDataToSend = {
-            title: title,
-            content: finalContent,
-            tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-            topicId: topicId,
-            authorId: user?._id,
-        };
-
-        if (isEditMode) {
-            delete postDataToSend.authorId;
-        }
-
-        handlePostSubmit(postDataToSend);
-        handleDialogClose();
     };
 
     if (isEditMode) {
@@ -190,7 +180,7 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false })
                     onChange={(e) => setTitle(e.target.value)}
                     sx={{ mb: 2 }}
                 />
-                <RichTextEditor
+                <CustomEditor
                     content={editorContent}
                     onContentChange={setEditorContent}
                 />
@@ -237,99 +227,241 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false })
 
     return (
         <Box mb={4}>
-            {/* Thanh tạo bài viết nhanh */}
-            <Box
+            {/* Enhanced Post Creation Card */}
+            <Paper
+                elevation={0}
                 sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    p: 2,
-                    borderRadius: theme.shape.borderRadius,
-                    backgroundColor: theme.palette.background.paper,
-                    boxShadow: theme.shadows[1],
+                    p: 3,
+                    borderRadius: 3,
+                    border: `2px solid ${theme.palette.divider}`,
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.02)}, ${alpha(theme.palette.secondary.main, 0.02)})`,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                        borderColor: alpha(theme.palette.primary.main, 0.3),
+                        boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
+                        transform: 'translateY(-2px)',
+                    },
                 }}
             >
-                <Avatar
-                    src={user?.profilePicture || '/default-avatar.png'}
-                    alt={user?.fullName || 'Người dùng'}
-                    sx={{ width: 48, height: 48 }}
-                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                    <Avatar
+                        src={user?.profilePicture || '/default-avatar.png'}
+                        alt={user?.fullName || 'Người dùng'}
+                        sx={{
+                            width: 56,
+                            height: 56,
+                            border: `3px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                            boxShadow: theme.shadows[4]
+                        }}
+                    />
+                    <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="h6" fontWeight="600" color="text.primary">
+                            Xin chào, {user?.fullName || 'Bạn'}! 👋
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Chia sẻ kiến thức, kinh nghiệm hoặc đặt câu hỏi với cộng đồng
+                        </Typography>
+                    </Box>
+                </Box>
+
                 <Button
                     variant="outlined"
                     fullWidth
                     onClick={handleDialogOpen}
+                    startIcon={<EditIcon />}
                     sx={{
                         justifyContent: 'flex-start',
                         textTransform: 'none',
-                        borderRadius: '24px',
-                        py: 1.5,
-                        px: 2,
+                        borderRadius: '16px',
+                        py: 2,
+                        px: 3,
+                        fontSize: '1rem',
+                        fontWeight: 500,
                         color: theme.palette.text.secondary,
-                        borderColor: theme.palette.divider,
+                        borderColor: alpha(theme.palette.primary.main, 0.3),
+                        backgroundColor: alpha(theme.palette.primary.main, 0.02),
                         '&:hover': {
-                            backgroundColor: theme.palette.action.hover,
-                            borderColor: theme.palette.divider,
+                            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                            borderColor: theme.palette.primary.main,
+                            color: theme.palette.primary.main,
+                            transform: 'scale(1.02)',
                         },
+                        transition: 'all 0.2s ease',
                     }}
                 >
-                    ✍️ {user?.fullName || 'Bạn'} ơi, bạn viết bài hoặc đặt câu hỏi gì không?
+                    ✨ Viết bài mới hoặc đặt câu hỏi thú vị...
                 </Button>
-            </Box>
 
-            {/* Dialog đăng bài chính */}
-            <Dialog open={open} onClose={handleDialogClose} fullWidth maxWidth="md" sx={{ '& .MuiDialog-paper': { borderRadius: 2 } }}>
-                <DialogTitle sx={{ pb: 1.5, pr: 7, borderBottom: `1px solid ${theme.palette.divider}` }}>
-                    <Typography variant="h6" component="span">
-                        ✍️ Đăng bài mới
-                    </Typography>
-                    <IconButton aria-label="close" onClick={handleDialogClose} sx={{ position: 'absolute', right: 8, top: 8, color: theme.palette.grey[500] }}>
+                {/* Quick action chips */}
+                <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+                    <Chip
+                        icon={<MagicIcon />}
+                        label="Chia sẻ kinh nghiệm"
+                        variant="outlined"
+                        size="small"
+                        onClick={handleDialogOpen}
+                        sx={{
+                            borderColor: alpha(theme.palette.primary.main, 0.3),
+                            color: theme.palette.text.secondary,
+                            '&:hover': {
+                                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                borderColor: theme.palette.primary.main,
+                            },
+                        }}
+                    />
+                    <Chip
+                        icon={<AddIcon />}
+                        label="Đặt câu hỏi"
+                        variant="outlined"
+                        size="small"
+                        onClick={handleDialogOpen}
+                        sx={{
+                            borderColor: alpha(theme.palette.secondary.main, 0.3),
+                            color: theme.palette.text.secondary,
+                            '&:hover': {
+                                backgroundColor: alpha(theme.palette.secondary.main, 0.1),
+                                borderColor: theme.palette.secondary.main,
+                            },
+                        }}
+                    />
+                </Stack>
+            </Paper>
+
+            {/* Enhanced Dialog */}
+            <Dialog
+                open={open}
+                onClose={handleDialogClose}
+                fullWidth
+                maxWidth="lg"
+                sx={{
+                    '& .MuiDialog-paper': {
+                        borderRadius: 4,
+                        boxShadow: theme.shadows[24],
+                        backgroundColor: theme.palette.background.paper,
+                        backgroundImage: 'none',
+                    },
+                    '& .MuiBackdrop-root': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        backdropFilter: 'blur(4px)',
+                    }
+                }}
+            >
+                <DialogTitle
+                    sx={{
+                        pb: 2,
+                        pr: 7,
+                        borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                        backgroundImage: 'none',
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar
+                            src={user?.profilePicture || '/default-avatar.png'}
+                            alt={user?.fullName || 'Người dùng'}
+                            sx={{
+                                width: 48,
+                                height: 48,
+                                border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                            }}
+                        />
+                        <Box>
+                            <Typography variant="h5" component="span" fontWeight="600" color="primary.main">
+                                ✨ Tạo bài viết mới
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                Chia sẻ kiến thức và kinh nghiệm của bạn với cộng đồng
+                            </Typography>
+                        </Box>
+                    </Box>
+                    <IconButton
+                        aria-label="close"
+                        onClick={handleDialogClose}
+                        sx={{
+                            position: 'absolute',
+                            right: 12,
+                            top: 12,
+                            color: theme.palette.grey[500],
+                            backgroundColor: alpha(theme.palette.grey[500], 0.1),
+                            '&:hover': {
+                                backgroundColor: alpha(theme.palette.grey[500], 0.2),
+                            },
+                        }}
+                    >
                         <CloseIcon />
                     </IconButton>
                 </DialogTitle>
-                <DialogContent sx={{ p: isSmallScreen ? 2 : 3, position: 'relative' }}>
-                    <TextField
-                        fullWidth
-                        variant="outlined"
-                        label="Tiêu đề bài viết"
-                        placeholder="Nhập tiêu đề bài viết của bạn..."
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        sx={{ mb: 2 }}
-                    />
-                    {/* Bạn có thể thêm Select cho topicId nếu muốn chọn chủ đề khi tạo bài */}
-                    {/* <TextField
-                        fullWidth
-                        variant="outlined"
-                        label="ID Chủ đề"
-                        placeholder="Nhập ID chủ đề"
-                        value={topicId}
-                        onChange={(e) => setTopicId(e.target.value)}
-                        sx={{ mb: 2 }}
-                    /> */}
 
-                    <RichTextEditor
-                        content={editorContent}
-                        onContentChange={setEditorContent}
-                    />
+                <DialogContent sx={{ p: isSmallScreen ? 2 : 4, position: 'relative' }}>
+                    <Fade in timeout={300}>
+                        <Box>
+                            <TextField
+                                fullWidth
+                                variant="outlined"
+                                label="Tiêu đề bài viết"
+                                placeholder="Nhập tiêu đề hấp dẫn cho bài viết của bạn..."
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                sx={{
+                                    mb: 3,
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        fontSize: '1.1rem',
+                                        '&:hover fieldset': {
+                                            borderColor: theme.palette.primary.main,
+                                        },
+                                        '&.Mui-focused fieldset': {
+                                            borderWidth: '2px',
+                                        },
+                                    },
+                                }}
+                            />
 
-                    <TextField
-                        fullWidth
-                        variant="outlined"
-                        label="Tags (ví dụ: công nghệ, lập trình, mẹo)"
-                        placeholder="Phân tách các tags bằng dấu phẩy"
-                        value={tags}
-                        onChange={(e) => setTags(e.target.value)}
-                        sx={{ mt: 3 }}
-                    />
+                            <CustomEditor
+                                content={editorContent}
+                                onContentChange={setEditorContent}
+                            />
+
+                            <TextField
+                                fullWidth
+                                variant="outlined"
+                                label="Tags"
+                                placeholder="Ví dụ: công nghệ, lập trình, học tập, kinh nghiệm..."
+                                value={tags}
+                                onChange={(e) => setTags(e.target.value)}
+                                helperText="Phân tách các tags bằng dấu phẩy để giúp người khác dễ tìm thấy bài viết"
+                                sx={{
+                                    mt: 3,
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        '&:hover fieldset': {
+                                            borderColor: theme.palette.primary.main,
+                                        },
+                                        '&.Mui-focused fieldset': {
+                                            borderWidth: '2px',
+                                        },
+                                    },
+                                }}
+                            />
+                        </Box>
+                    </Fade>
                 </DialogContent>
 
-                <DialogActions sx={{ p: isSmallScreen ? 2 : 3, borderTop: `1px solid ${theme.palette.divider}` }}>
+                <Divider />
+
+                <DialogActions sx={{ p: isSmallScreen ? 2 : 3, gap: 1 }}>
                     <Button
                         onClick={handleDialogClose}
-                        color="inherit"
-                        sx={{ mr: 1, '&:hover': { backgroundColor: theme.palette.action.hover } }}
+                        variant="outlined"
+                        sx={{
+                            borderRadius: 2,
+                            px: 3,
+                            py: 1,
+                            textTransform: 'none',
+                            fontWeight: 500,
+                        }}
                     >
-                        Hủy
+                        Hủy bỏ
                     </Button>
                     <Button
                         variant="contained"
@@ -337,8 +469,25 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false })
                         onClick={handleSubmit}
                         endIcon={<SendIcon />}
                         disabled={!title || !editorContent.trim()}
+                        sx={{
+                            borderRadius: 2,
+                            px: 4,
+                            py: 1,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            fontSize: '1rem',
+                            boxShadow: theme.shadows[4],
+                            '&:hover': {
+                                boxShadow: theme.shadows[8],
+                                transform: 'translateY(-1px)',
+                            },
+                            '&:disabled': {
+                                opacity: 0.6,
+                            },
+                            transition: 'all 0.2s ease',
+                        }}
                     >
-                        Đăng bài
+                        Đăng bài viết
                     </Button>
                 </DialogActions>
             </Dialog>

@@ -3,6 +3,7 @@ const Comment = require('../models/Comment'); // Điều chỉnh đường dẫn
 const Post = require('../models/Post');     // Giả sử bạn có model Post
 const User = require('../models/User');     // Giả sử bạn có model User
 const Like = require('../models/Like');     // Assuming you have a Like model for comments
+const CommentLike = require('../models/CommentLike'); // New model for comment likes
 
 // Declare a variable to hold the Socket.IO instance
 let io;
@@ -19,6 +20,8 @@ exports.createComment = async (req, res) => {
         const authorId = req.user.id; // Giả sử bạn lấy ID người dùng từ middleware xác thực
 
         let targetPostId = postId;
+        let level = 0;
+        let rootCommentId = null;
 
         if (parentCommentId) {
             const parentComment = await Comment.findById(parentCommentId);
@@ -26,6 +29,8 @@ exports.createComment = async (req, res) => {
                 return res.status(404).json({ message: 'Bình luận cha không tồn tại.' });
             }
             targetPostId = parentComment.postId; // Ensure we always reference the main post ID
+            level = parentComment.level + 1; // Increase level for nested reply
+            rootCommentId = parentComment.rootCommentId || parentComment._id; // Set root comment ID
         }
 
         if (!targetPostId) {
@@ -43,6 +48,8 @@ exports.createComment = async (req, res) => {
             content,
             parentCommentId: parentCommentId || null,
             imageId: imageId || null,
+            level: level,
+            rootCommentId: rootCommentId,
         });
 
         await newComment.save();
@@ -86,6 +93,7 @@ exports.createComment = async (req, res) => {
 exports.getCommentsByPostId = async (req, res) => {
     try {
         const { postId } = req.params;
+        const userId = req.user ? req.user.id : null; // Get user ID if authenticated
 
         const comments = await Comment.find({ postId: postId, parentCommentId: null })
             .populate('authorId', 'username avatar fullName') // Lấy thông tin tác giả
@@ -96,17 +104,36 @@ exports.getCommentsByPostId = async (req, res) => {
             .sort({ createdAt: -1 })
             .lean(); // Use .lean() for performance
 
-        // Manually calculate likeCount for each comment if not stored directly
-        const detailedComments = await Promise.all(comments.map(async (comment) => {
-            const likeCount = await Like.countDocuments({ targetId: comment._id, targetType: 'comment' });
-            return {
-                ...comment,
-                likeCount,
-            };
-        }));
+        // Helper function to build nested comment tree
+        const buildCommentTree = async (comments, userId) => {
+            return Promise.all(comments.map(async (comment) => {
+                // Lấy danh sách user đã like comment này
+                const likes = await CommentLike.find({ commentId: comment._id })
+                    .populate('userId', 'avatar username fullName')
+                    .lean();
+                const likedUsers = likes.map(like => like.userId);
 
+                let replies = [];
+                if (comment.replies && comment.replies.length > 0) {
+                    replies = await buildCommentTree(comment.replies, userId);
+                } else {
+                    // Nếu replies chưa populate, lấy replies từ DB
+                    replies = await Comment.find({ parentCommentId: comment._id })
+                        .populate('authorId', 'username avatar fullName')
+                        .lean();
+                    replies = await buildCommentTree(replies, userId);
+                }
 
-        res.status(200).json({ comments: detailedComments });
+                return {
+                    ...comment,
+                    likedUsers, // Thêm trường này vào mỗi comment/reply
+                    replies
+                };
+            }));
+        };
+
+        const nestedComments = await buildCommentTree(comments, userId);
+        res.status(200).json(nestedComments);
     } catch (error) {
         console.error('Lỗi khi lấy bình luận theo bài viết:', error);
         res.status(500).json({ message: 'Đã xảy ra lỗi server khi lấy bình luận.' });
@@ -123,14 +150,24 @@ exports.getRepliesByCommentId = async (req, res) => {
             .sort({ createdAt: 1 }) // Phản hồi cũ nhất trước (để hiển thị luồng hội thoại)
             .lean(); // Use .lean() for performance
 
-        // Manually calculate likeCount for each reply if not stored directly
-        const detailedReplies = await Promise.all(replies.map(async (reply) => {
-            const likeCount = await Like.countDocuments({ targetId: reply._id, targetType: 'comment' });
-            return {
+        // The likeCount is already stored in the Comment model, so we don't need to calculate it
+        // But we can add isLiked status if user is authenticated
+        const userId = req.user ? req.user.id : null;
+        let detailedReplies = replies;
+
+        if (userId) {
+            const replyIds = replies.map(r => r._id);
+            const userLikes = await CommentLike.find({
+                commentId: { $in: replyIds },
+                userId: userId
+            }).lean();
+            const likedReplyIds = new Set(userLikes.map(like => like.commentId.toString()));
+
+            detailedReplies = replies.map(reply => ({
                 ...reply,
-                likeCount,
-            };
-        }));
+                isLiked: likedReplyIds.has(reply._id.toString())
+            }));
+        }
 
         res.status(200).json({ replies: detailedReplies });
     } catch (error) {
@@ -162,10 +199,12 @@ exports.deleteComment = async (req, res) => {
         const parentCommentId = commentToDelete.parentCommentId;
 
         // Find all direct and nested replies of the comment to be deleted
+        // Use rootCommentId to find all nested replies efficiently
         const commentsAndRepliesToDelete = await Comment.find({
             $or: [
                 { _id: commentId },
-                { parentCommentId: commentId }
+                { rootCommentId: commentId }, // All nested replies under this comment
+                { parentCommentId: commentId } // Direct replies
             ]
         });
 
@@ -186,7 +225,7 @@ exports.deleteComment = async (req, res) => {
         await Comment.deleteMany({ _id: { $in: idsToDelete } });
 
         // Delete associated likes for all deleted comments/replies
-        await Like.deleteMany({ targetId: { $in: idsToDelete }, targetType: 'comment' });
+        await CommentLike.deleteMany({ commentId: { $in: idsToDelete } });
 
 
         // Emit Socket.IO event for deleted comment
@@ -241,4 +280,100 @@ exports.updateComment = async (req, res) => {
     }
 };
 
-// You can add other functions as needed, e.g., likeComment, etc.
+// Like/Unlike comment
+exports.toggleCommentLike = async (req, res) => {
+    try {
+        const { commentId } = req.params;
+        const userId = req.user.id;
+
+        // Check if comment exists
+        const comment = await Comment.findById(commentId);
+        if (!comment) {
+            return res.status(404).json({ message: 'Bình luận không tồn tại.' });
+        }
+
+        // Check if user already liked this comment
+        const existingLike = await CommentLike.findOne({ commentId, userId });
+
+        if (existingLike) {
+            // Unlike: Remove like and decrease count
+            await CommentLike.deleteOne({ commentId, userId });
+            await Comment.findByIdAndUpdate(
+                commentId,
+                { $inc: { likeCount: -1 } },
+                { new: true }
+            );
+
+            // Get updated comment with author info
+            const updatedComment = await Comment.findById(commentId)
+                .populate('authorId', 'username avatar fullName')
+                .lean();
+
+            // Emit Socket.IO event for comment like update
+            if (io) {
+                io.emit('commentLikeUpdated', {
+                    commentId,
+                    likeCount: updatedComment.likeCount,
+                    isLiked: false,
+                    userId
+                });
+            }
+
+            res.status(200).json({
+                message: 'Đã bỏ thích bình luận.',
+                isLiked: false,
+                likeCount: updatedComment.likeCount
+            });
+        } else {
+            // Like: Add like and increase count
+            await CommentLike.create({ commentId, userId });
+            await Comment.findByIdAndUpdate(
+                commentId,
+                { $inc: { likeCount: 1 } },
+                { new: true }
+            );
+
+            // Get updated comment with author info
+            const updatedComment = await Comment.findById(commentId)
+                .populate('authorId', 'username avatar fullName')
+                .lean();
+
+            // Emit Socket.IO event for comment like update
+            if (io) {
+                io.emit('commentLikeUpdated', {
+                    commentId,
+                    likeCount: updatedComment.likeCount,
+                    isLiked: true,
+                    userId
+                });
+            }
+
+            res.status(200).json({
+                message: 'Đã thích bình luận.',
+                isLiked: true,
+                likeCount: updatedComment.likeCount
+            });
+        }
+    } catch (error) {
+        console.error('Lỗi khi toggle like bình luận:', error);
+        res.status(500).json({ message: 'Đã xảy ra lỗi server khi xử lý like bình luận.' });
+    }
+};
+
+// Hàm để lấy tất cả bình luận (có thể lọc theo authorId)
+exports.getComments = async (req, res) => {
+    try {
+        const authorId = req.query.authorId;
+        let query = {};
+        if (authorId) {
+            query.author = authorId;
+        }
+        const comments = await Comment.find(query)
+            .populate('author', 'username fullName avatarUrl')
+            .sort({ createdAt: -1 });
+        res.status(200).json(comments);
+    } catch (error) {
+        console.error("Lỗi khi lấy comment:", error);
+        res.status(500).json({ message: "Không thể lấy comment" });
+    }
+};

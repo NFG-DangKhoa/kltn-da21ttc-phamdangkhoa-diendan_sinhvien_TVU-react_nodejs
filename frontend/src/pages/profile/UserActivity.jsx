@@ -1,108 +1,214 @@
-// src/components/UserActivity.js
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, Tabs, Tab, CircularProgress, Alert, useTheme } from '@mui/material';
-import ActivityCard from './ActivityCard';
+import React, { useEffect, useState } from "react";
+import { Box, Typography, CircularProgress, Grid, Tabs, Tab } from "@mui/material";
+import ThumbUpIcon from '@mui/icons-material/ThumbUp';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import PostAddIcon from '@mui/icons-material/PostAdd';
+import ActivityCard from "./ActivityCard";
+import axios from "axios";
+import { useNavigate } from 'react-router-dom';
 
-const UserActivity = ({ currentTab, userId }) => {
-    const theme = useTheme();
+const UserActivity = ({ userId }) => {
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [activities, setActivities] = useState([]);
-
-    // Mock data for demonstration purposes
-    const mockPosts = [
-        { id: 1, title: 'Hướng dẫn sử dụng React Hooks hiệu quả', content: 'React Hooks đã thay đổi cách chúng ta viết các component trong React. Tìm hiểu cách tận dụng chúng để tối ưu hóa hiệu suất và khả năng tái sử dụng code.', timestamp: '2025-05-20T10:00:00Z', likes: 120, comments: 25, type: 'post', link: '/post/1' },
-        { id: 2, title: 'Tối ưu hóa hiệu suất ứng dụng Next.js', content: 'Next.js là một framework mạnh mẽ cho React. Bài viết này sẽ đi sâu vào các kỹ thuật tối ưu hóa để ứng dụng của bạn chạy nhanh hơn.', timestamp: '2025-05-15T14:30:00Z', likes: 85, comments: 18, type: 'post', link: '/post/2' },
-        { id: 3, title: 'Thiết kế UI/UX đẹp và thân thiện người dùng', content: 'Khám phá các nguyên tắc cơ bản và thực tiễn tốt nhất để tạo ra giao diện người dùng hấp dẫn và trải nghiệm người dùng mượt mà.', timestamp: '2025-05-10T09:00:00Z', likes: 150, comments: 30, type: 'post', link: '/post/3' },
-    ];
-
-    const mockComments = [
-        { id: 1, content: 'Bình luận rất hay, cảm ơn bạn đã chia sẻ!', timestamp: '2025-05-28T18:00:00Z', likes: 10, targetTitle: 'React Hooks hiệu quả', link: '/post/1#comment-abc', type: 'comment' },
-        { id: 2, content: 'Tôi đã thử cách này và hiệu suất cải thiện đáng kể.', timestamp: '2025-05-27T11:45:00Z', likes: 5, targetTitle: 'Tối ưu hóa Next.js', link: '/post/2#comment-xyz', type: 'comment' },
-        { id: 3, content: 'Thật tuyệt vời! Một bài viết đầy đủ và dễ hiểu. Rất hữu ích cho những người mới bắt đầu.', timestamp: '2025-05-26T09:20:00Z', likes: 8, targetTitle: 'Thiết kế UI/UX đẹp', link: '/post/3#comment-def', type: 'comment' },
-    ];
-
-    const mockLikes = [
-        { id: 1, title: '10 mẹo CSS bạn nên biết', timestamp: '2025-05-25T16:00:00Z', type: 'liked_post', link: '/post/4' },
-        { id: 2, title: 'Bình luận về bài "JavaScript cơ bản"', timestamp: '2025-05-24T10:00:00Z', type: 'liked_comment', link: '/post/5#comment-ghi' },
-    ];
-
-    const mockAllActivity = [
-        ...mockPosts.map(p => ({ ...p, activityType: 'Bài viết' })),
-        ...mockComments.map(c => ({ ...c, activityType: 'Bình luận' })),
-        ...mockLikes.map(l => ({ ...l, activityType: 'Thích' })),
-    ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Sắp xếp theo thời gian mới nhất
+    const [error, setError] = useState(null);
+    const [activeTab, setActiveTab] = useState(0);
+    const navigate = useNavigate();
 
     useEffect(() => {
         setLoading(true);
-        setError(null);
-        let fetchedData = [];
-
-        // Simulate API call delay
-        setTimeout(() => {
+        const fetchActivities = async () => {
             try {
-                switch (currentTab) {
-                    case 0: // Posts
-                        fetchedData = mockPosts;
-                        break;
-                    case 1: // Comments
-                        fetchedData = mockComments;
-                        break;
-                    case 2: // Likes
-                        fetchedData = mockLikes;
-                        break;
-                    case 3: // Activity
-                        fetchedData = mockAllActivity;
-                        break;
-                    default:
-                        fetchedData = [];
-                }
-                setActivities(fetchedData);
-            } catch (err) {
-                setError('Không thể tải dữ liệu hoạt động. Vui lòng thử lại sau.');
-                console.error(err);
-            } finally {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+
+                const config = {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                };
+
+                // Fetch posts with author details
+                const postsRes = await axios.get(`http://localhost:5000/api/users/posts?authorId=${userId}`, config);
+                console.log('Posts response:', postsRes.data);
+
+                // Fetch user comments
+                const commentsRes = await axios.get(`http://localhost:5000/api/users/comments?authorId=${userId}`, config);
+                console.log('Comments response:', commentsRes.data);
+
+                // Fetch user likes
+                const likesRes = await axios.get(`http://localhost:5000/api/users/likes?userId=${userId}`, config);// Process and transform the data                console.log('Raw posts data:', postsRes.data);
+                // Build a map from postId to topicId for quick lookup
+                const postIdToTopicId = {};
+                (Array.isArray(postsRes.data) ? postsRes.data : postsRes.data.posts || []).forEach(post => {
+                    let topicId = post.topicId;
+                    if (topicId && typeof topicId === 'object' && topicId._id) topicId = topicId._id;
+                    postIdToTopicId[post._id] = topicId;
+                });
+
+                const posts = (Array.isArray(postsRes.data) ? postsRes.data : postsRes.data.posts || []).map(post => {
+                    let topicId = post.topicId;
+                    if (topicId && typeof topicId === 'object' && topicId._id) topicId = topicId._id;
+                    return {
+                        type: "post",
+                        title: post.title || "Bài viết không có tiêu đề",
+                        content: post.content || '',
+                        timestamp: post.createdAt || new Date().toISOString(),
+                        likes: post.likeCount || 0,
+                        comments: post.commentCount || 0,
+                        link: `/posts/${post._id}`,
+                        topic: post.topicId,
+                        topicId, // always string or undefined
+                        status: post.status,
+                        _id: post._id
+                    };
+                });
+
+                const comments = commentsRes.data.map(comment => {
+                    let topicId = postIdToTopicId[comment.postId];
+                    if (topicId && typeof topicId === 'object' && topicId._id) topicId = topicId._id;
+                    return {
+                        type: "comment",
+                        title: `Bình luận về \"${comment.postTitle || 'Bài viết'}\"`,
+                        content: comment.content,
+                        timestamp: comment.createdAt,
+                        likes: comment.likes?.length || 0,
+                        comments: 0,
+                        link: `/posts/${comment.postId}#comment-${comment._id}`,
+                        postId: comment.postId,
+                        topicId // always string or undefined
+                    };
+                });
+
+                const likes = likesRes.data.map(like => ({
+                    type: "like",
+                    title: like.postId ? "Đã thích bài viết" : "Đã thích bình luận",
+                    content: like.postId
+                        ? `Đã thích bài viết "${like.postTitle || 'Không có tiêu đề'}"`
+                        : `Đã thích bình luận của ${like.commentAuthor || 'ai đó'}`,
+                    timestamp: like.createdAt,
+                    link: like.postId
+                        ? `/posts/${like.postId}`
+                        : `/posts/${like.commentPostId}#comment-${like.commentId}`,
+                    targetId: like.postId || like.commentId
+                }));
+
+                // Combine all activities and sort by timestamp
+                const allActivities = [...posts, ...comments, ...likes]
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                setActivities(allActivities);
+                setLoading(false);
+            } catch (error) {
+                console.error("Error fetching activities:", error);
+                setError("Không thể tải hoạt động.");
                 setLoading(false);
             }
-        }, 500); // Simulate network delay
-    }, [currentTab, userId]); // Refetch when tab or userId changes
+        };
 
-    if (loading) {
+        if (userId) {
+            fetchActivities();
+        }
+    }, [userId]); const handleTabChange = (event, newValue) => {
+        setActiveTab(newValue);
+    };
+
+    const filterActivities = () => {
+        if (!activities.length) return [];
+        switch (activeTab) {
+            case 0: // Posts
+                return activities.filter(act => act.type === 'post');
+            case 1: // Comments
+                return activities.filter(act => act.type === 'comment');
+            case 2: // Likes
+                return activities.filter(act => act.type === 'like');
+            default:
+                return activities;
+        }
+    };
+
+    if (loading) return <CircularProgress />;
+    if (error) return <Typography color="error">{error}</Typography>;
+
+    const filteredActivities = filterActivities();
+
+    if (!filteredActivities.length) {
         return (
-            <Box display="flex" justifyContent="center" alignItems="center" height="200px">
-                <CircularProgress />
+            <Box sx={{ mt: 2 }}>
+                <Typography align="center">Chưa có hoạt động nào.</Typography>
             </Box>
         );
-    }
-
-    if (error) {
-        return <Alert severity="error">{error}</Alert>;
-    }
-
-    if (activities.length === 0) {
-        return (
-            <Box p={3} textAlign="center">
-                <Typography variant="h6" color="text.secondary">
-                    Chưa có hoạt động nào trong mục này.
-                </Typography>
-            </Box>
-        );
-    }
-
-    return (
-        <Box>
-            {activities.map((activity) => (
-                <ActivityCard
-                    key={activity.id}
-                    type={activity.activityType || activity.type} // Sử dụng activityType cho tab Hoạt động tổng hợp
-                    title={activity.title || activity.targetTitle}
-                    content={activity.content || (activity.type === 'liked_post' ? `Đã thích bài viết: "${activity.title}"` : `Đã thích bình luận: "${activity.title}"`)}
-                    timestamp={activity.timestamp}
-                    likes={activity.likes}
-                    comments={activity.comments}
-                    link={activity.link}
+    } return (
+        <Box sx={{ width: '100%', mt: 3 }}>
+            <Tabs
+                value={activeTab}
+                onChange={handleTabChange}
+                centered
+                variant="fullWidth"
+                sx={{ mb: 2 }}
+            >
+                <Tab
+                    icon={<PostAddIcon />}
+                    label={`Bài viết (${activities.filter(a => a.type === 'post').length})`}
+                    sx={{ minHeight: 'auto', py: 2 }}
                 />
-            ))}
+                <Tab
+                    icon={<ChatBubbleOutlineIcon />}
+                    label={`Bình luận (${activities.filter(a => a.type === 'comment').length})`}
+                    sx={{ minHeight: 'auto', py: 2 }}
+                />
+                <Tab
+                    icon={<ThumbUpIcon />}
+                    label={`Lượt thích (${activities.filter(a => a.type === 'like').length})`}
+                    sx={{ minHeight: 'auto', py: 2 }}
+                />
+            </Tabs>
+
+            <Box sx={{ py: 2 }}>
+                {loading ? (
+                    <Box display="flex" justifyContent="center" p={3}>
+                        <CircularProgress />
+                    </Box>
+                ) : filteredActivities.length === 0 ? (
+                    <Typography textAlign="center" color="text.secondary">
+                        Không có hoạt động nào trong mục này
+                    </Typography>
+                ) : (
+                    <Grid container spacing={3}>
+                        {filteredActivities.map((activity) => (
+                            <Grid item xs={12} sm={6} md={4} key={activity._id || activity.timestamp}>
+                                <div
+                                    style={{ cursor: 'pointer', height: '100%' }}
+                                    onClick={() => {
+                                        // Điều hướng đúng format PostDetail: /posts/detail?topicId=...&postId=...
+                                        if (activity.type === 'post' || activity.type === 'comment') {
+                                            const postId = activity.type === 'post' ? activity._id : activity.postId;
+                                            const topicId = activity.topicId;
+                                            if (postId && topicId) {
+                                                navigate(`/posts/detail?topicId=${topicId}&postId=${postId}`, { replace: true });
+                                            } else if (postId) {
+                                                // fallback if topicId missing
+                                                navigate(`/posts/detail?postId=${postId}`, { replace: true });
+                                            }
+                                        } else if (activity.type === 'like') {
+                                            // Like có thể là post hoặc comment
+                                            if (activity.link && activity.link.startsWith('/posts/')) {
+                                                // Nếu là like bài viết hoặc bình luận, lấy postId từ link
+                                                const match = activity.link.match(/\/posts\/(\w+)/);
+                                                if (match) {
+                                                    navigate(`/posts/detail?postId=${match[1]}`, { replace: true });
+                                                }
+                                            }
+                                        }
+                                    }}
+                                >
+                                    <ActivityCard {...activity} />
+                                </div>
+                            </Grid>
+                        ))}
+                    </Grid>
+                )}
+            </Box>
         </Box>
     );
 };

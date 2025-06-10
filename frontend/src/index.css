@@ -11,3 +11,374 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Fix Draft.js Image Upload Modal */
+.rdw-image-modal {
+  background: white !important;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+  padding: 20px !important;
+  min-width: 400px !important;
+  max-width: 500px !important;
+  z-index: 99999 !important;
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.rdw-image-modal-header {
+  background: transparent !important;
+  border-bottom: 1px solid #e0e0e0 !important;
+  padding-bottom: 12px !important;
+  margin-bottom: 16px !important;
+}
+
+.rdw-image-modal-header-option {
+  color: #333 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  margin-right: 8px !important;
+  border: 1px solid #e0e0e0 !important;
+  background: #f5f5f5 !important;
+}
+
+.rdw-image-modal-header-option:hover {
+  background: #1976d2 !important;
+  color: white !important;
+  border-color: #1976d2 !important;
+}
+
+.rdw-image-modal-header-option-active {
+  background: #1976d2 !important;
+  color: white !important;
+  border-color: #1976d2 !important;
+}
+
+.rdw-image-modal-upload-option {
+  border: 2px dashed #e0e0e0 !important;
+  border-radius: 8px !important;
+  padding: 30px 20px !important;
+  text-align: center !important;
+  background: #f9f9f9 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  margin: 16px 0 !important;
+}
+
+.rdw-image-modal-upload-option:hover {
+  border-color: #1976d2 !important;
+  background: #e3f2fd !important;
+}
+
+.rdw-image-modal-upload-option-label {
+  color: #333 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  display: block !important;
+  margin-bottom: 8px !important;
+}
+
+.rdw-image-modal-btn {
+  background: #1976d2 !important;
+  color: white !important;
+  border: none !important;
+  padding: 10px 20px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  min-width: 80px !important;
+  margin-left: 8px !important;
+}
+
+.rdw-image-modal-btn:hover {
+  background: #1565c0 !important;
+}
+
+.rdw-image-modal-btn:disabled {
+  background: #ccc !important;
+  cursor: not-allowed !important;
+}
+
+.rdw-image-modal-btn-cancel {
+  background: transparent !important;
+  color: #666 !important;
+  border: 1px solid #e0e0e0 !important;
+  margin-right: 8px !important;
+  margin-left: 0 !important;
+}
+
+.rdw-image-modal-btn-cancel:hover {
+  background: #ffebee !important;
+  border-color: #f44336 !important;
+  color: #f44336 !important;
+}
+
+/* Fix image modal overlay */
+.rdw-image-modal-backdrop {
+  background: rgba(0, 0, 0, 0.5) !important;
+  z-index: 99998 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
+/* Additional modal container fix */
+.rdw-modal-wrapper {
+  z-index: 99999 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Fix image alignment options */
+.rdw-image-alignment-options-popup {
+  background: white !important;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  padding: 8px !important;
+}
+
+.rdw-image-alignment-option {
+  padding: 8px 12px !important;
+  cursor: pointer !important;
+  border-radius: 4px !important;
+  color: #333 !important;
+  font-size: 14px !important;
+}
+
+.rdw-image-alignment-option:hover {
+  background: #e3f2fd !important;
+  color: #1976d2 !important;
+}
+
+/* Force all modal elements to highest z-index */
+.rdw-modal,
+.rdw-image-modal,
+.rdw-image-modal-wrapper,
+.rdw-modal-wrapper,
+[class*="rdw-image-modal"],
+[class*="rdw-modal"] {
+  z-index: 99999 !important;
+  position: relative !important;
+}
+
+/* Ensure modal content is visible */
+.rdw-image-modal * {
+  z-index: inherit !important;
+  position: relative !important;
+}
+
+/* Fix button visibility specifically */
+.rdw-image-modal .rdw-image-modal-btn,
+.rdw-image-modal button {
+  z-index: 100000 !important;
+  position: relative !important;
+  pointer-events: auto !important;
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure modal is always on top */
+body .rdw-image-modal {
+  z-index: 99999 !important;
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+/* Preserve image styles in Draft.js editor */
+.rdw-editor-main img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 8px !important;
+  margin: 16px auto !important;
+  display: block !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Size-based styling */
+.rdw-editor-main img.size-150 {
+  width: 150px !important;
+}
+
+.rdw-editor-main img.size-300 {
+  width: 300px !important;
+}
+
+.rdw-editor-main img.size-500 {
+  width: 500px !important;
+}
+
+.rdw-editor-main img.size-100percent {
+  width: 100% !important;
+}
+
+/* Alignment-based styling */
+.rdw-editor-main img.align-left,
+.rdw-editor-main img[align="left"] {
+  float: left !important;
+  margin: 16px 16px 16px 0 !important;
+}
+
+.rdw-editor-main img.align-right,
+.rdw-editor-main img[align="right"] {
+  float: right !important;
+  margin: 16px 0 16px 16px !important;
+}
+
+.rdw-editor-main img.align-center,
+.rdw-editor-main img[align="center"] {
+  display: block !important;
+  margin: 16px auto !important;
+  float: none !important;
+}
+
+/* Width attribute support */
+.rdw-editor-main img[width="150"] {
+  width: 150px !important;
+}
+
+.rdw-editor-main img[width="300"] {
+  width: 300px !important;
+}
+
+.rdw-editor-main img[width="500"] {
+  width: 500px !important;
+}
+
+/* Hover effect for images */
+.rdw-editor-main img:hover {
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3) !important;
+  transform: scale(1.02) !important;
+}
+
+/* PostCard content images - FORCE DISPLAY */
+.post-content img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 8px !important;
+  margin: 16px 0 !important;
+  display: block !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.2s ease !important;
+  background-color: #f0f0f0 !important;
+  min-height: 100px !important;
+  border: 2px solid red !important;
+}
+
+/* More specific selector to override any conflicts */
+div.post-content img {
+  border: 2px solid red !important;
+  background-color: #f0f0f0 !important;
+  min-height: 100px !important;
+}
+
+/* Even more specific */
+.post-content>img,
+.post-content p img,
+.post-content div img {
+  border: 2px solid red !important;
+  background-color: #f0f0f0 !important;
+  min-height: 100px !important;
+}
+
+/* YouTube iframe styling */
+.post-content iframe[src*="youtube.com"] {
+  max-width: 100% !important;
+  width: 560px !important;
+  height: 315px !important;
+  margin: 16px auto !important;
+  border-radius: 8px !important;
+  display: block !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: none !important;
+}
+
+/* Responsive YouTube videos */
+@media (max-width: 600px) {
+  .post-content iframe[src*="youtube.com"] {
+    width: 100% !important;
+    height: 200px !important;
+  }
+}
+
+/* CustomEditor YouTube iframe styling */
+#custom-editor iframe[src*="youtube.com"] {
+  max-width: 100% !important;
+  width: 560px !important;
+  height: 315px !important;
+  margin: 16px auto !important;
+  border-radius: 8px !important;
+  display: block !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: none !important;
+  cursor: pointer !important;
+}
+
+@media (max-width: 600px) {
+  #custom-editor iframe[src*="youtube.com"] {
+    width: 100% !important;
+    height: 200px !important;
+  }
+}
+
+.post-content img:hover {
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3) !important;
+  transform: scale(1.02) !important;
+}
+
+/* PostCard content styling */
+.post-content {
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+.post-content p {
+  margin: 8px 0;
+}
+
+.post-content h1,
+.post-content h2,
+.post-content h3 {
+  margin: 16px 0 8px 0;
+  color: inherit;
+}
+
+.post-content blockquote {
+  border-left: 4px solid #1976d2;
+  padding-left: 16px;
+  margin: 16px 0;
+  font-style: italic;
+  background-color: rgba(25, 118, 210, 0.05);
+  padding: 16px 20px;
+  border-radius: 8px;
+}
+
+.post-content ul,
+.post-content ol {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.post-content li {
+  margin: 4px 0;
+}

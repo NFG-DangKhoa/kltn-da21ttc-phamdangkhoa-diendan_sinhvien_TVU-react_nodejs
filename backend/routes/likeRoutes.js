@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const authMiddleware = require('../middlewares/authMiddleware'); // <-- Thêm dòng này
 const likeController = require('../controllers/likeController');
-const authMiddleware = require('../middlewares/authMiddleware'); // Giả định bạn có một middleware xác thực
+
+// Route lấy tất cả like hoặc lọc theo userId
+router.get('/', authMiddleware, likeController.getLikes);
 
 // @route   POST /api/likes/toggle
 // @desc    Bật/tắt một lượt thích (thêm hoặc xóa)

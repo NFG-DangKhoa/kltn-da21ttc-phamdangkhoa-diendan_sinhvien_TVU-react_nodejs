@@ -1,30 +1,37 @@
 // backend/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Đảm bảo đường dẫn này đúng tới User model của bạn
+const User = require('../models/User');
 
-const authMiddleware = async (req, res, next) => {
-    let token = req.headers.authorization;
-
-    if (!token || !token.startsWith('Bearer')) {
-        return res.status(401).json({ message: 'Không có token hoặc định dạng không hợp lệ, ủy quyền bị từ chối.' });
-    }
-
+const auth = async (req, res, next) => {
     try {
-        const tokenValue = token.split(' ')[1]; // Lấy phần token sau 'Bearer '
-        const decoded = jwt.verify(tokenValue, process.env.JWT_SECRET); // Sử dụng biến môi trường JWT_SECRET
+        // Get token from header
+        const authHeader = req.headers.authorization;
 
-        // Gán user từ database vào req.user (không bao gồm password)
-        req.user = await User.findById(decoded.id).select('-password');
-
-        if (!req.user) {
-            return res.status(404).json({ message: 'Người dùng không tìm thấy.' });
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                message: 'Access denied. No token provided or invalid format'
+            });
         }
 
+        const token = authHeader.split(' ')[1];
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Get user from token
+        const user = await User.findById(decoded.id).select('-password');
+
+        if (!user) {
+            return res.status(401).json({ message: 'User not found' });
+        }
+
+        // Add user to request object
+        req.user = user;
         next();
-    } catch (err) {
-        console.error('Lỗi xác thực token:', err);
-        return res.status(401).json({ message: 'Token không hợp lệ hoặc hết hạn.' });
+    } catch (error) {
+        console.error('Auth middleware error:', error);
+        res.status(401).json({ message: 'Token is invalid or expired' });
     }
 };
 
-module.exports = authMiddleware;
+module.exports = auth;

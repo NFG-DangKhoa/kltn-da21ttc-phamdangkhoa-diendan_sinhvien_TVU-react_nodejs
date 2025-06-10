@@ -2,19 +2,22 @@ const mongoose = require('mongoose');
 const mongoosePaginate = require('mongoose-paginate-v2'); // <<< THÊM DÒNG NÀY
 
 const postSchema = new mongoose.Schema({
-    authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     title: { type: String, required: true, trim: true },
     content: { type: String, required: true },
     topicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Topics', required: true },
-    tags: [String], // Mảng các string cho tags
+    tags: [String],
     views: { type: Number, default: 0 },
-    // createdAt và updatedAt sẽ được tự động quản lý bởi timestamps
-    // createdAt: { type: Date, default: Date.now }, // <<< NÊN XÓA DÒNG NÀY NẾU DÙNG timestamps
-    // updatedAt: Date, // <<< NÊN XÓA DÒNG NÀY NẾU DÙNG timestamps
-
     commentCount: { type: Number, default: 0 },
     likeCount: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
+
+    // Thêm trường này để phân loại bài viết
+    type: {
+        type: String,
+        enum: ['discussion', 'question', 'event', 'job', 'news', 'other'],
+        default: 'discussion'
+    },
 
     status: {
         type: String,

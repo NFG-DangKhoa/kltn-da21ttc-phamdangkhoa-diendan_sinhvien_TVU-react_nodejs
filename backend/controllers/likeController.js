@@ -116,7 +116,7 @@ exports.getLikesForTarget = async (req, res) => {
 
     try {
         // Populate 'userId' để lấy thông tin người dùng nếu cần (ví dụ: username, avatar)
-        const likes = await Like.find({ targetId, targetType }).populate('userId', 'username avatar');
+        const likes = await Like.find({ targetId, targetType }).populate('userId', 'username avatarUrl');
         res.status(200).json(likes);
     } catch (error) {
         console.error('Lỗi khi lấy lượt thích cho mục tiêu:', error);
@@ -165,5 +165,29 @@ exports.checkIfUserLiked = async (req, res) => {
     } catch (error) {
         console.error('Lỗi khi kiểm tra xem người dùng đã thích hay chưa:', error);
         res.status(500).json({ message: 'Lỗi máy chủ.', error: error.message });
+    }
+};
+
+exports.getLikes = async (req, res) => {
+    try {
+        const userId = req.query.userId;
+        let query = {};
+        if (userId) {
+            query.user = userId;
+        }
+        const likes = await Like.find(query)
+            .populate('user', 'username fullName avatarUrl')
+            .populate('post', 'title')
+            .sort({ createdAt: -1 });
+        // Nếu bạn muốn trả về cả postTitle cho frontend:
+        const likesWithPostTitle = likes.map(like => ({
+            ...like.toObject(),
+            postTitle: like.post ? like.post.title : '',
+            postId: like.post ? like.post._id : ''
+        }));
+        res.status(200).json(likesWithPostTitle);
+    } catch (error) {
+        console.error("Lỗi khi lấy like:", error);
+        res.status(500).json({ message: "Không thể lấy like" });
     }
 };

@@ -1,7 +1,8 @@
 // src/layouts/AdminDashboard.jsx
-import React from 'react';
+import React, { useContext } from 'react';
 import { Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import { Routes, Route, Navigate } from 'react-router-dom'; // QUAN TRỌNG: Import Routes, Route, Navigate
+import { ThemeContext } from '../context/ThemeContext';
 
 // Đảm bảo đường dẫn này đúng với vị trí của Sidebar và AdminMainContent của bạn
 // Dựa trên cấu trúc đã đề xuất, Sidebar nên nằm ở src/Sidebar.jsx
@@ -14,40 +15,44 @@ import AdminMainContent from '../pages/admin/AdminMainContent'; // Chỉnh lại
 import AdminDashboardOverview from '../pages/admin/AdminDashboardOverview';
 import AdminPostsPage from '../pages/admin/AdminPostsPage';
 import AdminUsersPage from '../pages/admin/AdminUsersPage';
+import AdminTopicsPage from '../pages/admin/AdminTopicsPage';
+import AdminAnalyticsPage from '../pages/admin/AdminAnalyticsPage';
+import AdminChatbotPage from '../pages/admin/AdminChatbotPage';
 import AdminSettingsPage from '../pages/admin/AdminSettingsPage';
-
-// Tạo một theme tùy chỉnh (có thể là light hoặc dark)
-const adminDashboardTheme = createTheme({
-    palette: {
-        mode: 'dark', // Đặt 'light' nếu bạn muốn giao diện sáng
-        primary: {
-            main: '#90caf9', // Blue
-        },
-        secondary: {
-            main: '#f48fb1', // Pink
-        },
-        background: {
-            default: '#121212', // Nền chính của ứng dụng
-            paper: '#1d1d1d',   // Nền của các thành phần như AppBar, Paper, Drawer
-        },
-        text: {
-            primary: '#e0e0e0',
-            secondary: '#a0a0a0',
-        }
-    },
-    typography: {
-        fontFamily: 'Roboto, sans-serif',
-    },
-});
+import AdminCommentsPage from '../pages/admin/AdminCommentsPage';
 
 const AdminDashboard = () => {
+    const { mode, toggleColorMode } = useContext(ThemeContext);
+    // Tạo theme động dựa trên mode
+    const adminDashboardTheme = createTheme({
+        palette: {
+            mode: mode || 'dark',
+            primary: {
+                main: '#90caf9',
+            },
+            secondary: {
+                main: '#f48fb1',
+            },
+            background: {
+                default: mode === 'light' ? '#f5f5f5' : '#121212',
+                paper: mode === 'light' ? '#fff' : '#1d1d1d',
+            },
+            text: {
+                primary: mode === 'light' ? '#212121' : '#e0e0e0',
+                secondary: mode === 'light' ? '#757575' : '#a0a0a0',
+            }
+        },
+        typography: {
+            fontFamily: 'Roboto, sans-serif',
+        },
+    });
     return (
         <ThemeProvider theme={adminDashboardTheme}>
             <Box sx={{ display: 'flex' }}>
                 <CssBaseline />
                 <Sidebar />
                 {/* AdminMainContent sẽ bao bọc các route con của admin */}
-                <AdminMainContent>
+                <AdminMainContent toggleColorMode={toggleColorMode} mode={mode}>
                     <Routes> {/* Đây là nơi các route con của admin được định nghĩa */}
                         {/* Route mặc định cho /admin (ví dụ: AdminDashboardOverview) */}
                         <Route index element={<AdminDashboardOverview />} />
@@ -55,7 +60,11 @@ const AdminDashboard = () => {
                         {/* Các route cụ thể cho từng trang admin */}
                         <Route path="posts" element={<AdminPostsPage />} />
                         <Route path="users" element={<AdminUsersPage />} />
+                        <Route path="topics" element={<AdminTopicsPage />} />
+                        <Route path="analytics" element={<AdminAnalyticsPage />} />
+                        <Route path="chatbot" element={<AdminChatbotPage />} />
                         <Route path="settings" element={<AdminSettingsPage />} />
+                        <Route path="comments" element={<AdminCommentsPage />} />
 
                         {/* Thêm các route admin khác tại đây nếu cần
                             Ví dụ: <Route path="posts/new" element={<AdminNewPostPage />} />

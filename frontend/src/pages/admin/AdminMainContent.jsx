@@ -4,6 +4,8 @@ import { Box, Typography, AppBar, Toolbar, IconButton } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import AccountCircle from '@mui/icons-material/AccountCircle';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { styled } from '@mui/system';
 // import { Outlet } from 'react-router-dom'; // <--- XÓA HOẶC COMMENT DÒNG NÀY
 
@@ -16,8 +18,8 @@ const MainContentArea = styled('main')(({ theme }) => ({
 
 const drawerWidth = 240;
 
-// Đảm bảo component AdminMainContent nhận props 'children'
-const AdminMainContent = ({ children }) => { // <--- THÊM { children } VÀO ĐÂY
+// Đảm bảo component AdminMainContent nhận props 'children', 'toggleColorMode', 'mode'
+const AdminMainContent = ({ children, toggleColorMode, mode }) => {
     return (
         <Box sx={{ flexGrow: 1 }}>
             <AppBar
@@ -41,6 +43,10 @@ const AdminMainContent = ({ children }) => { // <--- THÊM { children } VÀO Đ�
                     <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
                         Admin Panel
                     </Typography>
+                    {/* Nút chuyển sáng/tối */}
+                    <IconButton color="inherit" onClick={toggleColorMode} sx={{ ml: 1 }}>
+                        {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+                    </IconButton>
                     <IconButton color="inherit">
                         <NotificationsIcon />
                     </IconButton>

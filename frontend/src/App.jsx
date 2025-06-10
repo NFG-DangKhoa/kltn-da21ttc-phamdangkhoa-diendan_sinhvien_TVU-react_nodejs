@@ -6,11 +6,16 @@ import { Box, IconButton, CircularProgress, Typography } from '@mui/material'; /
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import NightlightRoundIcon from '@mui/icons-material/NightlightRound';
 
+// Import custom styles
+import './styles/animations.css';
+import './styles/responsive.css';
+
 // Components dùng chung
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ScrollToTop from "./components/ScrollToTop";
 import ChatbotWidget from './components/ChatbotWidget';
+import LoadingScreen from './components/LoadingScreen';
 
 // Contexts
 import { AuthProvider, AuthContext } from './context/AuthContext'; // Import AuthContext để sử dụng useContext
@@ -30,6 +35,9 @@ import EditPostPage from './pages/TopicDetail/EditPostPage';
 import PostList from './pages/TopicDetail/PostList';
 import PostDetailSingleImage from './pages/TopicDetail/PostDetailSingleImage';
 import MembersList from './pages/TopicDetail/MemberList';
+
+// Test Components
+import BreadcrumbTest from './components/BreadcrumbTest';
 
 // Admin Dashboard Layout
 import AdminDashboard from './layouts/AdminDashboard';
@@ -102,24 +110,7 @@ const AppContent = () => {
 
   // Hiển thị màn hình loading nếu AuthContext đang trong quá trình khôi phục trạng thái
   if (loading) {
-    return (
-      <Box
-        display="flex"
-        flexDirection="column"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="100vh"
-        sx={{
-          backgroundColor: (theme) => (theme.palette.mode === 'dark' ? '#212121' : '#f0f0f0'),
-          color: (theme) => (theme.palette.mode === 'dark' ? '#ffffff' : '#333333'),
-        }}
-      >
-        <CircularProgress color="primary" size={60} />
-        <Typography variant="h6" sx={{ mt: 2 }}>
-          Đang tải ứng dụng và thông tin người dùng...
-        </Typography>
-      </Box>
-    );
+    return <LoadingScreen message="Đang tải ứng dụng và thông tin người dùng..." />;
   }
 
   return (
@@ -142,7 +133,11 @@ const AppContent = () => {
         <Route path="/PostDetailSingleImage" element={<PostDetailSingleImage />} />
         <Route path="/MembersList" element={<MembersList />} />
         <Route path="/posts/detail" element={<PostDetail />} />
+        <Route path="/post-detail" element={<PostDetail />} />
         <Route path="/edit-post/:postId" element={<EditPostPage />} />
+
+        {/* Test Routes */}
+        <Route path="/test/breadcrumb" element={<BreadcrumbTest />} />
 
         {/* Admin Dashboard Route */}
         <Route path="/admin/*" element={<AdminDashboard />} />

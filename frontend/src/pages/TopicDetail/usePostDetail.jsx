@@ -36,9 +36,8 @@ const usePostDetail = (topicId, postId, currentUser) => {
 
                 // Initialize likes
                 setCurrentLikeCount(fetchedPost.likeCount || 0);
-                // Ensure currentLikedUsers stores full user objects from the 'likes' array
-                // Assuming 'likes' array contains objects like { _id: 'likeId', userId: { _id: 'userId', ... } }
-                const initialLikedUsers = fetchedPost.likes?.map(like => like.userId).filter(Boolean) || [];
+                // CẬP NHẬT: Lấy trực tiếp mảng likedUsers từ fetchedPost
+                const initialLikedUsers = fetchedPost.likedUsers || []; // SỬA ĐỔI TẠI ĐÂY
                 setCurrentLikedUsers(initialLikedUsers);
 
                 if (currentUser) {
@@ -96,12 +95,18 @@ const usePostDetail = (topicId, postId, currentUser) => {
     useEffect(() => {
         if (!postDetail?._id) return;
 
+        console.log('Joining post room:', postDetail._id);
         socket.emit('joinPostRoom', postDetail._id);
 
         // NEW: Handle real-time rating updates
         const handleRatingUpdate = (data) => {
+            console.log('Received ratingUpdated event:', data);
             if (data.postId === postDetail._id) {
-                // When a rating is updated, refetch all rating data to get the latest list of raters
+                // Immediately update the average rating and total count
+                setAverageRating(data.averageRating || 0);
+                setTotalRatings(data.count || 0);
+
+                // Also refetch all rating data to get the latest list of raters
                 fetchRatingData();
             }
         };
@@ -121,6 +126,7 @@ const usePostDetail = (topicId, postId, currentUser) => {
                 setCurrentCommentCount(prevCount => prevCount + 1);
 
                 setPostDetail(prevPost => {
+                    if (!prevPost) return prevPost; // Đảm bảo prevPost không null
                     let updatedCommentsInPost = [...(prevPost.comments || [])];
                     if (newComment.parentCommentId) {
                         updatedCommentsInPost = updatedCommentsInPost.map(comment => {
@@ -166,14 +172,17 @@ const usePostDetail = (topicId, postId, currentUser) => {
 
                 if (commentRemoved) {
                     setCurrentCommentCount(prevCount => Math.max(0, prevCount - 1));
-                    setPostDetail(prevPost => ({
-                        ...prevPost,
-                        commentCount: Math.max(0, (prevPost.commentCount || 0) - 1),
-                        comments: prevPost.comments ? (parentCommentId
-                            ? prevPost.comments.map(c => c._id === parentCommentId ? { ...c, replies: c.replies.filter(r => r._id !== deletedCommentId), replyCount: Math.max(0, (c.replyCount || 0) - 1) } : c)
-                            : prevPost.comments.filter(c => c._id !== deletedCommentId)
-                        ) : []
-                    }));
+                    setPostDetail(prevPost => {
+                        if (!prevPost) return prevPost; // Đảm bảo prevPost không null
+                        return {
+                            ...prevPost,
+                            commentCount: Math.max(0, (prevPost.commentCount || 0) - 1),
+                            comments: prevPost.comments ? (parentCommentId
+                                ? prevPost.comments.map(c => c._id === parentCommentId ? { ...c, replies: c.replies.filter(r => r._id !== deletedCommentId), replyCount: Math.max(0, (c.replyCount || 0) - 1) } : c)
+                                : prevPost.comments.filter(c => c._id !== deletedCommentId)
+                            ) : []
+                        };
+                    });
                 }
             }
         };
@@ -189,16 +198,19 @@ const usePostDetail = (topicId, postId, currentUser) => {
                         return c;
                     })
                 );
-                setPostDetail(prevPost => ({
-                    ...prevPost,
-                    comments: prevPost.comments.map(comment => {
-                        if (comment._id === updatedComment._id) return updatedComment;
-                        if (comment.replies) {
-                            return { ...comment, replies: comment.replies.map(reply => reply._id === updatedComment._id ? updatedComment : reply) };
-                        }
-                        return comment;
-                    })
-                }));
+                setPostDetail(prevPost => {
+                    if (!prevPost) return prevPost; // Đảm bảo prevPost không null
+                    return {
+                        ...prevPost,
+                        comments: prevPost.comments.map(comment => {
+                            if (comment._id === updatedComment._id) return updatedComment;
+                            if (comment.replies) {
+                                return { ...comment, replies: comment.replies.map(reply => reply._id === updatedComment._id ? updatedComment : reply) };
+                            }
+                            return comment;
+                        })
+                    };
+                });
             }
         };
 
@@ -225,15 +237,18 @@ const usePostDetail = (topicId, postId, currentUser) => {
                 }
 
                 setPostDetail(prevPost => {
-                    let updatedLikes = [...(prevPost.likes || [])];
+                    if (!prevPost) return prevPost; // Đảm bảo prevPost không null
+                    // CẬP NHẬT: Thao tác với likedUsers thay vì likes
+                    let updatedLikedUsersInPost = [...(prevPost.likedUsers || [])]; // SỬA ĐỔI TẠI ĐÂY
                     if (action === 'liked' && likedUser) {
-                        if (!updatedLikes.some(like => like.userId?._id === likedUser._id)) {
-                            updatedLikes = [...updatedLikes, { _id: `temp_like_${likedUser._id}`, userId: likedUser }];
+                        if (!updatedLikedUsersInPost.some(user => user._id === likedUser._id)) {
+                            updatedLikedUsersInPost = [...updatedLikedUsersInPost, likedUser];
                         }
                     } else if (action === 'unliked') {
-                        updatedLikes = updatedLikes.filter(like => like.userId?._id !== userId);
+                        updatedLikedUsersInPost = updatedLikedUsersInPost.filter(user => user._id !== userId);
                     }
-                    return { ...prevPost, likeCount: likeCount, likes: updatedLikes };
+                    // CẬP NHẬT: Trả về likedUsers thay vì likes
+                    return { ...prevPost, likeCount: likeCount, likedUsers: updatedLikedUsersInPost }; // SỬA ĐỔI TẠI ĐÂY
                 });
             }
         };
@@ -242,8 +257,9 @@ const usePostDetail = (topicId, postId, currentUser) => {
             if (updatedPost._id === postDetail._id) {
                 setPostDetail(updatedPost);
                 setCurrentCommentCount(updatedPost.commentCount || updatedPost.comments?.length || 0);
-                setCurrentLikeCount(updatedPost.likeCount || updatedPost.likedUsers?.length || 0);
-                const updatedLikedUsers = updatedPost.likes?.map(like => like.userId).filter(Boolean) || [];
+                setCurrentLikeCount(updatedPost.likeCount || 0);
+                // CẬP NHẬT: Lấy trực tiếp từ updatedPost.likedUsers
+                const updatedLikedUsers = updatedPost.likedUsers || []; // SỬA ĐỔI TẠI ĐÂY
                 setCurrentLikedUsers(updatedLikedUsers);
                 if (currentUser) {
                     setIsLikedByUser(updatedLikedUsers.some(user => user._id === currentUser._id));
@@ -319,6 +335,7 @@ const usePostDetail = (topicId, postId, currentUser) => {
         if (prevIsLikedByUser) {
             setCurrentLikedUsers(prevUsers => prevUsers.filter(u => u._id !== currentUser._id));
         } else {
+            // Thêm đối tượng người dùng đầy đủ vào state
             setCurrentLikedUsers(prevUsers => [...prevUsers, { _id: currentUser._id, fullName: currentUser.fullName, avatarUrl: currentUser.avatarUrl }]);
         }
 
@@ -381,6 +398,10 @@ const usePostDetail = (topicId, postId, currentUser) => {
     // NEW: Function to handle rating submission
     const handleRatePost = useCallback(async (postIdToRate, userIdToRate, ratingValue) => {
         try {
+            // Optimistic update - immediately update user rating
+            const previousUserRating = userRating;
+            setUserRating(ratingValue);
+
             const token = localStorage.getItem('token');
             const payload = {
                 postId: postIdToRate,
@@ -388,23 +409,30 @@ const usePostDetail = (topicId, postId, currentUser) => {
                 rating: ratingValue
             };
 
+            console.log('Submitting rating:', payload);
             const response = await axios.post('http://localhost:5000/api/ratings', payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             if (response.status !== 200 && response.status !== 201) {
                 const errorData = response.data;
+                // Revert optimistic update on error
+                setUserRating(previousUserRating);
                 throw new Error(errorData.message || 'Failed to submit rating');
             }
 
-            console.log('Rating submitted/updated:', response.data);
-            setUserRating(ratingValue);
-            // averageRating, totalRatings, and allRatings will be updated via Socket.IO 'ratingUpdated' event
+            console.log('Rating submitted/updated successfully:', response.data);
+
+            // Immediately fetch updated rating data for instant feedback
+            setTimeout(() => {
+                fetchRatingData();
+            }, 100);
+
         } catch (error) {
             console.error('Lỗi khi gửi đánh giá:', error.message || error);
             throw error;
         }
-    }, []);
+    }, [userRating, fetchRatingData]);
 
 
     return {
@@ -416,11 +444,11 @@ const usePostDetail = (topicId, postId, currentUser) => {
         isLikedByUser,
         handleLikeToggle,
         handleDeletePost,
-        averageRating,    // NEW: Expose averageRating
-        totalRatings,     // NEW: Expose totalRatings
-        userRating,       // NEW: Expose userRating
-        allRatings,       // NEW: Expose allRatings
-        handleRatePost,   // NEW: Expose handleRatePost
+        averageRating,     // NEW: Expose averageRating
+        totalRatings,      // NEW: Expose totalRatings
+        userRating,        // NEW: Expose userRating
+        allRatings,        // NEW: Expose allRatings
+        handleRatePost,    // NEW: Expose handleRatePost
         setPostDetail,
         setComments,
     };

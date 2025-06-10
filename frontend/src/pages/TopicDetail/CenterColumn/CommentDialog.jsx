@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, IconButton, Typography, Box, Button,
-    TextField, Avatar,
+    TextField, Avatar, Collapse, Divider
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 import ReplyIcon from '@mui/icons-material/Reply';
 import CancelIcon from '@mui/icons-material/Cancel';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
 import { ThemeContext } from '../../../context/ThemeContext';
 import io from 'socket.io-client'; // Import Socket.IO client
@@ -25,31 +30,43 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
     const [newCommentContent, setNewCommentContent] = useState('');
     const [replyingTo, setReplyingTo] = useState(null);
     const [showRepliesMap, setShowRepliesMap] = useState({});
+    const [likingComments, setLikingComments] = useState(new Set()); // Track comments being liked
+    const [expandedComments, setExpandedComments] = useState(new Set()); // Track expanded nested comments
 
     // Sử dụng useRef để kiểm soát việc khởi tạo ban đầu của comments
     const initialCommentsLoaded = useRef(false);
 
-    // Effect để khởi tạo displayedComments khi dialog mở hoặc post thay đổi lần đầu.
-    // Sau đó, các cập nhật Socket.IO sẽ quản lý trạng thái.
+    // --- SỬA ĐOẠN NÀY ---
     useEffect(() => {
         if (open && post && !initialCommentsLoaded.current) {
-            console.log("Initializing comments from post prop.");
-            // Sắp xếp bình luận gốc theo thời gian tạo giảm dần
-            const sortedRootComments = [...(post.comments || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            setDisplayedComments(sortedRootComments);
-            setNewCommentContent('');
-            setReplyingTo(null);
-            setShowRepliesMap({}); // Reset trạng thái mở/đóng replies
-            initialCommentsLoaded.current = true; // Đánh dấu đã tải lần đầu
+            // Gọi API để lấy toàn bộ cây bình luận mới nhất
+            axios.get(`http://localhost:5000/api/comments/post/${post._id}`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+            .then(res => {
+                // Sắp xếp bình luận gốc theo thời gian tạo giảm dần
+                const sortedRootComments = [...(res.data || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                setDisplayedComments(sortedRootComments);
+                setNewCommentContent('');
+                setReplyingTo(null);
+                setShowRepliesMap({});
+                initialCommentsLoaded.current = true;
+            })
+            .catch(err => {
+                setDisplayedComments([]);
+                initialCommentsLoaded.current = true;
+            });
         } else if (!open) {
-            // Khi dialog đóng, reset trạng thái và cờ để lần sau mở lại sẽ load mới
             setDisplayedComments([]);
             setNewCommentContent('');
             setReplyingTo(null);
             setShowRepliesMap({});
             initialCommentsLoaded.current = false;
         }
-    }, [open, post]); // Dependency array chỉ cần open và post
+    }, [open, post]);
+    // --- HẾT SỬA ĐOẠN NÀY ---
 
     // Socket.IO event listeners
     useEffect(() => {
@@ -65,26 +82,37 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
                 console.log("New comment received via Socket.IO:", newComment);
                 setDisplayedComments(prevComments => {
                     if (newComment.parentCommentId) {
-                        // Nếu là phản hồi, tìm bình luận cha và thêm phản hồi
-                        return prevComments.map(comment => {
-                            if (comment._id === newComment.parentCommentId) {
-                                const updatedReplies = Array.isArray(comment.replies) ? [...comment.replies, newComment] : [newComment];
-                                return {
-                                    ...comment,
-                                    replies: updatedReplies,
-                                    replyCount: (comment.replyCount || 0) + 1 // Tăng replyCount
-                                };
-                            }
-                            return comment;
-                        });
+                        // Recursive function to find and update parent comment at any level
+                        const updateNestedComments = (comments) => {
+                            return comments.map(comment => {
+                                if (comment._id === newComment.parentCommentId) {
+                                    const updatedReplies = Array.isArray(comment.replies) ? [...comment.replies, newComment] : [newComment];
+                                    return {
+                                        ...comment,
+                                        replies: updatedReplies,
+                                        replyCount: (comment.replyCount || 0) + 1
+                                    };
+                                }
+                                if (comment.replies && comment.replies.length > 0) {
+                                    return {
+                                        ...comment,
+                                        replies: updateNestedComments(comment.replies)
+                                    };
+                                }
+                                return comment;
+                            });
+                        };
+                        return updateNestedComments(prevComments);
                     } else {
                         // Nếu là bình luận gốc, thêm vào đầu danh sách comments
                         return [newComment, ...prevComments];
                     }
                 });
+
                 // Tự động mở replies sau khi nhận được phản hồi mới
                 if (newComment.parentCommentId) {
                     setShowRepliesMap(prev => ({ ...prev, [newComment.parentCommentId]: true }));
+                    setExpandedComments(prev => new Set([...prev, newComment.parentCommentId]));
                 }
 
                 // Kích hoạt callback để cập nhật commentCount của post ở PostCard
@@ -98,26 +126,32 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
             if (postId === post._id) {
                 console.log("Deleted comment received via Socket.IO:", commentId, parentCommentId);
                 setDisplayedComments(prevComments => {
-                    let updatedComments = [...prevComments];
-
                     if (parentCommentId) {
-                        // Xóa phản hồi
-                        updatedComments = updatedComments.map(comment => {
-                            if (comment._id === parentCommentId && comment.replies) {
-                                const filteredReplies = comment.replies.filter(reply => reply._id !== commentId);
-                                return {
-                                    ...comment,
-                                    replies: filteredReplies,
-                                    replyCount: Math.max(0, (comment.replyCount || 0) - 1) // Giảm replyCount
-                                };
-                            }
-                            return comment;
-                        });
+                        // Recursive function to find and delete nested comment
+                        const deleteNestedComment = (comments) => {
+                            return comments.map(comment => {
+                                if (comment._id === parentCommentId && comment.replies) {
+                                    const filteredReplies = comment.replies.filter(reply => reply._id !== commentId);
+                                    return {
+                                        ...comment,
+                                        replies: filteredReplies,
+                                        replyCount: Math.max(0, (comment.replyCount || 0) - 1)
+                                    };
+                                }
+                                if (comment.replies && comment.replies.length > 0) {
+                                    return {
+                                        ...comment,
+                                        replies: deleteNestedComment(comment.replies)
+                                    };
+                                }
+                                return comment;
+                            });
+                        };
+                        return deleteNestedComment(prevComments);
                     } else {
                         // Xóa bình luận gốc
-                        updatedComments = updatedComments.filter(comment => comment._id !== commentId);
+                        return prevComments.filter(comment => comment._id !== commentId);
                     }
-                    return updatedComments;
                 });
 
                 // Kích hoạt callback để cập nhật commentCount của post ở PostCard
@@ -131,18 +165,48 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
             if (updatedComment.postId === post._id) {
                 console.log("Updated comment received via Socket.IO:", updatedComment);
                 setDisplayedComments(prevComments => {
-                    return prevComments.map(comment => {
-                        if (comment._id === updatedComment._id) {
-                            return updatedComment;
-                        }
-                        if (comment.replies) {
-                            const updatedReplies = comment.replies.map(reply =>
-                                reply._id === updatedComment._id ? updatedComment : reply
-                            );
-                            return { ...comment, replies: updatedReplies };
-                        }
-                        return comment;
-                    });
+                    const updateNestedComment = (comments) => {
+                        return comments.map(comment => {
+                            if (comment._id === updatedComment._id) {
+                                return updatedComment;
+                            }
+                            if (comment.replies && comment.replies.length > 0) {
+                                return {
+                                    ...comment,
+                                    replies: updateNestedComment(comment.replies)
+                                };
+                            }
+                            return comment;
+                        });
+                    };
+                    return updateNestedComment(prevComments);
+                });
+            }
+        };
+
+        const handleCommentLikeUpdated = ({ commentId, likeCount, isLiked, userId }) => {
+            // Only update if it's for the current post and not the current user's action
+            if (post._id && userId !== user?._id) {
+                console.log("Comment like updated via Socket.IO:", { commentId, likeCount, isLiked });
+                setDisplayedComments(prevComments => {
+                    const updateCommentLike = (comments) => {
+                        return comments.map(comment => {
+                            if (comment._id === commentId) {
+                                return {
+                                    ...comment,
+                                    likeCount: likeCount
+                                };
+                            }
+                            if (comment.replies && comment.replies.length > 0) {
+                                return {
+                                    ...comment,
+                                    replies: updateCommentLike(comment.replies)
+                                };
+                            }
+                            return comment;
+                        });
+                    };
+                    return updateCommentLike(prevComments);
                 });
             }
         };
@@ -150,6 +214,7 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
         socket.on('newComment', handleNewComment);
         socket.on('deletedComment', handleDeletedComment);
         socket.on('updatedComment', handleUpdatedComment);
+        socket.on('commentLikeUpdated', handleCommentLikeUpdated);
 
         // Cleanup function
         return () => {
@@ -158,6 +223,7 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
             socket.off('newComment', handleNewComment);
             socket.off('deletedComment', handleDeletedComment);
             socket.off('updatedComment', handleUpdatedComment);
+            socket.off('commentLikeUpdated', handleCommentLikeUpdated);
         };
     }, [open, post?._id, onCommentActionSuccess]); // Thêm post?._id vào dependency array
 
@@ -194,6 +260,65 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
         }
     };
 
+    // Handle like/unlike comment
+    const handleLikeComment = async (commentId) => {
+        if (!user) {
+            alert('Bạn cần đăng nhập để thích bình luận.');
+            return;
+        }
+
+        if (likingComments.has(commentId)) {
+            return; // Prevent double-clicking
+        }
+
+        setLikingComments(prev => new Set([...prev, commentId]));
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.post(
+                `http://localhost:5000/api/comments/${commentId}/like`,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            // Update comment like status locally
+            const updateCommentLike = (comments) => {
+                return comments.map(comment => {
+                    if (comment._id === commentId) {
+                        return {
+                            ...comment,
+                            isLiked: response.data.isLiked,
+                            likeCount: response.data.likeCount
+                        };
+                    }
+                    if (comment.replies && comment.replies.length > 0) {
+                        return {
+                            ...comment,
+                            replies: updateCommentLike(comment.replies)
+                        };
+                    }
+                    return comment;
+                });
+            };
+
+            setDisplayedComments(prevComments => updateCommentLike(prevComments));
+
+        } catch (error) {
+            console.error('Lỗi khi like bình luận:', error);
+            alert('Không thể thích bình luận. Vui lòng thử lại.');
+        } finally {
+            setLikingComments(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(commentId);
+                return newSet;
+            });
+        }
+    };
+
     const handleDeleteComment = async (commentId, parentId) => {
         const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa bình luận này không?");
         if (!confirmDelete) return;
@@ -224,87 +349,253 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
         }));
     }, []);
 
-    // HOC để hiển thị từng bình luận/phản hồi
-    const CommentItem = ({ comment, isReply = false, parentCommentId = null }) => (
-        <Box mt={isReply ? 1 : 2} pl={isReply ? 2 : 1} sx={{
-            borderLeft: darkMode ? (isReply ? '1px solid #777' : '2px solid #555') : (isReply ? '1px solid #ddd' : '2px solid #eee'),
-            p: 1,
-            backgroundColor: darkMode ? (isReply ? '#333333' : '#2d2d2d') : (isReply ? '#f5f5f5' : '#f9f9f9'),
-            borderRadius: 1
-        }}>
-            <Box display="flex" alignItems="center" mb={0.5}>
-                <Avatar src={comment.authorId?.avatarUrl || 'default_avatar.png'} sx={{ width: isReply ? 20 : 24, height: isReply ? 20 : 24, mr: 1 }} />
-                <Typography variant="subtitle2" sx={{ fontSize: isReply ? '0.75rem' : '0.85rem', fontWeight: 'bold', color: darkMode ? '#e4e6eb' : 'text.primary' }}>
-                    {comment.authorId?.fullName || comment.authorId?.username}
+    const toggleExpandComment = useCallback((commentId) => {
+        setExpandedComments(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(commentId)) {
+                newSet.delete(commentId);
+            } else {
+                newSet.add(commentId);
+            }
+            return newSet;
+        });
+    }, []);
+
+    // Component để hiển thị từng bình luận/phản hồi với multi-level support
+    const CommentItem = ({ comment, level = 0 }) => {
+        const isReply = level > 0;
+        const maxLevel = 6; // Maximum nesting level for UI
+        const displayLevel = Math.min(level, maxLevel);
+        const hasReplies = comment.replies && comment.replies.length > 0;
+        const isExpanded = expandedComments.has(comment._id);
+
+        return (
+            <Box
+                mt={isReply ? 1 : 2}
+                pl={displayLevel * 1.5 + 0.5}
+                sx={{
+                    borderLeft: darkMode
+                        ? `${Math.max(1, 3 - displayLevel)}px solid ${displayLevel > 3 ? '#555' : '#777'}`
+                        : `${Math.max(1, 3 - displayLevel)}px solid ${displayLevel > 3 ? '#ddd' : '#ccc'}`,
+                    p: 1.5,
+                    backgroundColor: darkMode
+                        ? (displayLevel % 2 === 0 ? '#2d2d2d' : '#333333')
+                        : (displayLevel % 2 === 0 ? '#f9f9f9' : '#f5f5f5'),
+                    borderRadius: 1,
+                    ml: displayLevel > maxLevel ? 1 : 0,
+                    transition: 'all 0.2s ease',
+                    position: 'relative',
+                    '&:hover': {
+                        backgroundColor: darkMode
+                            ? (displayLevel % 2 === 0 ? '#353535' : '#3a3a3a')
+                            : (displayLevel % 2 === 0 ? '#f0f0f0' : '#ebebeb'),
+                    }
+                }}
+            >
+                <Box display="flex" alignItems="center" mb={1}>
+                    <Avatar
+                        src={comment.authorId?.avatarUrl || 'default_avatar.png'}
+                        sx={{
+                            width: Math.max(20, 28 - displayLevel * 2),
+                            height: Math.max(20, 28 - displayLevel * 2),
+                            mr: 1
+                        }}
+                    />
+                    <Box flexGrow={1}>
+                        <Typography
+                            variant="subtitle2"
+                            sx={{
+                                fontSize: Math.max(0.7, 0.9 - displayLevel * 0.05) + 'rem',
+                                fontWeight: 'bold',
+                                color: darkMode ? '#e4e6eb' : 'text.primary',
+                                lineHeight: 1.2
+                            }}
+                        >
+                            {comment.authorId?.fullName || comment.authorId?.username}
+                        </Typography>
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                color: darkMode ? '#b0b3b8' : 'text.secondary',
+                                fontSize: Math.max(0.6, 0.75 - displayLevel * 0.05) + 'rem'
+                            }}
+                        >
+                            {new Date(comment.createdAt).toLocaleString()}
+                            {level > 0 && (
+                                <span style={{ marginLeft: '8px' }}>
+                                    • Cấp {level}
+                                </span>
+                            )}
+                        </Typography>
+                    </Box>
+                    {user?._id === comment.authorId?._id && (
+                        <IconButton
+                            size="small"
+                            onClick={() => handleDeleteComment(comment._id, comment.parentCommentId)}
+                            sx={{
+                                color: darkMode ? '#b0b3b8' : 'text.secondary',
+                                '&:hover': {
+                                    color: '#f44336',
+                                    backgroundColor: darkMode ? '#3a3b3c' : '#f5f5f5'
+                                }
+                            }}
+                        >
+                            <DeleteIcon fontSize="small" />
+                        </IconButton>
+                    )}
+                </Box>
+                <Typography
+                    variant="body2"
+                    sx={{
+                        fontSize: Math.max(0.7, 0.85 - displayLevel * 0.03) + 'rem',
+                        color: darkMode ? '#d0d0d0' : 'text.primary',
+                        ml: Math.max(20, 28 - displayLevel * 2) / 4 + 1,
+                        lineHeight: 1.4,
+                        wordBreak: 'break-word'
+                    }}
+                >
+                    {comment.content}
                 </Typography>
-                <Typography variant="caption" sx={{ ml: 1, color: darkMode ? '#b0b3b8' : 'text.secondary' }}>
-                    • {new Date(comment.createdAt).toLocaleString()}
-                </Typography>
-                {user?._id === comment.authorId?._id && (
+
+                {/* Action buttons: Like and Reply */}
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    mt={1}
+                    gap={0.5}
+                    ml={Math.max(20, 28 - displayLevel * 2) / 4 + 1}
+                >
+                    {/* Like button */}
                     <Button
                         size="small"
-                        sx={{ ml: 'auto', color: darkMode ? '#b0b3b8' : 'text.secondary', fontSize: isReply ? '0.65rem' : '0.75rem' }}
-                        onClick={() => handleDeleteComment(comment._id, parentCommentId)}
+                        startIcon={comment.isLiked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                        onClick={() => handleLikeComment(comment._id)}
+                        disabled={likingComments.has(comment._id)}
+                        sx={{
+                            textTransform: 'none',
+                            fontSize: Math.max(0.6, 0.7 - displayLevel * 0.02) + 'rem',
+                            color: comment.isLiked
+                                ? '#e91e63'
+                                : (darkMode ? '#90caf9' : 'primary.main'),
+                            minWidth: 'auto',
+                            px: 0.5,
+                            py: 0.25,
+                            '&:hover': {
+                                backgroundColor: darkMode ? '#3a3b3c' : '#f5f5f5',
+                                color: '#e91e63',
+                            },
+                            '&:disabled': {
+                                opacity: 0.6
+                            }
+                        }}
                     >
-                        Xóa
+                        {comment.likeCount || 0}
+                    </Button>
+
+                    {/* Avatars of users who liked this comment */}
+                    {comment.likedUsers && comment.likedUsers.length > 0 && (
+                        <Box display="flex" alignItems="center" ml={0.5}>
+                            {comment.likedUsers.slice(0, 5).map(user => (
+                                <Avatar
+                                    key={user._id}
+                                    src={user.avatar}
+                                    alt={user.fullName || user.username}
+                                    sx={{
+                                        width: 20,
+                                        height: 20,
+                                        ml: -0.5,
+                                        border: '2px solid #fff',
+                                        boxShadow: 1
+                                    }}
+                                />
+                            ))}
+                            {comment.likedUsers.length > 5 && (
+                                <Typography variant="caption" sx={{ ml: 0.5 }}>
+                                    +{comment.likedUsers.length - 5}
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
+
+                    {/* Reply button - allow replies at any level */}
+                    <Button
+                        size="small"
+                        startIcon={<ReplyIcon />}
+                        onClick={() => setReplyingTo(comment)}
+                        sx={{
+                            textTransform: 'none',
+                            fontSize: Math.max(0.6, 0.7 - displayLevel * 0.02) + 'rem',
+                            color: darkMode ? '#90caf9' : 'primary.main',
+                            minWidth: 'auto',
+                            px: 0.5,
+                            py: 0.25,
+                            '&:hover': {
+                                backgroundColor: darkMode ? '#3a3b3c' : '#f5f5f5',
+                                textDecoration: 'underline',
+                            }
+                        }}
+                    >
+                        Trả lời
+                    </Button>
+
+                    {/* Show replies toggle for nested comments */}
+                    {hasReplies && level > 0 && (
+                        <Button
+                            size="small"
+                            startIcon={isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                            onClick={() => toggleExpandComment(comment._id)}
+                            sx={{
+                                textTransform: 'none',
+                                fontSize: Math.max(0.6, 0.7 - displayLevel * 0.02) + 'rem',
+                                color: darkMode ? '#90caf9' : 'primary.main',
+                                minWidth: 'auto',
+                                px: 0.5,
+                                py: 0.25,
+                                '&:hover': {
+                                    backgroundColor: darkMode ? '#3a3b3c' : '#f5f5f5',
+                                }
+                            }}
+                        >
+                            {comment.replies.length} phản hồi
+                        </Button>
+                    )}
+                </Box>
+
+                {/* Hiển thị nút "Xem/Ẩn" nếu có replies - chỉ cho root comments */}
+                {level === 0 && hasReplies && (
+                    <Button
+                        size="small"
+                        startIcon={showRepliesMap[comment._id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        onClick={() => toggleReplies(comment._id)}
+                        sx={{
+                            textTransform: 'none',
+                            mt: 0.5,
+                            ml: Math.max(20, 28 - displayLevel * 2) / 4 + 1,
+                            fontSize: '0.7rem',
+                            color: darkMode ? '#90caf9' : 'primary.main',
+                            '&:hover': {
+                                backgroundColor: darkMode ? '#3a3b3c' : '#f5f5f5',
+                                textDecoration: 'underline',
+                            }
+                        }}
+                    >
+                        {showRepliesMap[comment._id] ? 'Ẩn' : 'Xem'} {comment.replies.length} trả lời
                     </Button>
                 )}
+
+                {/* Hiển thị replies con với recursive rendering */}
+                {hasReplies && (
+                    <Collapse in={level === 0 ? showRepliesMap[comment._id] : (level > 0 ? isExpanded : true)}>
+                        <Box sx={{ mt: 1 }}>
+                            {comment.replies.map((reply) => (
+                                <CommentItem key={reply._id} comment={reply} level={level + 1} />
+                            ))}
+                        </Box>
+                    </Collapse>
+                )}
             </Box>
-            <Typography variant="body2" sx={{ fontSize: isReply ? '0.75rem' : '0.85rem', color: darkMode ? '#d0d0d0' : 'text.primary', ml: isReply ? 3 : 4 }}>
-                {comment.content}
-            </Typography>
-            {!isReply && (
-                <Button
-                    size="small"
-                    startIcon={<ReplyIcon />}
-                    onClick={() => setReplyingTo(comment)}
-                    sx={{
-                        textTransform: 'none',
-                        mt: 0.5,
-                        ml: 3,
-                        fontSize: '0.75rem',
-                        color: darkMode ? '#90caf9' : 'primary.main',
-                        '&:hover': {
-                            backgroundColor: 'transparent',
-                            textDecoration: 'underline',
-                        }
-                    }}
-                >
-                    Trả lời
-                </Button>
-            )}
-
-            {/* Hiển thị nút "Xem/Ẩn" nếu có replies */}
-            {!isReply && comment.replies && comment.replies.length > 0 && (
-                <Button
-                    size="small"
-                    onClick={() => toggleReplies(comment._id)}
-                    sx={{
-                        textTransform: 'none',
-                        mt: 0.5,
-                        ml: 1,
-                        fontSize: '0.75rem',
-                        color: darkMode ? '#90caf9' : 'primary.main',
-                        '&:hover': {
-                            backgroundColor: 'transparent',
-                            textDecoration: 'underline',
-                        }
-                    }}
-                >
-                    {showRepliesMap[comment._id] ? 'Ẩn' : `Xem`} {comment.replies.length} trả lời
-                </Button>
-            )}
-
-            {/* Hiển thị replies con */}
-            {!isReply && showRepliesMap[comment._id] && Array.isArray(comment.replies) && (
-                <Box sx={{ ml: 2 }}>
-                    {comment.replies.map((reply) => (
-                        <CommentItem key={reply._id} comment={reply} isReply={true} parentCommentId={comment._id} />
-                    ))}
-                </Box>
-            )}
-        </Box>
-    );
+        );
+    };
 
     if (!post) {
         return null;
@@ -393,7 +684,7 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
                     </Typography>
                 ) : (
                     displayedComments.map((comment) => (
-                        <CommentItem key={comment._id} comment={comment} />
+                        <CommentItem key={comment._id} comment={comment} level={0} />
                     ))
                 )}
             </DialogContent>

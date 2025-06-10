@@ -16,20 +16,21 @@ const TopicCard = ({ topic, isDarkMode, variant }) => {
     // Bạn có thể destructure các thuộc tính của topic nếu muốn
     // const { _id, name, description, postCount, latestPost } = topic;
 
-    // Ví dụ về cách sử dụng prop 'variant' để thay đổi style
-    const isVertical = variant === 'vertical'; // Biến kiểm tra để dễ dùng
-    // Hoặc bạn có thể thêm các variant khác: 'horizontal', 'small', v.v.
+    // Các variant khác nhau
+    const isVertical = variant === 'vertical';
+    const isCompact = variant === 'compact';
+    const isHorizontal = variant === 'horizontal';
 
     return (
         <Card
             sx={{
                 backgroundColor: theme.palette.background.paper,
                 color: theme.palette.text.primary,
-                borderRadius: '12px',
+                borderRadius: isCompact ? '8px' : '12px',
                 boxShadow: isDarkMode ? '0px 4px 10px rgba(0,0,0,0.5)' : '0px 4px 10px rgba(0,0,0,0.08)',
                 transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
                 '&:hover': {
-                    transform: 'translateY(-5px)',
+                    transform: isCompact ? 'translateY(-3px)' : 'translateY(-5px)',
                     boxShadow: isDarkMode ? '0px 6px 15px rgba(0,0,0,0.7)' : '0px 6px 15px rgba(0,0,0,0.15)',
                 },
                 '&:active': {
@@ -38,16 +39,15 @@ const TopicCard = ({ topic, isDarkMode, variant }) => {
                 },
                 height: '100%',
                 display: 'flex',
-                // Thay đổi flexDirection dựa trên variant
-                flexDirection: isVertical ? 'column' : 'row', // Mặc định là 'column' nếu là 'vertical', có thể là 'row' cho variant khác
+                flexDirection: isHorizontal ? 'row' : 'column',
                 justifyContent: 'space-between',
             }}
         >
             <CardActionArea onClick={handleCardClick} sx={{ flexGrow: 1 }}>
-                <CardContent>
+                <CardContent sx={{ p: isCompact ? 2 : 3 }}>
                     <Typography
                         gutterBottom
-                        variant="h6"
+                        variant={isCompact ? "subtitle1" : "h6"}
                         component="div"
                         sx={{
                             fontWeight: 600,
@@ -60,23 +60,26 @@ const TopicCard = ({ topic, isDarkMode, variant }) => {
                     >
                         {topic.name}
                     </Typography>
-                    <Typography
-                        variant="body2"
-                        color={theme.palette.text.secondary}
-                        sx={{
-                            mb: 2,
-                            fontFamily: 'Inter, sans-serif',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                        }}
-                    >
-                        {topic.description || 'Không có mô tả.'}
-                    </Typography>
 
-                    <Box display="flex" alignItems="center" mb={1}>
+                    {!isCompact && (
+                        <Typography
+                            variant="body2"
+                            color={theme.palette.text.secondary}
+                            sx={{
+                                mb: 2,
+                                fontFamily: 'Inter, sans-serif',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                            }}
+                        >
+                            {topic.description || 'Không có mô tả.'}
+                        </Typography>
+                    )}
+
+                    <Box display="flex" alignItems="center" mb={isCompact ? 0 : 1}>
                         <Comment
                             fontSize="small"
                             sx={{
@@ -85,7 +88,7 @@ const TopicCard = ({ topic, isDarkMode, variant }) => {
                             }}
                         />
                         <Typography
-                            variant="body2"
+                            variant={isCompact ? "caption" : "body2"}
                             color={theme.palette.text.secondary}
                             sx={{ fontFamily: 'Inter, sans-serif' }}
                         >
@@ -95,7 +98,7 @@ const TopicCard = ({ topic, isDarkMode, variant }) => {
                 </CardContent>
             </CardActionArea>
 
-            {topic.latestPost && (
+            {topic.latestPost && !isCompact && (
                 <CardContent sx={{ pt: 0, mx: 2, pb: '16px !important' }}>
                     <Divider sx={{ my: 1.5, borderColor: theme.palette.divider }} />
                     <Box display="flex" alignItems="center" mb={0.5}>

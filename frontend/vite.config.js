@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
     plugins: [react()],
+    // Fix global variable for Draft.js
+    define: {
+        global: 'globalThis',
+    },
     // Thêm cấu hình optimizeDeps để xử lý các file .js có chứa JSX
     optimizeDeps: {
         esbuildOptions: {
