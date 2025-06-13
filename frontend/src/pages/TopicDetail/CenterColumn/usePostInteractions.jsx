@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import io from 'socket.io-client';
-
-// Khởi tạo Socket.IO client, không tự động kết nối
-// Đảm bảo URL này khớp với URL server trong app.js
-const socket = io('http://localhost:5000', { autoConnect: false });
+import socket from '../../../socket'; // Sử dụng socket chung
 
 const usePostInteractions = (initialPost, currentUser, setDetailedPosts) => {
     // Trạng thái cục bộ cho bài viết, sẽ được cập nhật khi có tương tác (like, comment, rating)
@@ -24,20 +20,7 @@ const usePostInteractions = (initialPost, currentUser, setDetailedPosts) => {
     const [userRating, setUserRating] = useState(0); // Rating của người dùng hiện tại cho bài đăng này (0 nếu chưa đánh giá)
     const [allRatings, setAllRatings] = useState([]); // NEW: Danh sách tất cả các đối tượng đánh giá
 
-    // Ref để theo dõi trạng thái kết nối Socket.IO, đảm bảo chỉ kết nối một lần
-    const isSocketConnected = useRef(false);
-
-    // Kết nối Socket.IO khi hook được mount lần đầu
-    useEffect(() => {
-        if (!isSocketConnected.current) {
-            socket.connect();
-            isSocketConnected.current = true;
-        }
-        return () => {
-            // socket.disconnect(); // Có thể comment để giữ kết nối nếu hook được mount/unmount nhiều lần
-            // isSocketConnected.current = false;
-        };
-    }, []);
+    // Socket sẽ được quản lý bởi ChatContext, không cần kết nối riêng ở đây
 
     // Đồng bộ post prop từ bên ngoài vào state nội bộ và khởi tạo các trạng thái liên quan
     useEffect(() => {

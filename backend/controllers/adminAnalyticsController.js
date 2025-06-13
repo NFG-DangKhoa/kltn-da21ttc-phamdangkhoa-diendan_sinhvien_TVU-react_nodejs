@@ -63,6 +63,53 @@ exports.getOverviewStats = async (req, res) => {
         const postGrowthRate = prevNewPosts > 0 ?
             ((newPosts - prevNewPosts) / prevNewPosts * 100).toFixed(2) : 0;
 
+        // Calculate daily growth for last 7 days
+        const dailyGrowth = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dayStart = new Date(date.setHours(0, 0, 0, 0));
+            const dayEnd = new Date(date.setHours(23, 59, 59, 999));
+
+            const [dayUsers, dayPosts, dayComments, dayLikes] = await Promise.all([
+                User.countDocuments({ createdAt: { $gte: dayStart, $lte: dayEnd } }),
+                Post.countDocuments({ createdAt: { $gte: dayStart, $lte: dayEnd } }),
+                Comment.countDocuments({ createdAt: { $gte: dayStart, $lte: dayEnd } }),
+                Like.countDocuments({ createdAt: { $gte: dayStart, $lte: dayEnd } })
+            ]);
+
+            dailyGrowth.push({
+                date: dayStart.toISOString().split('T')[0],
+                users: dayUsers,
+                posts: dayPosts,
+                comments: dayComments,
+                likes: dayLikes
+            });
+        }
+
+        // Calculate hourly activity pattern for today
+        const hourlyActivity = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        for (let hour = 0; hour < 24; hour++) {
+            const hourStart = new Date(today);
+            hourStart.setHours(hour, 0, 0, 0);
+            const hourEnd = new Date(today);
+            hourEnd.setHours(hour, 59, 59, 999);
+
+            const [hourPosts, hourComments, hourLikes] = await Promise.all([
+                Post.countDocuments({ createdAt: { $gte: hourStart, $lte: hourEnd } }),
+                Comment.countDocuments({ createdAt: { $gte: hourStart, $lte: hourEnd } }),
+                Like.countDocuments({ createdAt: { $gte: hourStart, $lte: hourEnd } })
+            ]);
+
+            hourlyActivity.push({
+                hour: `${hour}h`,
+                activity: hourPosts + hourComments + hourLikes
+            });
+        }
+
         res.status(200).json({
             success: true,
             data: {
@@ -83,7 +130,9 @@ exports.getOverviewStats = async (req, res) => {
                 growth: {
                     userGrowthRate: parseFloat(userGrowthRate),
                     postGrowthRate: parseFloat(postGrowthRate)
-                }
+                },
+                dailyGrowth,
+                hourlyActivity
             }
         });
     } catch (error) {

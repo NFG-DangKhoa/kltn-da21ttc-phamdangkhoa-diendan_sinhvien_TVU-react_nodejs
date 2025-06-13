@@ -330,6 +330,12 @@ const PostCard = ({
                             // Also fix relative URLs to absolute
                             content = content.replace(/src="\/upload\//g, 'src="http://localhost:5000/upload/');
 
+                            // Debug: Check if content has images
+                            if (content.includes('<img')) {
+                                console.log('🖼️ PostCard content has images:', post.title);
+                                console.log('🔗 Image URLs found:', content.match(/<img[^>]+src=["']([^"']+)["']/g));
+                            }
+
                             return content;
                         })(),
                     }}

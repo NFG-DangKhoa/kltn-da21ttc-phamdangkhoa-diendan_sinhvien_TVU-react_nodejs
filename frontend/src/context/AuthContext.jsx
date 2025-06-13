@@ -93,12 +93,55 @@ export const AuthProvider = ({ children }) => {
         setToken(null);
     };
 
+    // Google login function
+    const googleLogin = async (credential) => {
+        try {
+            console.log('AuthContext (googleLogin): Starting Google login...');
+
+            const response = await fetch('http://localhost:5000/api/auth/google-login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ credential }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('AuthContext (googleLogin): Success:', data);
+
+                // Store user data and token
+                localStorage.setItem('user', JSON.stringify(data.user));
+                localStorage.setItem('token', data.token);
+
+                // Update state
+                setUser(data.user);
+                setToken(data.token);
+
+                return { success: true, user: data.user };
+            } else {
+                console.error('AuthContext (googleLogin): Failed:', data.message);
+                return { success: false, error: data.message };
+            }
+        } catch (error) {
+            console.error('AuthContext (googleLogin): Error:', error);
+
+            // Handle different types of errors
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                return { success: false, error: 'Không thể kết nối đến server' };
+            }
+
+            return { success: false, error: 'Lỗi mạng hoặc server' };
+        }
+    };
+
     // Hàm mới để cung cấp token
     const getToken = () => token;
 
     return (
         // Thêm loadingAuth vào value của context để các component con có thể truy cập
-        <AuthContext.Provider value={{ user, login, logout, getToken, loadingAuth }}>
+        <AuthContext.Provider value={{ user, login, logout, googleLogin, getToken, loadingAuth }}>
             {children}
         </AuthContext.Provider>
     );

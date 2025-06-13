@@ -75,6 +75,57 @@ exports.createComment = async (req, res) => {
             .populate('authorId', 'username avatar fullName') // Assuming 'fullName' is also needed
             .lean(); // Convert to plain JS object for easier handling
 
+        // Gửi notification
+        if (global.notificationService) {
+            // Lấy thông tin post và author với topicId
+            const post = await Post.findById(targetPostId).populate('authorId', 'fullName').populate('topicId', '_id');
+
+            if (post && post.authorId._id.toString() !== authorId.toString()) {
+                const topicId = post.topicId?._id;
+
+                // Build actionUrl with correct format: /posts/detail?topicId=X&postId=Y#comment-Z
+                let actionUrl = `/posts/detail?postId=${targetPostId}#comment-${newComment._id}`;
+                if (topicId) {
+                    actionUrl = `/posts/detail?topicId=${topicId}&postId=${targetPostId}#comment-${newComment._id}`;
+                }
+
+                // Notification cho tác giả bài viết (nếu không phải chính mình comment)
+                if (parentCommentId) {
+                    // Đây là reply
+                    await global.notificationService.createNotification({
+                        recipient: post.authorId._id,
+                        sender: authorId,
+                        type: 'comment_reply',
+                        title: 'Phản hồi mới',
+                        message: `${createdCommentWithAuthor.authorId.fullName} đã phản hồi bình luận trong bài viết "${post.title}"`,
+                        relatedData: { postId: targetPostId, commentId: newComment._id, topicId },
+                        actionUrl: actionUrl
+                    });
+                } else {
+                    // Đây là comment mới
+                    await global.notificationService.createNotification({
+                        recipient: post.authorId._id,
+                        sender: authorId,
+                        type: 'comment_added',
+                        title: 'Bình luận mới',
+                        message: `${createdCommentWithAuthor.authorId.fullName} đã bình luận về bài viết "${post.title}"`,
+                        relatedData: { postId: targetPostId, commentId: newComment._id, topicId },
+                        actionUrl: actionUrl
+                    });
+                }
+            }
+
+            // Notification cho admin
+            await global.notificationService.notifyAdmins(
+                'new_comment_added',
+                'Bình luận mới',
+                `${createdCommentWithAuthor.authorId.fullName} đã ${parentCommentId ? 'phản hồi' : 'bình luận'} trong bài viết "${post.title}"`,
+                { postId: targetPostId, commentId: newComment._id, userId: authorId },
+                { postTitle: post.title, commenterName: createdCommentWithAuthor.authorId.fullName },
+                `/admin/comments` // Admin navigate to comments management
+            );
+        }
+
         // Emit Socket.IO event for new comment
         if (io) {
             // Consider emitting to a specific room (e.g., for that postId) for better scalability

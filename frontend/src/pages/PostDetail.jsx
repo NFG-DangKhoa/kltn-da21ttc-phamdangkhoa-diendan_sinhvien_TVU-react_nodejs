@@ -10,7 +10,8 @@ import {
     Rating,
     IconButton,
     Stack,
-    useTheme
+    useTheme,
+    alpha
 } from '@mui/material';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import axios from '../services/api';
@@ -136,30 +137,63 @@ const PostDetail = () => {
                     sx={{ color: theme.palette.text.primary }}>
                     {post.title}
                 </Typography>
-                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', color: theme.palette.text.secondary }}>
+                <Typography variant="body1" sx={{
+                    whiteSpace: 'pre-wrap',
+                    color: theme.palette.text.secondary,
+                    mb: 6, // Tăng margin-bottom để tránh bị che khuất
+                    lineHeight: 1.7,
+                    fontSize: '1.1rem'
+                }}>
                     {post.content}
                 </Typography>
-                <Divider sx={{ my: 2, borderColor: theme.palette.divider }} />
+                <Divider sx={{ my: 4, borderColor: theme.palette.divider }} />
 
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <IconButton onClick={handleLike} disabled={!user} // Vô hiệu hóa nút nếu chưa đăng nhập
-                        sx={{ color: isLiked ? theme.palette.primary.main : theme.palette.action.active }}
-                    >
-                        <ThumbUpIcon />
-                    </IconButton>
-                    <Typography sx={{ color: theme.palette.text.secondary }}>
-                        {likes} lượt thích
-                    </Typography>
+                {/* Action buttons section với spacing tốt hơn */}
+                <Box sx={{
+                    position: 'relative',
+                    py: 2,
+                    mb: 4,
+                    borderRadius: 2,
+                    backgroundColor: alpha(theme.palette.background.default, 0.5)
+                }}>
+                    <Stack direction="row" spacing={3} alignItems="center" justifyContent="center"
+                        sx={{
+                            flexWrap: 'wrap',
+                            gap: 2
+                        }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <IconButton
+                                onClick={handleLike}
+                                disabled={!user}
+                                sx={{
+                                    color: isLiked ? theme.palette.primary.main : theme.palette.action.active,
+                                    '&:hover': {
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                                    }
+                                }}
+                            >
+                                <ThumbUpIcon />
+                            </IconButton>
+                            <Typography sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
+                                {likes} lượt thích
+                            </Typography>
+                        </Box>
 
-                    <Rating
-                        name="post-rating"
-                        value={userRating}
-                        onChange={(e, newVal) => handleRate(newVal)}
-                        precision={1}
-                        sx={{ color: theme.palette.secondary.main }}
-                        disabled={!user} // Vô hiệu hóa rating nếu chưa đăng nhập
-                    />
-                </Stack>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
+                                Đánh giá:
+                            </Typography>
+                            <Rating
+                                name="post-rating"
+                                value={userRating}
+                                onChange={(_, newVal) => handleRate(newVal)}
+                                precision={1}
+                                sx={{ color: theme.palette.secondary.main }}
+                                disabled={!user}
+                            />
+                        </Box>
+                    </Stack>
+                </Box>
 
                 <Divider sx={{ my: 3, borderColor: theme.palette.divider }} />
                 <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>

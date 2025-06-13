@@ -14,13 +14,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
 import { ThemeContext } from '../../../context/ThemeContext';
-import io from 'socket.io-client'; // Import Socket.IO client
-
-// Kết nối tới Socket.IO server
-// Đây là một instance socket chung. Đảm bảo bạn chỉ tạo nó một lần.
-// Nếu bạn đã có một instance socket chung (ví dụ: trong usePostInteractions),
-// hãy truyền nó vào đây thay vì tạo mới.
-const socket = io('http://localhost:5000');
+import socket from '../../../socket'; // Sử dụng socket chung
 
 const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) => {
     const { mode } = useContext(ThemeContext);
@@ -45,19 +39,19 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
                     Authorization: `Bearer ${localStorage.getItem('token')}`
                 }
             })
-            .then(res => {
-                // Sắp xếp bình luận gốc theo thời gian tạo giảm dần
-                const sortedRootComments = [...(res.data || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                setDisplayedComments(sortedRootComments);
-                setNewCommentContent('');
-                setReplyingTo(null);
-                setShowRepliesMap({});
-                initialCommentsLoaded.current = true;
-            })
-            .catch(err => {
-                setDisplayedComments([]);
-                initialCommentsLoaded.current = true;
-            });
+                .then(res => {
+                    // Sắp xếp bình luận gốc theo thời gian tạo giảm dần
+                    const sortedRootComments = [...(res.data || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    setDisplayedComments(sortedRootComments);
+                    setNewCommentContent('');
+                    setReplyingTo(null);
+                    setShowRepliesMap({});
+                    initialCommentsLoaded.current = true;
+                })
+                .catch(err => {
+                    setDisplayedComments([]);
+                    initialCommentsLoaded.current = true;
+                });
         } else if (!open) {
             setDisplayedComments([]);
             setNewCommentContent('');
@@ -66,6 +60,30 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
             initialCommentsLoaded.current = false;
         }
     }, [open, post]);
+
+    // Scroll to specific comment when dialog opens with hash
+    useEffect(() => {
+        if (open && displayedComments.length > 0) {
+            const hash = window.location.hash;
+            if (hash && hash.startsWith('#comment-')) {
+                // Wait for dialog content to render
+                setTimeout(() => {
+                    const element = document.querySelector(hash);
+                    if (element) {
+                        element.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                        // Highlight the comment briefly
+                        element.style.backgroundColor = '#1976d2' + '20';
+                        setTimeout(() => {
+                            element.style.backgroundColor = '';
+                        }, 3000);
+                    }
+                }, 500);
+            }
+        }
+    }, [open, displayedComments]);
     // --- HẾT SỬA ĐOẠN NÀY ---
 
     // Socket.IO event listeners
@@ -371,6 +389,7 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
 
         return (
             <Box
+                id={`comment-${comment._id}`} // Add id for anchor scrolling
                 mt={isReply ? 1 : 2}
                 pl={displayLevel * 1.5 + 0.5}
                 sx={{

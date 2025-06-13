@@ -25,7 +25,11 @@ const usePostDetail = (topicId, postId, currentUser) => {
 
         const fetchPostDetail = async () => {
             try {
-                const response = await axios.get(`http://localhost:5000/api/posts/topic/${topicId}/post/${postId}`);
+                // Lấy token từ localStorage
+                const token = localStorage.getItem('token');
+                const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+                const response = await axios.get(`http://localhost:5000/api/posts/topic/${topicId}/post/${postId}`, { headers });
                 const fetchedPost = response.data;
                 setPostDetail(fetchedPost);
 
@@ -40,7 +44,11 @@ const usePostDetail = (topicId, postId, currentUser) => {
                 const initialLikedUsers = fetchedPost.likedUsers || []; // SỬA ĐỔI TẠI ĐÂY
                 setCurrentLikedUsers(initialLikedUsers);
 
-                if (currentUser) {
+                // Sử dụng isLikedByCurrentUser từ backend thay vì tự tính
+                if (fetchedPost.hasOwnProperty('isLikedByCurrentUser')) {
+                    setIsLikedByUser(fetchedPost.isLikedByCurrentUser);
+                } else if (currentUser) {
+                    // Fallback nếu backend chưa có field này
                     setIsLikedByUser(initialLikedUsers.some(user => user._id === currentUser._id));
                 } else {
                     setIsLikedByUser(false);
@@ -261,7 +269,12 @@ const usePostDetail = (topicId, postId, currentUser) => {
                 // CẬP NHẬT: Lấy trực tiếp từ updatedPost.likedUsers
                 const updatedLikedUsers = updatedPost.likedUsers || []; // SỬA ĐỔI TẠI ĐÂY
                 setCurrentLikedUsers(updatedLikedUsers);
-                if (currentUser) {
+
+                // Sử dụng isLikedByCurrentUser từ backend
+                if (updatedPost.hasOwnProperty('isLikedByCurrentUser')) {
+                    setIsLikedByUser(updatedPost.isLikedByCurrentUser);
+                } else if (currentUser) {
+                    // Fallback nếu backend chưa có field này
                     setIsLikedByUser(updatedLikedUsers.some(user => user._id === currentUser._id));
                 } else {
                     setIsLikedByUser(false);

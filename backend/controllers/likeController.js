@@ -30,7 +30,18 @@ exports.toggleLike = async (req, res) => {
     }
 
     try {
-        let like = await Like.findOne({ userId, targetId, targetType });
+        // Tạo query object phù hợp với Like model
+        let query = { userId, targetType };
+        if (targetType === 'post') {
+            query.postId = targetId;
+        } else if (targetType === 'comment') {
+            query.commentId = targetId;
+        } else {
+            // For image or other types, we might need to add more fields to Like model
+            return res.status(400).json({ message: 'Target type chưa được hỗ trợ.' });
+        }
+
+        let like = await Like.findOne(query);
         let message;
         let isLiked;
         let likeCount;
@@ -65,13 +76,74 @@ exports.toggleLike = async (req, res) => {
             await Model.findByIdAndUpdate(targetId, { $inc: { likeCount: -1 } });
         } else {
             // Lượt thích chưa tồn tại, tạo nó (thích)
-            like = await Like.create({ userId, targetId, targetType });
+            let likeData = { userId, targetType };
+            if (targetType === 'post') {
+                likeData.postId = targetId;
+            } else if (targetType === 'comment') {
+                likeData.commentId = targetId;
+            }
+
+            like = await Like.create(likeData);
             message = 'Thích thành công.';
             isLiked = true;
             await Model.findByIdAndUpdate(targetId, { $inc: { likeCount: 1 } });
+
+            // Gửi notification khi có like mới
+            if (global.notificationService && isLiked) {
+                if (targetType === 'post') {
+                    const post = await Post.findById(targetId).populate('authorId', 'fullName').populate('topicId', '_id');
+                    if (post && post.authorId._id.toString() !== userId.toString()) {
+                        const topicId = post.topicId?._id;
+
+                        // Build actionUrl with correct format: /posts/detail?topicId=X&postId=Y
+                        let actionUrl = `/posts/detail?postId=${targetId}`;
+                        if (topicId) {
+                            actionUrl = `/posts/detail?topicId=${topicId}&postId=${targetId}`;
+                        }
+
+                        await global.notificationService.createNotification({
+                            recipient: post.authorId._id,
+                            sender: userId,
+                            type: 'post_liked',
+                            title: 'Lượt thích mới',
+                            message: `${actingUser.fullName} đã thích bài viết "${post.title}" của bạn`,
+                            relatedData: { postId: targetId, topicId },
+                            actionUrl: actionUrl
+                        });
+                    }
+                } else if (targetType === 'comment') {
+                    const comment = await Comment.findById(targetId).populate('authorId', 'fullName').populate('postId', 'topicId');
+                    if (comment && comment.authorId._id.toString() !== userId.toString()) {
+                        const topicId = comment.postId?.topicId;
+
+                        // Build actionUrl with correct format: /posts/detail?topicId=X&postId=Y#comment-Z
+                        let actionUrl = `/posts/detail?postId=${comment.postId}#comment-${targetId}`;
+                        if (topicId) {
+                            actionUrl = `/posts/detail?topicId=${topicId}&postId=${comment.postId}#comment-${targetId}`;
+                        }
+
+                        await global.notificationService.createNotification({
+                            recipient: comment.authorId._id,
+                            sender: userId,
+                            type: 'comment_liked',
+                            title: 'Lượt thích bình luận',
+                            message: `${actingUser.fullName} đã thích bình luận của bạn`,
+                            relatedData: { commentId: targetId, postId: comment.postId, topicId },
+                            actionUrl: actionUrl
+                        });
+                    }
+                }
+            }
         }
 
-        likeCount = await Like.countDocuments({ targetId, targetType });
+        // Count likes using appropriate field
+        let countQuery = { targetType };
+        if (targetType === 'post') {
+            countQuery.postId = targetId;
+        } else if (targetType === 'comment') {
+            countQuery.commentId = targetId;
+        }
+        likeCount = await Like.countDocuments(countQuery);
 
         if (io) {
             io.emit('likeUpdate', {
@@ -115,8 +187,18 @@ exports.getLikesForTarget = async (req, res) => {
     }
 
     try {
+        // Create query based on target type
+        let query = { targetType };
+        if (targetType === 'post') {
+            query.postId = targetId;
+        } else if (targetType === 'comment') {
+            query.commentId = targetId;
+        } else {
+            return res.status(400).json({ message: 'Target type chưa được hỗ trợ.' });
+        }
+
         // Populate 'userId' để lấy thông tin người dùng nếu cần (ví dụ: username, avatar)
-        const likes = await Like.find({ targetId, targetType }).populate('userId', 'username avatarUrl');
+        const likes = await Like.find(query).populate('userId', 'username avatarUrl');
         res.status(200).json(likes);
     } catch (error) {
         console.error('Lỗi khi lấy lượt thích cho mục tiêu:', error);
@@ -137,7 +219,17 @@ exports.getLikeCountForTarget = async (req, res) => {
     }
 
     try {
-        const likeCount = await Like.countDocuments({ targetId, targetType });
+        // Create query based on target type
+        let query = { targetType };
+        if (targetType === 'post') {
+            query.postId = targetId;
+        } else if (targetType === 'comment') {
+            query.commentId = targetId;
+        } else {
+            return res.status(400).json({ message: 'Target type chưa được hỗ trợ.' });
+        }
+
+        const likeCount = await Like.countDocuments(query);
         res.status(200).json({ targetId, targetType, likeCount });
     } catch (error) {
         console.error('Lỗi khi lấy số lượt thích:', error);
@@ -159,7 +251,17 @@ exports.checkIfUserLiked = async (req, res) => {
     }
 
     try {
-        const like = await Like.findOne({ userId, targetId, targetType });
+        // Create query based on target type
+        let query = { userId, targetType };
+        if (targetType === 'post') {
+            query.postId = targetId;
+        } else if (targetType === 'comment') {
+            query.commentId = targetId;
+        } else {
+            return res.status(400).json({ message: 'Target type chưa được hỗ trợ.' });
+        }
+
+        const like = await Like.findOne(query);
         const isLiked = !!like; // Chuyển đổi thành boolean
         res.status(200).json({ targetId, targetType, userId, isLiked });
     } catch (error) {

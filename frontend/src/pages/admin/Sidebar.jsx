@@ -21,10 +21,46 @@ import TopicIcon from '@mui/icons-material/Topic';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CommentIcon from '@mui/icons-material/Comment';
+import StarIcon from '@mui/icons-material/Star';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import StorageIcon from '@mui/icons-material/Storage';
 import { styled } from '@mui/system';
 import { Link } from 'react-router-dom';
 
 const drawerWidth = 240;
+
+// Styled ListItem với hover effects đẹp
+const StyledListItem = styled(ListItem)(({ theme }) => ({
+    margin: '4px 8px',
+    borderRadius: '12px',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        transform: 'translateX(4px)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+    },
+    '&.active': {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    },
+    '& .MuiListItemIcon-root': {
+        color: '#ffffff',
+        minWidth: '40px',
+    },
+    '& .MuiListItemText-root': {
+        '& .MuiListItemText-primary': {
+            color: '#ffffff',
+            fontWeight: 500,
+            fontSize: '0.95rem',
+        }
+    }
+}));
+
+// Styled Divider
+const StyledDivider = styled(Divider)(({ theme }) => ({
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    margin: '8px 16px',
+}));
 
 const StyledDrawer = styled(Drawer)(({ theme }) => ({
     width: drawerWidth,
@@ -32,8 +68,18 @@ const StyledDrawer = styled(Drawer)(({ theme }) => ({
     [`& .MuiDrawer-paper`]: {
         width: drawerWidth,
         boxSizing: 'border-box',
-        backgroundColor: theme.palette.background.paper,
-        color: theme.palette.text.primary,
+        // Gradient xanh dương đẹp cho sidebar admin
+        background: theme.palette.mode === 'light'
+            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' // Light mode: Purple-blue gradient
+            : 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)', // Dark mode: Dark blue-gray gradient
+        color: '#ffffff', // Text màu trắng để contrast với background xanh
+        borderRight: theme.palette.mode === 'light'
+            ? '1px solid rgba(255, 255, 255, 0.1)'
+            : '1px solid rgba(255, 255, 255, 0.05)',
+        // Thêm shadow để tạo depth
+        boxShadow: theme.palette.mode === 'light'
+            ? '2px 0 10px rgba(102, 126, 234, 0.15)'
+            : '2px 0 10px rgba(0, 0, 0, 0.3)',
     },
 }));
 
@@ -49,92 +95,118 @@ const Sidebar = () => {
                     sx={{
                         fontWeight: 'bold',
                         textDecoration: 'none',
-                        color: 'inherit',
+                        color: '#ffffff',
+                        fontSize: '1.2rem',
+                        textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
                         '&:hover': {
                             textDecoration: 'none',
-                            opacity: 0.8,
-                        }
+                            opacity: 0.9,
+                            transform: 'scale(1.02)',
+                        },
+                        transition: 'all 0.3s ease',
                     }}
                 >
                     Admin Panel
                 </Typography>
             </Toolbar>
-            <Divider />
-            <Box sx={{ overflow: 'auto' }}>
+            <StyledDivider />
+            <Box sx={{ overflow: 'auto', padding: '8px 0' }}>
                 <List>
                     {/* Link về trang chủ công khai */}
-                    <ListItem button component={Link} to="/">
+                    <StyledListItem button component={Link} to="/">
                         <ListItemIcon>
                             <HomeIcon />
                         </ListItemIcon>
                         <ListItemText primary="Trang Chủ" />
-                    </ListItem>
-                    <Divider />
+                    </StyledListItem>
+                    <StyledDivider />
 
                     {/* Các mục Dashboard hiện có */}
-                    <ListItem button component={Link} to="/admin">
+                    <StyledListItem button component={Link} to="/admin">
                         <ListItemIcon>
                             <DashboardIcon />
                         </ListItemIcon>
                         <ListItemText primary="Dashboard" />
-                    </ListItem>
-                    <ListItem button component={Link} to="/admin/posts">
+                    </StyledListItem>
+                    <StyledListItem button component={Link} to="/admin/posts">
                         <ListItemIcon>
                             <ArticleIcon />
                         </ListItemIcon>
                         <ListItemText primary="Quản lý Bài viết" />
-                    </ListItem>
-                    <ListItem button component={Link} to="/admin/users">
+                    </StyledListItem>
+                    <StyledListItem button component={Link} to="/admin/users">
                         <ListItemIcon>
                             <PeopleIcon />
                         </ListItemIcon>
                         <ListItemText primary="Quản lý Người dùng" />
-                    </ListItem>
-                    <ListItem button component={Link} to="/admin/topics">
+                    </StyledListItem>
+                    <StyledListItem button component={Link} to="/admin/topics">
                         <ListItemIcon>
                             <TopicIcon />
                         </ListItemIcon>
                         <ListItemText primary="Quản lý Chủ đề" />
-                    </ListItem>
-                    <ListItem button component={Link} to="/admin/analytics">
+                    </StyledListItem>
+                    <StyledListItem button component={Link} to="/admin/analytics">
                         <ListItemIcon>
                             <AnalyticsIcon />
                         </ListItemIcon>
                         <ListItemText primary="Thống kê & Phân tích" />
-                    </ListItem>
-                    <ListItem button component={Link} to="/admin/chatbot">
+                    </StyledListItem>
+                    <StyledListItem button component={Link} to="/admin/chatbot">
                         <ListItemIcon>
                             <SmartToyIcon />
                         </ListItemIcon>
                         <ListItemText primary="Quản lý Chatbot" />
-                    </ListItem>
-                    <ListItem button component={Link} to="/admin/products">
+                    </StyledListItem>
+                    <StyledListItem button component={Link} to="/admin/products">
                         <ListItemIcon>
                             <ShoppingCartIcon />
                         </ListItemIcon>
                         <ListItemText primary="Quản lý Sản phẩm" />
-                    </ListItem>
-                    <ListItem button component={Link} to="/admin/reports">
+                    </StyledListItem>
+                    <StyledListItem button component={Link} to="/admin/reports">
                         <ListItemIcon>
                             <BarChartIcon />
                         </ListItemIcon>
                         <ListItemText primary="Báo cáo" />
-                    </ListItem>
-                    <ListItem button component={Link} to="/admin/comments">
+                    </StyledListItem>
+                    <StyledListItem button component={Link} to="/admin/comments">
                         <ListItemIcon>
                             <CommentIcon />
                         </ListItemIcon>
                         <ListItemText primary="Quản lý Bình luận" />
-                    </ListItem>
+                    </StyledListItem>
+                    <StyledListItem button component={Link} to="/admin/featured">
+                        <ListItemIcon>
+                            <StarIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Nổi bật & Thịnh hành" />
+                    </StyledListItem>
+
+                    {/* Notification Management */}
+                    <StyledListItem button component={Link} to="/admin/notifications">
+                        <ListItemIcon>
+                            <NotificationsIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Quản lý Thông báo" />
+                    </StyledListItem>
+
+                    {/* Data Management */}
+                    <StyledListItem button component={Link} to="/admin/data">
+                        <ListItemIcon>
+                            <StorageIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Quản lý Dữ liệu" />
+                    </StyledListItem>
                 </List>
-                <Divider />
+                <StyledDivider />
                 <List>
-                    <ListItem button component={Link} to="/admin/settings">
+                    <StyledListItem button component={Link} to="/admin/settings">
                         <ListItemIcon>
                             <SettingsIcon />
                         </ListItemIcon>
                         <ListItemText primary="Cài đặt" />
-                    </ListItem>
+                    </StyledListItem>
                 </List>
             </Box>
         </StyledDrawer>

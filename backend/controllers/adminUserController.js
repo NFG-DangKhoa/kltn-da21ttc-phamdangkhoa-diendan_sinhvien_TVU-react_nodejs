@@ -251,6 +251,11 @@ exports.suspendUser = async (req, res) => {
         await user.save();
         await user.populate('suspensionInfo.suspendedBy', 'fullName email');
 
+        // Gửi notification và email
+        if (global.notificationService) {
+            await global.notificationService.notifyAccountAction(id, 'suspended', reason);
+        }
+
         res.status(200).json({
             success: true,
             message: 'Đã tạm khóa tài khoản người dùng thành công',
@@ -320,6 +325,11 @@ exports.banUser = async (req, res) => {
         await user.save();
         await user.populate('banInfo.bannedBy', 'fullName email');
 
+        // Gửi notification và email
+        if (global.notificationService) {
+            await global.notificationService.notifyAccountAction(id, 'banned', reason);
+        }
+
         res.status(200).json({
             success: true,
             message: 'Đã cấm tài khoản người dùng thành công',
@@ -366,6 +376,11 @@ exports.activateUser = async (req, res) => {
         user.updatedAt = new Date();
 
         await user.save();
+
+        // Gửi notification và email
+        if (global.notificationService) {
+            await global.notificationService.notifyAccountAction(id, 'activated');
+        }
 
         res.status(200).json({
             success: true,

@@ -1,169 +1,337 @@
-// src/components/ProfileInfo.js
+// src/pages/profile/ProfileInfo.jsx
 import React from 'react';
-import { Box, Typography, Paper, Divider, Link, useTheme, Chip, IconButton, Avatar, Tooltip } from '@mui/material';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import WorkIcon from '@mui/icons-material/Work';
-import LanguageIcon from '@mui/icons-material/Language';
-import GitHubIcon from '@mui/icons-material/GitHub';
-import LinkedInIcon from '@mui/icons-material/LinkedIn';
-import TwitterIcon from '@mui/icons-material/Twitter';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import { 
+    Box, 
+    Typography, 
+    useTheme, 
+    Chip, 
+    Grid,
+    Card,
+    CardContent,
+    LinearProgress,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    Divider
+} from '@mui/material';
+import {
+    Email as EmailIcon,
+    CalendarToday as CalendarTodayIcon,
+    LocationOn as LocationOnIcon,
+    Work as WorkIcon,
+    School as SchoolIcon,
+    Star as StarIcon,
+    Favorite as FavoriteIcon,
+    Comment as CommentIcon,
+    Article as ArticleIcon,
+    GitHub as GitHubIcon,
+    LinkedIn as LinkedInIcon,
+    Twitter as TwitterIcon,
+    EmojiEvents as EmojiEventsIcon
+} from '@mui/icons-material';
 
-const ProfileInfo = ({ userData }) => {
+const ProfileInfo = ({ userData, isCurrentUser }) => {
     const theme = useTheme();
 
     if (!userData) return null;
 
+    // Mock data for demonstration
+    const profileStats = {
+        posts: 24,
+        comments: 156,
+        likes: 89,
+        followers: 45,
+        following: 32,
+        joinDate: new Date(userData.createdAt || '2024-01-01').toLocaleDateString('vi-VN'),
+        level: 'Thành viên tích cực',
+        points: 1250
+    };
+
+    const achievements = [
+        { name: 'Người mới', icon: '🌟', description: 'Hoàn thành hồ sơ cá nhân' },
+        { name: 'Tác giả', icon: '✍️', description: 'Đăng 10 bài viết đầu tiên' },
+        { name: 'Thảo luận viên', icon: '💬', description: 'Bình luận 50 lần' },
+        { name: 'Được yêu thích', icon: '❤️', description: 'Nhận 100 lượt thích' }
+    ];
+
     return (
-        <Paper
-            sx={{
-                p: { xs: 2, sm: 4 },
-                borderRadius: 3,
-                backgroundColor: theme.palette.background.paper,
-                boxShadow: theme.palette.mode === 'dark' ? 'none' : '0px 4px 24px rgba(0,0,0,0.07)',
-                transition: 'background-color 0.4s, box-shadow 0.4s',
-                maxWidth: 600,
-                mx: 'auto',
-                mt: 3,
-            }}
-        >
-            {/* Avatar + Tên + Vai trò */}
-            <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
-                <Avatar
-                    src={userData.avatarUrl || '/admin-avatar.png'}
-                    alt={userData.fullName || userData.username}
+        <Grid container spacing={3}>
+            {/* Personal Information Card */}
+            <Grid item xs={12} md={8}>
+                <Card
                     sx={{
-                        width: 110,
-                        height: 110,
-                        mb: 1,
-                        border: `3px solid ${theme.palette.primary.main}`,
-                        boxShadow: theme.palette.mode === 'dark' ? '0 0 0 2px #222' : '0 2px 12px rgba(0,0,0,0.10)'
+                        borderRadius: 3,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                            boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                            transform: 'translateY(-2px)'
+                        }
                     }}
-                />
-                <Typography variant="h5" fontWeight="bold" sx={{ color: theme.palette.text.primary }}>
-                    {userData.fullName || userData.username}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    {userData.email}
-                </Typography>
-                {userData.role === 'admin' && (
-                    <Chip
-                        icon={<VerifiedUserIcon sx={{ color: '#fff !important' }} />}
-                        label="Admin"
-                        color="primary"
-                        sx={{
-                            fontWeight: 'bold',
-                            color: '#fff',
-                            mb: 1,
-                            px: 2,
-                            background: 'linear-gradient(90deg, #1976d2 60%, #00bcd4 100%)'
-                        }}
-                    />
-                )}
-            </Box>
+                >
+                    <CardContent sx={{ p: 4 }}>
+                        {/* Header Section */}
+                        <Box sx={{ textAlign: 'center', mb: 4 }}>
+                            <Typography variant="h5" fontWeight="bold" gutterBottom>
+                                Thông tin cá nhân
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                Chi tiết về {userData.fullName || userData.username}
+                            </Typography>
+                        </Box>
 
-            <Divider sx={{ mb: 2, borderColor: theme.palette.divider }} />
+                        {/* Basic Info */}
+                        <List sx={{ mb: 3 }}>
+                            <ListItem>
+                                <ListItemIcon>
+                                    <EmailIcon color="primary" />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary="Email"
+                                    secondary={userData.email || 'Chưa cập nhật'}
+                                />
+                            </ListItem>
 
-            {/* Mô tả */}
-            <Typography variant="body1" sx={{ mb: 2, textAlign: 'center', color: theme.palette.text.secondary }}>
-                {userData.bio || "Chưa có mô tả"}
-            </Typography>
+                            <ListItem>
+                                <ListItemIcon>
+                                    <CalendarTodayIcon color="primary" />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary="Ngày tham gia"
+                                    secondary={profileStats.joinDate}
+                                />
+                            </ListItem>
 
-            {/* Thông tin chi tiết */}
-            <Box sx={{ mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <LocationOnIcon fontSize="small" sx={{ mr: 1, color: theme.palette.text.secondary }} />
-                    <Typography variant="body2" color="text.secondary">
-                        {userData.location || "Chưa cập nhật vị trí"}
-                    </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <WorkIcon fontSize="small" sx={{ mr: 1, color: theme.palette.text.secondary }} />
-                    <Typography variant="body2" color="text.secondary">
-                        {userData.occupation || "Chưa cập nhật nghề nghiệp"}
-                    </Typography>
-                </Box>
-                {userData.website && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        <LanguageIcon fontSize="small" sx={{ mr: 1, color: theme.palette.text.secondary }} />
-                        <Link
-                            href={userData.website}
-                            target="_blank"
-                            rel="noopener"
-                            variant="body2"
-                            sx={{
-                                color: theme.palette.primary.main,
-                                textDecoration: 'none',
-                                '&:hover': { textDecoration: 'underline' },
-                            }}
-                        >
-                            {userData.website.replace(/(^\w+:|^)\/\//, '')}
-                        </Link>
-                    </Box>
-                )}
-            </Box>
+                            <ListItem>
+                                <ListItemIcon>
+                                    <LocationOnIcon color="primary" />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary="Vị trí"
+                                    secondary={userData.location || 'Trà Vinh University'}
+                                />
+                            </ListItem>
 
-            {/* Liên kết xã hội */}
-            {userData.socialLinks && Object.keys(userData.socialLinks || {}).length > 0 && (
-                <Box sx={{ mb: 2, textAlign: 'center' }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        Liên kết xã hội:
-                    </Typography>
-                    <Box display="flex" justifyContent="center" gap={1}>
-                        {userData.socialLinks.github && (
-                            <Tooltip title="GitHub">
-                                <IconButton href={userData.socialLinks.github} target="_blank" rel="noopener" size="small">
-                                    <GitHubIcon sx={{ color: theme.palette.text.secondary }} />
-                                </IconButton>
-                            </Tooltip>
+                            <ListItem>
+                                <ListItemIcon>
+                                    <WorkIcon color="primary" />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary="Nghề nghiệp"
+                                    secondary={userData.occupation || 'Sinh viên'}
+                                />
+                            </ListItem>
+
+                            <ListItem>
+                                <ListItemIcon>
+                                    <SchoolIcon color="primary" />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary="Trình độ"
+                                    secondary={profileStats.level}
+                                />
+                            </ListItem>
+                        </List>
+
+                        {/* Bio Section */}
+                        <Divider sx={{ my: 3 }} />
+                        <Box>
+                            <Typography variant="h6" gutterBottom fontWeight="bold">
+                                Giới thiệu
+                            </Typography>
+                            <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                                {userData.bio || "Chưa có mô tả về bản thân. Hãy cập nhật để mọi người hiểu rõ hơn về bạn!"}
+                            </Typography>
+                        </Box>
+
+                        {/* Social Links */}
+                        {userData.socialLinks && Object.keys(userData.socialLinks || {}).length > 0 && (
+                            <>
+                                <Divider sx={{ my: 3 }} />
+                                <Box>
+                                    <Typography variant="h6" gutterBottom fontWeight="bold">
+                                        Liên kết xã hội
+                                    </Typography>
+                                    <Box display="flex" gap={2} flexWrap="wrap">
+                                        {userData.socialLinks.github && (
+                                            <Chip
+                                                icon={<GitHubIcon />}
+                                                label="GitHub"
+                                                component="a"
+                                                href={userData.socialLinks.github}
+                                                target="_blank"
+                                                clickable
+                                                variant="outlined"
+                                            />
+                                        )}
+                                        {userData.socialLinks.linkedin && (
+                                            <Chip
+                                                icon={<LinkedInIcon />}
+                                                label="LinkedIn"
+                                                component="a"
+                                                href={userData.socialLinks.linkedin}
+                                                target="_blank"
+                                                clickable
+                                                variant="outlined"
+                                            />
+                                        )}
+                                        {userData.socialLinks.twitter && (
+                                            <Chip
+                                                icon={<TwitterIcon />}
+                                                label="Twitter"
+                                                component="a"
+                                                href={userData.socialLinks.twitter}
+                                                target="_blank"
+                                                clickable
+                                                variant="outlined"
+                                            />
+                                        )}
+                                    </Box>
+                                </Box>
+                            </>
                         )}
-                        {userData.socialLinks.linkedin && (
-                            <Tooltip title="LinkedIn">
-                                <IconButton href={userData.socialLinks.linkedin} target="_blank" rel="noopener" size="small">
-                                    <LinkedInIcon sx={{ color: theme.palette.text.secondary }} />
-                                </IconButton>
-                            </Tooltip>
-                        )}
-                        {userData.socialLinks.twitter && (
-                            <Tooltip title="Twitter">
-                                <IconButton href={userData.socialLinks.twitter} target="_blank" rel="noopener" size="small">
-                                    <TwitterIcon sx={{ color: theme.palette.text.secondary }} />
-                                </IconButton>
-                            </Tooltip>
-                        )}
-                        {/* Thêm các liên kết khác nếu cần */}
-                    </Box>
-                </Box>
-            )}
+                    </CardContent>
+                </Card>
+            </Grid>
 
-            <Divider sx={{ my: 2, borderColor: theme.palette.divider }} />
+            {/* Statistics & Achievements Sidebar */}
+            <Grid item xs={12} md={4}>
+                {/* Statistics Card */}
+                <Card sx={{ mb: 3, borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+                    <CardContent>
+                        <Typography variant="h6" fontWeight="bold" gutterBottom>
+                            📊 Thống kê hoạt động
+                        </Typography>
+                        
+                        <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, bgcolor: 'primary.light', color: 'white' }}>
+                                    <ArticleIcon sx={{ fontSize: 32, mb: 1 }} />
+                                    <Typography variant="h6" fontWeight="bold">{profileStats.posts}</Typography>
+                                    <Typography variant="caption">Bài viết</Typography>
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, bgcolor: 'success.light', color: 'white' }}>
+                                    <CommentIcon sx={{ fontSize: 32, mb: 1 }} />
+                                    <Typography variant="h6" fontWeight="bold">{profileStats.comments}</Typography>
+                                    <Typography variant="caption">Bình luận</Typography>
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, bgcolor: 'error.light', color: 'white' }}>
+                                    <FavoriteIcon sx={{ fontSize: 32, mb: 1 }} />
+                                    <Typography variant="h6" fontWeight="bold">{profileStats.likes}</Typography>
+                                    <Typography variant="caption">Lượt thích</Typography>
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, bgcolor: 'warning.light', color: 'white' }}>
+                                    <StarIcon sx={{ fontSize: 32, mb: 1 }} />
+                                    <Typography variant="h6" fontWeight="bold">{profileStats.points}</Typography>
+                                    <Typography variant="caption">Điểm</Typography>
+                                </Box>
+                            </Grid>
+                        </Grid>
 
-            {/* Danh hiệu */}
-            {userData.badges && userData.badges.length > 0 && (
-                <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, color: theme.palette.text.primary, textAlign: 'center' }}>
-                        Danh hiệu
-                    </Typography>
-                    <Box display="flex" flexWrap="wrap" gap={1} justifyContent="center">
-                        {userData.badges.map((badge, index) => (
-                            <Chip
-                                key={index}
-                                label={badge.name}
-                                icon={<EmojiEventsIcon />}
-                                variant="outlined"
-                                color="primary"
-                                sx={{
-                                    borderColor: theme.palette.primary.light,
-                                    color: theme.palette.text.primary,
-                                    '.MuiChip-icon': { color: theme.palette.primary.main },
-                                }}
+                        <Divider sx={{ my: 2 }} />
+
+                        {/* Level Progress */}
+                        <Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2" fontWeight="bold">Cấp độ</Typography>
+                                <Typography variant="body2" color="text.secondary">{profileStats.level}</Typography>
+                            </Box>
+                            <LinearProgress 
+                                variant="determinate" 
+                                value={75} 
+                                sx={{ 
+                                    height: 8, 
+                                    borderRadius: 4,
+                                    bgcolor: 'grey.200',
+                                    '& .MuiLinearProgress-bar': {
+                                        borderRadius: 4,
+                                        background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
+                                    }
+                                }} 
                             />
-                        ))}
-                    </Box>
-                </Box>
-            )}
-        </Paper>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                75% đến cấp độ tiếp theo
+                            </Typography>
+                        </Box>
+                    </CardContent>
+                </Card>
+
+                {/* Achievements Card */}
+                <Card sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+                    <CardContent>
+                        <Typography variant="h6" fontWeight="bold" gutterBottom>
+                            🏆 Thành tích
+                        </Typography>
+                        
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {achievements.map((achievement, index) => (
+                                <Box 
+                                    key={index}
+                                    sx={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        p: 2, 
+                                        borderRadius: 2, 
+                                        bgcolor: 'grey.50',
+                                        border: '1px solid',
+                                        borderColor: 'grey.200',
+                                        transition: 'all 0.3s ease',
+                                        '&:hover': {
+                                            bgcolor: 'primary.light',
+                                            borderColor: 'primary.main',
+                                            color: 'white',
+                                            transform: 'translateY(-2px)',
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                                        }
+                                    }}
+                                >
+                                    <Typography sx={{ fontSize: '2rem', mr: 2 }}>
+                                        {achievement.icon}
+                                    </Typography>
+                                    <Box sx={{ flexGrow: 1 }}>
+                                        <Typography variant="subtitle2" fontWeight="bold">
+                                            {achievement.name}
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                                            {achievement.description}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                            ))}
+                        </Box>
+
+                        {/* Badge Collection */}
+                        {userData.badges && userData.badges.length > 0 && (
+                            <>
+                                <Divider sx={{ my: 3 }} />
+                                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                                    🎖️ Huy hiệu
+                                </Typography>
+                                <Box display="flex" flexWrap="wrap" gap={1}>
+                                    {userData.badges.map((badge, index) => (
+                                        <Chip
+                                            key={index}
+                                            label={badge.name}
+                                            icon={<EmojiEventsIcon />}
+                                            variant="outlined"
+                                            color="primary"
+                                            size="small"
+                                        />
+                                    ))}
+                                </Box>
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+            </Grid>
+        </Grid>
     );
 };
 

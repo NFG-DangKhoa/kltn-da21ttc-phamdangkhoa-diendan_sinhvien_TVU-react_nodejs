@@ -14,13 +14,13 @@ import { vi } from 'date-fns/locale';
 import PostForm from '../../components/admin/PostForm';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
 import { useAuth } from '../../context/AuthContext';
-import io from 'socket.io-client';
+import { useChat } from '../../context/ChatContext';
 
 const API_BASE_URL = 'http://localhost:5000/api/admin/posts';
-const SOCKET_SERVER_URL = 'http://localhost:5000';
 
 const AdminPostsPage = () => {
     const { logout, getToken } = useAuth();
+    const { socket } = useChat();
     const navigate = useNavigate();
 
     const [posts, setPosts] = useState([]);
@@ -48,48 +48,46 @@ const AdminPostsPage = () => {
     const [anchorEl, setAnchorEl] = useState(null);
     const [currentPostStatusMenu, setCurrentPostStatusMenu] = useState(null);
 
-    const [socket, setSocket] = useState(null);
-
+    // Setup Socket.IO listeners for admin post events
     useEffect(() => {
-        const newSocket = io(SOCKET_SERVER_URL);
-        setSocket(newSocket);
+        if (!socket) return;
 
-        newSocket.on('connect', () => {
-            console.log('Connected to Socket.IO server (Admin)');
-        });
-
-        newSocket.on('newPostByAdmin', (newPost) => {
+        const handleNewPost = (newPost) => {
             console.log('New post added by admin (real-time):', newPost);
             fetchPosts();
             showSnackbar('Bài viết mới được tạo!', 'info');
-        });
+        };
 
-        newSocket.on('updatedPostByAdmin', (updatedPost) => {
+        const handleUpdatedPost = (updatedPost) => {
             console.log('Post updated by admin (real-time):', updatedPost);
             fetchPosts();
             showSnackbar('Bài viết đã được cập nhật!', 'info');
-        });
+        };
 
-        newSocket.on('deletedPostByAdmin', (data) => {
+        const handleDeletedPost = (data) => {
             console.log('Post deleted by admin (real-time):', data.postId);
             fetchPosts();
             showSnackbar('Bài viết đã bị xóa!', 'warning');
-        });
+        };
 
-        newSocket.on('postStatusUpdatedByAdmin', (updatedPost) => {
+        const handleStatusUpdated = (updatedPost) => {
             console.log('Post status updated by admin (real-time):', updatedPost);
             fetchPosts();
             showSnackbar(`Trạng thái bài viết "${updatedPost.title}" đã thay đổi thành ${updatedPost.status}!`, 'info');
-        });
+        };
 
-        newSocket.on('disconnect', () => {
-            console.log('Disconnected from Socket.IO server (Admin)');
-        });
+        socket.on('newPostByAdmin', handleNewPost);
+        socket.on('updatedPostByAdmin', handleUpdatedPost);
+        socket.on('deletedPostByAdmin', handleDeletedPost);
+        socket.on('postStatusUpdatedByAdmin', handleStatusUpdated);
 
         return () => {
-            newSocket.disconnect();
+            socket.off('newPostByAdmin', handleNewPost);
+            socket.off('updatedPostByAdmin', handleUpdatedPost);
+            socket.off('deletedPostByAdmin', handleDeletedPost);
+            socket.off('postStatusUpdatedByAdmin', handleStatusUpdated);
         };
-    }, []);
+    }, [socket]);
 
     const showSnackbar = (message, severity = 'success') => {
         setSnackbarMessage(message);

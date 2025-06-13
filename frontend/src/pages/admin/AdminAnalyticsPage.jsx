@@ -53,7 +53,35 @@ import {
     Legend,
     ResponsiveContainer
 } from 'recharts';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip as ChartTooltip,
+    Legend as ChartLegend,
+    ArcElement,
+    BarElement,
+    RadialLinearScale
+} from 'chart.js';
+import { Doughnut, Radar, PolarArea } from 'react-chartjs-2';
 import axios from 'axios';
+
+// Register Chart.js components
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    ChartTooltip,
+    ChartLegend,
+    ArcElement,
+    BarElement,
+    RadialLinearScale
+);
 
 const AdminAnalyticsPage = () => {
     // State management
@@ -533,25 +561,50 @@ const AdminAnalyticsPage = () => {
                                     <Typography variant="h6" gutterBottom>
                                         Loại hoạt động
                                     </Typography>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <PieChart>
-                                            <Pie
-                                                data={userActivityData.activityStats}
-                                                cx="50%"
-                                                cy="50%"
-                                                labelLine={false}
-                                                label={({ _id, percent }) => `${_id} ${(percent * 100).toFixed(0)}%`}
-                                                outerRadius={80}
-                                                fill="#8884d8"
-                                                dataKey="count"
-                                            >
-                                                {userActivityData.activityStats.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip />
-                                        </PieChart>
-                                    </ResponsiveContainer>
+                                    <Box sx={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        <Doughnut
+                                            data={{
+                                                labels: userActivityData.activityStats.map(item => item._id),
+                                                datasets: [{
+                                                    data: userActivityData.activityStats.map(item => item.count),
+                                                    backgroundColor: [
+                                                        '#FF6384',
+                                                        '#36A2EB',
+                                                        '#FFCE56',
+                                                        '#4BC0C0',
+                                                        '#9966FF',
+                                                        '#FF9F40'
+                                                    ],
+                                                    borderWidth: 2,
+                                                    borderColor: '#fff',
+                                                    hoverBorderWidth: 3,
+                                                    hoverBorderColor: '#fff'
+                                                }]
+                                            }}
+                                            options={{
+                                                responsive: true,
+                                                maintainAspectRatio: false,
+                                                plugins: {
+                                                    legend: {
+                                                        position: 'bottom',
+                                                        labels: {
+                                                            padding: 20,
+                                                            usePointStyle: true
+                                                        }
+                                                    },
+                                                    tooltip: {
+                                                        callbacks: {
+                                                            label: function (context) {
+                                                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                                                return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    </Box>
                                 </Paper>
                             </Grid>
 
@@ -592,13 +645,13 @@ const AdminAnalyticsPage = () => {
                                 </Paper>
                             </Grid>
 
-                            <Grid item xs={12}>
+                            <Grid item xs={12} md={6}>
                                 <Paper sx={{ p: 3 }}>
                                     <Typography variant="h6" gutterBottom>
                                         Top người dùng hoạt động nhất
                                     </Typography>
                                     <List>
-                                        {userActivityData.topActiveUsers.slice(0, 10).map((user, index) => (
+                                        {userActivityData.topActiveUsers.slice(0, 5).map((user, index) => (
                                             <React.Fragment key={user._id._id}>
                                                 <ListItem>
                                                     <ListItemAvatar>
@@ -616,10 +669,111 @@ const AdminAnalyticsPage = () => {
                                                         color="primary"
                                                     />
                                                 </ListItem>
-                                                {index < 9 && <Divider />}
+                                                {index < 4 && <Divider />}
                                             </React.Fragment>
                                         ))}
                                     </List>
+                                </Paper>
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <Paper sx={{ p: 3 }}>
+                                    <Typography variant="h6" gutterBottom>
+                                        Phân tích thiết bị
+                                    </Typography>
+                                    <Box sx={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        <PolarArea
+                                            data={{
+                                                labels: userActivityData.deviceStats?.map(item => item._id) || ['Desktop', 'Mobile', 'Tablet'],
+                                                datasets: [{
+                                                    data: userActivityData.deviceStats?.map(item => item.count) || [45, 35, 20],
+                                                    backgroundColor: [
+                                                        'rgba(255, 99, 132, 0.8)',
+                                                        'rgba(54, 162, 235, 0.8)',
+                                                        'rgba(255, 205, 86, 0.8)',
+                                                        'rgba(75, 192, 192, 0.8)',
+                                                        'rgba(153, 102, 255, 0.8)'
+                                                    ],
+                                                    borderColor: [
+                                                        'rgba(255, 99, 132, 1)',
+                                                        'rgba(54, 162, 235, 1)',
+                                                        'rgba(255, 205, 86, 1)',
+                                                        'rgba(75, 192, 192, 1)',
+                                                        'rgba(153, 102, 255, 1)'
+                                                    ],
+                                                    borderWidth: 2
+                                                }]
+                                            }}
+                                            options={{
+                                                responsive: true,
+                                                maintainAspectRatio: false,
+                                                plugins: {
+                                                    legend: {
+                                                        position: 'bottom',
+                                                        labels: {
+                                                            padding: 20
+                                                        }
+                                                    }
+                                                },
+                                                scales: {
+                                                    r: {
+                                                        beginAtZero: true,
+                                                        grid: {
+                                                            color: 'rgba(0, 0, 0, 0.1)'
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    </Box>
+                                </Paper>
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <Paper sx={{ p: 3 }}>
+                                    <Typography variant="h6" gutterBottom>
+                                        Radar Chart - Hoạt động theo giờ
+                                    </Typography>
+                                    <Box sx={{ height: 400, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        <Radar
+                                            data={{
+                                                labels: userActivityData.hourlyActivity?.slice(0, 12).map(item => `${item._id}h`) ||
+                                                    ['0h', '2h', '4h', '6h', '8h', '10h', '12h', '14h', '16h', '18h', '20h', '22h'],
+                                                datasets: [{
+                                                    label: 'Hoạt động',
+                                                    data: userActivityData.hourlyActivity?.slice(0, 12).map(item => item.count) ||
+                                                        [10, 5, 8, 15, 25, 30, 35, 40, 45, 35, 25, 15],
+                                                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                                    borderColor: 'rgba(54, 162, 235, 1)',
+                                                    borderWidth: 2,
+                                                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                                                    pointBorderColor: '#fff',
+                                                    pointHoverBackgroundColor: '#fff',
+                                                    pointHoverBorderColor: 'rgba(54, 162, 235, 1)'
+                                                }]
+                                            }}
+                                            options={{
+                                                responsive: true,
+                                                maintainAspectRatio: false,
+                                                plugins: {
+                                                    legend: {
+                                                        position: 'top'
+                                                    }
+                                                },
+                                                scales: {
+                                                    r: {
+                                                        beginAtZero: true,
+                                                        grid: {
+                                                            color: 'rgba(0, 0, 0, 0.1)'
+                                                        },
+                                                        angleLines: {
+                                                            color: 'rgba(0, 0, 0, 0.1)'
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    </Box>
                                 </Paper>
                             </Grid>
                         </Grid>
@@ -707,7 +861,7 @@ const AdminAnalyticsPage = () => {
                                 </Paper>
                             </Grid>
 
-                            <Grid item xs={12}>
+                            <Grid item xs={12} md={8}>
                                 <Paper sx={{ p: 3 }}>
                                     <Typography variant="h6" gutterBottom>
                                         Thống kê theo danh mục
@@ -724,6 +878,63 @@ const AdminAnalyticsPage = () => {
                                             <Bar dataKey="totalViews" fill="#ffc658" name="Tổng lượt xem" />
                                         </BarChart>
                                     </ResponsiveContainer>
+                                </Paper>
+                            </Grid>
+
+                            <Grid item xs={12} md={4}>
+                                <Paper sx={{ p: 3 }}>
+                                    <Typography variant="h6" gutterBottom>
+                                        Phân bố nội dung
+                                    </Typography>
+                                    <Box sx={{ height: 400, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        <Doughnut
+                                            data={{
+                                                labels: popularContentData.categoryStats?.map(item => item._id) || ['Học tập', 'Nghiên cứu', 'Thực tập'],
+                                                datasets: [{
+                                                    data: popularContentData.categoryStats?.map(item => item.totalPosts) || [30, 25, 20],
+                                                    backgroundColor: [
+                                                        '#FF6384',
+                                                        '#36A2EB',
+                                                        '#FFCE56',
+                                                        '#4BC0C0',
+                                                        '#9966FF',
+                                                        '#FF9F40',
+                                                        '#FF6384',
+                                                        '#C9CBCF'
+                                                    ],
+                                                    borderWidth: 3,
+                                                    borderColor: '#fff',
+                                                    hoverBorderWidth: 4
+                                                }]
+                                            }}
+                                            options={{
+                                                responsive: true,
+                                                maintainAspectRatio: false,
+                                                cutout: '60%',
+                                                plugins: {
+                                                    legend: {
+                                                        position: 'bottom',
+                                                        labels: {
+                                                            padding: 15,
+                                                            usePointStyle: true,
+                                                            font: {
+                                                                size: 12
+                                                            }
+                                                        }
+                                                    },
+                                                    tooltip: {
+                                                        callbacks: {
+                                                            label: function (context) {
+                                                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                                                return `${context.label}: ${context.parsed} bài viết (${percentage}%)`;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    </Box>
                                 </Paper>
                             </Grid>
                         </Grid>

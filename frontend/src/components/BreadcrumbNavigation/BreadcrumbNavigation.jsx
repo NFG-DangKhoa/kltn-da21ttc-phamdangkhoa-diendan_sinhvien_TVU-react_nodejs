@@ -74,42 +74,15 @@ const BreadcrumbNavigation = ({
                         : 'rgba(25, 118, 210, 0.08)',
                     border: `1px solid ${darkMode ? 'rgba(144, 202, 249, 0.2)' : 'rgba(25, 118, 210, 0.15)'}`,
                 }}
-                onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-1px)';
-                    e.target.style.boxShadow = darkMode
-                        ? '0 4px 12px rgba(144, 202, 249, 0.3)'
-                        : '0 4px 12px rgba(25, 118, 210, 0.2)';
-                    e.target.style.background = darkMode
-                        ? 'rgba(144, 202, 249, 0.2)'
-                        : 'rgba(25, 118, 210, 0.12)';
-                }}
-                onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = 'none';
-                    e.target.style.background = darkMode
-                        ? 'rgba(144, 202, 249, 0.1)'
-                        : 'rgba(25, 118, 210, 0.08)';
-                }}
             >
-                <HomeIcon sx={{
-                    mr: 1,
-                    fontSize: 18,
-                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
-                }} />
+                <HomeIcon sx={{ mr: 1, fontSize: 18 }} />
                 Trang chủ
             </Link>
         );
 
-        // Xác định breadcrumbs dựa trên pathname
-
-        // FORCE RENDER FOR POST-DETAIL - Support both routes
-        if (pathname.includes('/post-detail') || pathname.includes('/posts/detail')) {
-            // Post Detail page
+        // Post Detail page
+        if ((pathname.includes('/post-detail') || pathname.includes('/posts/detail')) && topicName && postTitle) {
             const topicId = new URLSearchParams(location.search).get('topicId');
-
-
-
-            // Enhanced topic breadcrumb
             breadcrumbs.push(
                 <Link
                     key="topic"
@@ -129,33 +102,11 @@ const BreadcrumbNavigation = ({
                             : 'rgba(25, 118, 210, 0.08)',
                         border: `1px solid ${darkMode ? 'rgba(144, 202, 249, 0.2)' : 'rgba(25, 118, 210, 0.15)'}`,
                     }}
-                    onMouseEnter={(e) => {
-                        e.target.style.transform = 'translateY(-1px)';
-                        e.target.style.boxShadow = darkMode
-                            ? '0 4px 12px rgba(144, 202, 249, 0.3)'
-                            : '0 4px 12px rgba(25, 118, 210, 0.2)';
-                        e.target.style.background = darkMode
-                            ? 'rgba(144, 202, 249, 0.2)'
-                            : 'rgba(25, 118, 210, 0.12)';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.target.style.transform = 'translateY(0)';
-                        e.target.style.boxShadow = 'none';
-                        e.target.style.background = darkMode
-                            ? 'rgba(144, 202, 249, 0.1)'
-                            : 'rgba(25, 118, 210, 0.08)';
-                    }}
                 >
-                    <TopicIcon sx={{
-                        mr: 1,
-                        fontSize: 18,
-                        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
-                    }} />
-                    {topicName || 'Đang tải...'}
+                    <TopicIcon sx={{ mr: 1, fontSize: 18 }} />
+                    {topicName}
                 </Link>
             );
-
-            // Enhanced post breadcrumb (current page)
             breadcrumbs.push(
                 <Typography
                     key="post"
@@ -174,30 +125,15 @@ const BreadcrumbNavigation = ({
                         background: darkMode
                             ? 'linear-gradient(135deg, #3a3b3c 0%, #2a2b2c 100%)'
                             : 'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)',
-                        border: `1px solid ${darkMode ? '#4a4b4c' : '#d0d0d0'}`,
+                        border: darkMode ? '1px solid #4a4b4c' : '1px solid #d0d0d0',
                         boxShadow: darkMode
                             ? 'inset 0 1px 3px rgba(0,0,0,0.3)'
                             : 'inset 0 1px 3px rgba(0,0,0,0.1)',
                         position: 'relative',
-                        '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: '2px',
-                            background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                            borderRadius: '8px 8px 0 0'
-                        }
                     }}
                 >
-                    <ArticleIcon sx={{
-                        mr: 1,
-                        fontSize: 18,
-                        color: theme.palette.primary.main,
-                        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
-                    }} />
-                    {postTitle || 'Đang tải...'}
+                    <ArticleIcon sx={{ mr: 1, fontSize: 18, color: theme.palette.primary.main }} />
+                    {postTitle}
                 </Typography>
             );
         } else if (pathname.includes('/topic/') && topicName) {
@@ -205,7 +141,6 @@ const BreadcrumbNavigation = ({
             breadcrumbs.push(
                 <Typography
                     key="topic"
-                    color="text.primary"
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
@@ -223,7 +158,6 @@ const BreadcrumbNavigation = ({
             breadcrumbs.push(
                 <Typography
                     key="profile"
-                    color="text.primary"
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
@@ -241,7 +175,6 @@ const BreadcrumbNavigation = ({
             breadcrumbs.push(
                 <Typography
                     key="search"
-                    color="text.primary"
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
@@ -259,7 +192,6 @@ const BreadcrumbNavigation = ({
             breadcrumbs.push(
                 <Typography
                     key="about"
-                    color="text.primary"
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
@@ -277,7 +209,6 @@ const BreadcrumbNavigation = ({
             breadcrumbs.push(
                 <Typography
                     key="contact"
-                    color="text.primary"
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
@@ -291,7 +222,6 @@ const BreadcrumbNavigation = ({
                 </Typography>
             );
         }
-
         return breadcrumbs;
     }, [location.pathname, topicName, postTitle, userName, searchQuery, darkMode, theme]);
 

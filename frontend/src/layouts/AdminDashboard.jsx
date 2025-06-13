@@ -12,7 +12,7 @@ import AdminMainContent from '../pages/admin/AdminMainContent'; // Chỉnh lại
 
 // Import các trang admin con
 // Đảm bảo các đường dẫn này khớp với vị trí thực tế của chúng trong thư mục pages/
-import AdminDashboardOverview from '../pages/admin/AdminDashboardOverview';
+import AdminDashboardPage from '../pages/admin/AdminDashboard';
 import AdminPostsPage from '../pages/admin/AdminPostsPage';
 import AdminUsersPage from '../pages/admin/AdminUsersPage';
 import AdminTopicsPage from '../pages/admin/AdminTopicsPage';
@@ -20,6 +20,12 @@ import AdminAnalyticsPage from '../pages/admin/AdminAnalyticsPage';
 import AdminChatbotPage from '../pages/admin/AdminChatbotPage';
 import AdminSettingsPage from '../pages/admin/AdminSettingsPage';
 import AdminCommentsPage from '../pages/admin/AdminCommentsPage';
+import AdminProfile from '../pages/admin/AdminProfile';
+import AdminHeader from '../pages/admin/AdminHeader';
+import AdminSecurity from '../pages/admin/AdminSecurity';
+import AdminFeaturedPage from '../pages/admin/AdminFeaturedPage';
+import AdminNotificationsPage from '../pages/admin/AdminNotificationsPage';
+import AdminDataManagementPage from '../pages/admin/AdminDataManagementPage';
 
 const AdminDashboard = () => {
     const { mode, toggleColorMode } = useContext(ThemeContext);
@@ -55,7 +61,7 @@ const AdminDashboard = () => {
                 <AdminMainContent toggleColorMode={toggleColorMode} mode={mode}>
                     <Routes> {/* Đây là nơi các route con của admin được định nghĩa */}
                         {/* Route mặc định cho /admin (ví dụ: AdminDashboardOverview) */}
-                        <Route index element={<AdminDashboardOverview />} />
+                        <Route index element={<AdminDashboardPage />} />
 
                         {/* Các route cụ thể cho từng trang admin */}
                         <Route path="posts" element={<AdminPostsPage />} />
@@ -65,6 +71,11 @@ const AdminDashboard = () => {
                         <Route path="chatbot" element={<AdminChatbotPage />} />
                         <Route path="settings" element={<AdminSettingsPage />} />
                         <Route path="comments" element={<AdminCommentsPage />} />
+                        <Route path="profile" element={<AdminProfile />} />
+                        <Route path="security" element={<AdminSecurity />} />
+                        <Route path="featured" element={<AdminFeaturedPage />} />
+                        <Route path="notifications" element={<AdminNotificationsPage />} />
+                        <Route path="data" element={<AdminDataManagementPage />} />
 
                         {/* Thêm các route admin khác tại đây nếu cần
                             Ví dụ: <Route path="posts/new" element={<AdminNewPostPage />} />

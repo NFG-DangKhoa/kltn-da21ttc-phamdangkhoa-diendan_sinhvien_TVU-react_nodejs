@@ -6,6 +6,9 @@ const authMiddleware = require('../middlewares/authMiddleware');
 // User search for mentions
 router.get('/search', authMiddleware, userController.searchUsers);
 
+// Get all members for members list page
+router.get('/members', userController.getAllMembers);
+
 // Profile management
 router.get('/me', authMiddleware, userController.getMe);
 router.put('/me', authMiddleware, userController.updateMe);

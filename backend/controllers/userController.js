@@ -58,6 +58,80 @@ exports.updateMe = async (req, res) => {
     }
 };
 
+// Get all members for members list page
+exports.getAllMembers = async (req, res) => {
+    try {
+        const { page = 1, limit = 12, search = '' } = req.query;
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
+
+        // Build search query
+        let searchQuery = {};
+        if (search) {
+            searchQuery = {
+                $or: [
+                    { fullName: { $regex: search, $options: 'i' } },
+                    { username: { $regex: search, $options: 'i' } },
+                    { email: { $regex: search, $options: 'i' } }
+                ]
+            };
+        }
+
+        // Get members with post count
+        const members = await User.aggregate([
+            { $match: searchQuery },
+            {
+                $lookup: {
+                    from: 'posts',
+                    localField: '_id',
+                    foreignField: 'authorId',
+                    as: 'posts'
+                }
+            },
+            {
+                $addFields: {
+                    postsCount: { $size: '$posts' }
+                }
+            },
+            {
+                $project: {
+                    password: 0,
+                    posts: 0,
+                    __v: 0
+                }
+            },
+            { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limitNum }
+        ]);
+
+        // Get total count for pagination
+        const totalMembers = await User.countDocuments(searchQuery);
+        const totalPages = Math.ceil(totalMembers / limitNum);
+
+        res.json({
+            success: true,
+            data: {
+                members,
+                pagination: {
+                    currentPage: pageNum,
+                    totalPages,
+                    totalMembers,
+                    hasNextPage: pageNum < totalPages,
+                    hasPrevPage: pageNum > 1
+                }
+            }
+        });
+    } catch (err) {
+        console.error('Error getting all members:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi khi lấy danh sách thành viên.'
+        });
+    }
+};
+
 // Get user stats
 exports.getUserStats = async (req, res) => {
     try {

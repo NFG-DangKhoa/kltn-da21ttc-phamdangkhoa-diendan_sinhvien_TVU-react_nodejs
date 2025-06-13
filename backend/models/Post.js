@@ -23,13 +23,40 @@ const postSchema = new mongoose.Schema({
         type: String,
         enum: ['draft', 'pending', 'published', 'archived', 'flagged', 'deleted'],
         default: 'pending'
-    }
+    },
+
+    // Trường để đánh dấu bài viết nổi bật
+    featured: {
+        type: Boolean,
+        default: false
+    },
+
+    // Thêm trường images để lưu ảnh
+    images: [{
+        type: String // URL của ảnh
+    }]
 }, {
     timestamps: true // <<< THÊM DÒNG NÀY ĐỂ Mongoose tự động quản lý createdAt và updatedAt
 });
 
 // ÁP DỤNG PLUGIN VÀO SCHEMA <<< THÊM DÒNG NÀY
 postSchema.plugin(mongoosePaginate);
+
+// Virtual field để lấy ảnh thumbnail từ content
+postSchema.virtual('thumbnailImage').get(function () {
+    const { extractFirstImageFromContent } = require('../utils/imageExtractor');
+    return extractFirstImageFromContent(this.content);
+});
+
+// Virtual field để lấy tất cả ảnh từ content
+postSchema.virtual('extractedImages').get(function () {
+    const { extractAllImagesFromContent } = require('../utils/imageExtractor');
+    return extractAllImagesFromContent(this.content);
+});
+
+// Ensure virtual fields are serialized
+postSchema.set('toJSON', { virtuals: true });
+postSchema.set('toObject', { virtuals: true });
 
 // Tạo index để tối ưu hóa tìm kiếm và sắp xếp theo các trường thường xuyên truy vấn
 postSchema.index({ topicId: 1, status: 1, createdAt: -1 });

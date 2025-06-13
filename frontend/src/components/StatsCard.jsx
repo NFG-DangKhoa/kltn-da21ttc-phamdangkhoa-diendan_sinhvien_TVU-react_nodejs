@@ -7,12 +7,13 @@ import {
     Zoom
 } from '@mui/material';
 
-const StatsCard = ({ 
-    stat, 
-    index = 0, 
-    visible = true, 
+const StatsCard = ({
+    stat,
+    index = 0,
+    visible = true,
     delay = 0,
-    variant = 'default' 
+    variant = 'default',
+    onClick
 }) => {
     const getVariantStyles = () => {
         switch (variant) {
@@ -72,12 +73,13 @@ const StatsCard = ({
         <Zoom in={visible} timeout={800 + (index * 200) + delay}>
             <Paper
                 elevation={variant === 'minimal' ? 0 : 2}
+                onClick={onClick}
                 sx={{
                     p: 3,
                     textAlign: 'center',
                     borderRadius: 3,
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    cursor: 'pointer',
+                    cursor: onClick ? 'pointer' : 'default',
                     position: 'relative',
                     overflow: 'hidden',
                     ...getVariantStyles(),
@@ -117,9 +119,9 @@ const StatsCard = ({
                     </Box>
 
                     {/* Value */}
-                    <Typography 
-                        variant="h3" 
-                        fontWeight="bold" 
+                    <Typography
+                        variant="h3"
+                        fontWeight="bold"
                         color={getValueColor()}
                         mb={1}
                         sx={{
@@ -131,8 +133,8 @@ const StatsCard = ({
                     </Typography>
 
                     {/* Label */}
-                    <Typography 
-                        variant="body1" 
+                    <Typography
+                        variant="body1"
                         color={variant === 'gradient' ? 'rgba(255,255,255,0.9)' : 'text.secondary'}
                         fontWeight={500}
                         sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}
@@ -150,11 +152,11 @@ const StatsCard = ({
                                 px: 1.5,
                                 py: 0.5,
                                 borderRadius: '12px',
-                                bgcolor: variant === 'gradient' 
-                                    ? 'rgba(255,255,255,0.2)' 
+                                bgcolor: variant === 'gradient'
+                                    ? 'rgba(255,255,255,0.2)'
                                     : alpha('#4CAF50', 0.1),
-                                color: variant === 'gradient' 
-                                    ? 'white' 
+                                color: variant === 'gradient'
+                                    ? 'white'
                                     : '#4CAF50'
                             }}
                         >

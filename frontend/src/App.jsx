@@ -16,17 +16,24 @@ import Footer from './components/Footer';
 import ScrollToTop from "./components/ScrollToTop";
 import ChatbotWidget from './components/ChatbotWidget';
 import LoadingScreen from './components/LoadingScreen';
+// import ChatButton from './components/Chat/ChatButton'; // Disabled as requested
 
 // Contexts
 import { AuthProvider, AuthContext } from './context/AuthContext'; // Import AuthContext để sử dụng useContext
 import { ThemeContextProvider, ThemeContext } from './context/ThemeContext';
+import { ChatProvider } from './context/ChatContext';
 
 // Public Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import EmailVerification from './pages/EmailVerification';
 import CreatePostPage from './pages/CreatePostPage';
 import ProfilePage from './pages/profile/ProfilePage';
+import ChatPage from './pages/ChatPage';
+import AllPosts from './pages/AllPosts';
 
 // Topic/Post Related Pages
 import TopicDetail from './pages/TopicDetail/TopicDetail';
@@ -35,9 +42,13 @@ import EditPostPage from './pages/TopicDetail/EditPostPage';
 import PostList from './pages/TopicDetail/PostList';
 import PostDetailSingleImage from './pages/TopicDetail/PostDetailSingleImage';
 import MembersList from './pages/TopicDetail/MemberList';
+import MembersPageDemo from './components/Demo/MembersPageDemo';
 
 // Test Components
 import BreadcrumbTest from './components/BreadcrumbTest';
+import GoogleOAuthDebug from './components/GoogleOAuthDebug';
+import RealtimeTestPanel from './components/Chat/RealtimeTestPanel';
+import TestTrending from './pages/TestTrending';
 
 // Admin Dashboard Layout
 import AdminDashboard from './layouts/AdminDashboard';
@@ -48,10 +59,12 @@ const App = () => {
     <ThemeContextProvider>
       <GoogleOAuthProvider clientId="990724811150-jdm9kngkj7lfmkjl1pqake1hbhfju9tt.apps.googleusercontent.com">
         <AuthProvider>
-          <Router>
-            <ScrollToTop />
-            <AppContent />
-          </Router>
+          <ChatProvider>
+            <Router>
+              <ScrollToTop />
+              <AppContent />
+            </Router>
+          </ChatProvider>
         </AuthProvider>
       </GoogleOAuthProvider>
     </ThemeContextProvider>
@@ -124,20 +137,29 @@ const AppContent = () => {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<EmailVerification />} />
         <Route path="/CreatePostPage" element={<CreatePostPage />} />
         <Route path="/profile/:userId" element={<ProfilePage />} />
+        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/all-posts" element={<AllPosts />} />
 
         {/* Topic and Post Routes */}
         <Route path="/topic/:topicId" element={<TopicDetail />} />
         <Route path="/PostList" element={<PostList />} />
         <Route path="/PostDetailSingleImage" element={<PostDetailSingleImage />} />
         <Route path="/MembersList" element={<MembersList />} />
+        <Route path="/members-demo" element={<MembersPageDemo />} />
         <Route path="/posts/detail" element={<PostDetail />} />
         <Route path="/post-detail" element={<PostDetail />} />
         <Route path="/edit-post/:postId" element={<EditPostPage />} />
 
         {/* Test Routes */}
         <Route path="/test/breadcrumb" element={<BreadcrumbTest />} />
+        <Route path="/test/google-oauth" element={<GoogleOAuthDebug />} />
+        <Route path="/test/chat-realtime" element={<RealtimeTestPanel />} />
+        <Route path="/test/trending" element={<TestTrending />} />
 
         {/* Admin Dashboard Route */}
         <Route path="/admin/*" element={<AdminDashboard />} />
@@ -151,6 +173,9 @@ const AppContent = () => {
 
       {/* ChatbotWidget sẽ hiển thị trên mọi trang, ngoại trừ các trang admin */}
       {!isAdminRoute && <ChatbotWidget />}
+
+      {/* ChatButton disabled as requested by user */}
+      {/* {!isAdminRoute && <ChatButton />} */}
     </>
   );
 };

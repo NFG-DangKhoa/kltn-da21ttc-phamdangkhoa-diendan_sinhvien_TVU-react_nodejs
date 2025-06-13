@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react'; // Import useContext
-import { Box, Typography, Divider, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { Science, Rocket, Language, AccountBalance, Apps } from '@mui/icons-material';
+import { Box, Typography, Divider, List, ListItem, ListItemIcon, ListItemText, Paper, Avatar, Chip } from '@mui/material';
+import { Science, Rocket, Language, AccountBalance, Apps, Person, Email } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { ThemeContext } from '../../context/ThemeContext'; // Import ThemeContext
@@ -33,77 +33,139 @@ const LeftColumn = ({ user }) => { // Remove darkMode from props
     }, []);
 
     return (
-        <Box
-            sx={{
-                p: 2,
-                backgroundColor: darkMode ? '#242526' : '#f0f2f5', // Use #242526 for background to match Card in dark mode
-                color: darkMode ? '#e4e6eb' : '#1c1e21',
-                borderRadius: 2,
-                maxWidth: 500,
-                height: 'calc(100vh - 64px)',
-                overflowY: 'auto',
-                boxShadow: darkMode ? '0px 0px 5px rgba(255,255,255,0.1)' : '0px 0px 5px rgba(0,0,0,0.1)', // Add consistent shadow
-                transition: 'background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease',
-                border: 'none',
-                textAlign: 'left',
-            }}
-        >
-            <Typography variant="h6" gutterBottom sx={{ color: darkMode ? '#e4e6eb' : '#1c1e21' }}>
-                👤 Thông tin người dùng
-            </Typography>
-            <Typography variant="body1" sx={{ color: darkMode ? '#b0b3b8' : '#65676b' }}>
-                Tên: <strong style={{ color: darkMode ? '#e4e6eb' : '#1c1e21' }}>{user?.fullName || 'Chưa cập nhật'}</strong>
-            </Typography>
-            <Typography variant="body2" sx={{ color: darkMode ? '#b0b3b8' : '#65676b' }}>
-                Email: {user?.email ? `${user.email.slice(0, 15)}${user.email.length > 25 ? '...' : ''}` : 'Chưa đăng nhập'}
-            </Typography>
-
-            <Divider sx={{ my: 2, borderColor: darkMode ? '#3a3b3c' : '#eee' }} />
-
-            <Typography variant="h6" gutterBottom sx={{ color: darkMode ? '#e4e6eb' : '#1c1e21' }}>
-                🔥 Các chủ đề tương tự
-            </Typography>
-            <List>
-                {topics.map((topic, index) => (
-                    <ListItem
-                        key={topic._id}
-                        component={Link}
-                        to={`/topic/${topic._id}`}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            {/* User Info Card - Compact */}
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 2.5,
+                    background: '#ffffff',
+                    borderRadius: 2.5,
+                    border: '1px solid rgba(226, 232, 240, 0.8)',
+                    boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                }}
+            >
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Avatar
                         sx={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            p: 1,
-                            borderRadius: 1,
-                            textDecoration: 'none',
-                            '&:hover': {
-                                backgroundColor: darkMode ? '#3a3b3c' : '#f5f5f5',
-                                cursor: 'pointer',
-                            },
-                            transition: 'background-color 0.3s ease',
+                            width: 40,
+                            height: 40,
+                            mr: 1.5,
+                            background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                            fontSize: '1rem'
                         }}
                     >
-                        <ListItemIcon
+                        {user?.fullName?.charAt(0) || <Person />}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="subtitle2" sx={{
+                            color: '#1e293b',
+                            fontWeight: 600,
+                            mb: 0.5,
+                            fontSize: '0.875rem',
+                            lineHeight: 1.2
+                        }}>
+                            {user?.fullName || 'Khách'}
+                        </Typography>
+                        <Chip
+                            size="small"
+                            label={user?.role === 'admin' ? 'Admin' : user?.role || 'Khách'}
+                            color={user?.role === 'admin' ? 'error' : 'primary'}
                             sx={{
-                                color: darkMode ? '#90caf9' : 'primary.main',
-                                minWidth: 32,
-                            }}
-                        >
-                            {icons[index % icons.length]}
-                        </ListItemIcon>
-                        <ListItemText
-                            primary={topic.name}
-                            primaryTypographyProps={{
-                                color: darkMode ? '#e4e6eb' : 'text.primary',
-                                textAlign: 'left',
-                                '&:hover': {
-                                    textDecoration: 'underline',
-                                    color: darkMode ? '#90caf9' : 'primary.main'
-                                },
+                                fontSize: '0.65rem',
+                                height: 18
                             }}
                         />
-                    </ListItem>
-                ))}
-            </List>
+                    </Box>
+                </Box>
+
+                {user?.email && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', color: '#64748b' }}>
+                        <Email sx={{ fontSize: 14, mr: 1 }} />
+                        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                            {user.email.length > 20 ? `${user.email.slice(0, 17)}...` : user.email}
+                        </Typography>
+                    </Box>
+                )}
+            </Paper>
+
+            {/* Topics Card - Compact */}
+            <Paper
+                elevation={0}
+                sx={{
+                    background: '#ffffff',
+                    borderRadius: 2.5,
+                    border: '1px solid rgba(226, 232, 240, 0.8)',
+                    boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    overflow: 'hidden'
+                }}
+            >
+                <Box sx={{ p: 2.5, pb: 1 }}>
+                    <Typography variant="subtitle1" sx={{
+                        color: '#1e293b',
+                        fontWeight: 600,
+                        mb: 1.5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        fontSize: '0.9rem'
+                    }}>
+                        🔥 Chủ đề nổi bật
+                    </Typography>
+                </Box>
+
+                <List sx={{ pt: 0, pb: 1 }}>
+                    {topics.slice(0, 6).map((topic, index) => (
+                        <ListItem
+                            key={topic._id}
+                            component={Link}
+                            to={`/topic/${topic._id}`}
+                            sx={{
+                                px: 2.5,
+                                py: 1,
+                                textDecoration: 'none',
+                                borderBottom: index < 5 ? '1px solid #f1f5f9' : 'none',
+                                '&:hover': {
+                                    backgroundColor: '#f8fafc',
+                                    '& .topic-icon': {
+                                        transform: 'scale(1.05)',
+                                        color: '#3b82f6'
+                                    },
+                                    '& .topic-name': {
+                                        color: '#3b82f6'
+                                    }
+                                },
+                                transition: 'all 0.2s ease',
+                            }}
+                        >
+                            <ListItemIcon
+                                className="topic-icon"
+                                sx={{
+                                    color: '#64748b',
+                                    minWidth: 28,
+                                    transition: 'all 0.2s ease',
+                                    '& svg': {
+                                        fontSize: '1.1rem'
+                                    }
+                                }}
+                            >
+                                {icons[index % icons.length]}
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={topic.name}
+                                primaryTypographyProps={{
+                                    className: 'topic-name',
+                                    color: '#374151',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 500,
+                                    transition: 'color 0.2s ease',
+                                    lineHeight: 1.3,
+                                    noWrap: true
+                                }}
+                            />
+                        </ListItem>
+                    ))}
+                </List>
+            </Paper>
         </Box>
     );
 };

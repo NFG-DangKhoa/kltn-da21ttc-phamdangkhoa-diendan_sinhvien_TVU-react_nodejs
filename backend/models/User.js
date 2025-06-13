@@ -5,16 +5,28 @@ const userSchema = new mongoose.Schema({
     fullName: String,
     email: { type: String, unique: true },
     password: String,
+    username: { type: String, unique: true, sparse: true },
     phone: String,
     address: String,
-    avatarUrl: { type: String, default: '' }, // ✅ Đảm bảo trường này tồn tại và đúng tên
+    avatarUrl: { type: String, default: '' },
     role: { type: String, enum: ['user', 'editor', 'admin'], default: 'user' },
+
+    // Google OAuth fields
+    googleId: { type: String, unique: true, sparse: true },
+    authProvider: { type: String, enum: ['local', 'google'], default: 'local' },
+    isEmailVerified: { type: Boolean, default: false },
+
+    // Email verification and password reset
+    emailVerificationToken: String,
+    emailVerificationExpires: Date,
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
 
     // Các trường mới cho quản lý tài khoản
     status: {
         type: String,
-        enum: ['active', 'suspended', 'banned'],
-        default: 'active'
+        enum: ['pending', 'active', 'suspended', 'banned'],
+        default: 'pending'
     },
     warnings: [{
         message: String,

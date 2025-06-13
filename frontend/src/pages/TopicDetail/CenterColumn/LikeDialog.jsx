@@ -72,10 +72,12 @@ const LikeDialog = ({ open, onClose, likedUsers, likeCount, darkMode }) => {
                                 }}
                             >
                                 <Avatar
-                                    src={user.profilePicture || `https://via.placeholder.com/40?text=${user.fullName ? user.fullName.charAt(0) : '?'}`}
+                                    src={user.profilePicture}
                                     alt={user.fullName}
                                     sx={{ width: 40, height: 40, mr: 2 }}
-                                />
+                                >
+                                    {user.fullName ? user.fullName.charAt(0) : '?'}
+                                </Avatar>
                                 <ListItemText
                                     primary={
                                         <Typography variant="body1" sx={{ color: darkMode ? '#e4e6eb' : '#1c1e21', fontWeight: 600 }}>

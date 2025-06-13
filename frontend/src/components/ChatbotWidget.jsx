@@ -45,6 +45,7 @@ const ChatbotWidget = () => {
     useEffect(() => {
         let greetingShowTimer;
         let greetingHideTimer;
+        let cycleTimer;
 
         const startGreetingCycle = () => {
             if (!isOpen && messages.length === 0) {
@@ -52,13 +53,19 @@ const ChatbotWidget = () => {
                     setShowGreeting(true);
                     greetingHideTimer = setTimeout(() => {
                         setShowGreeting(false);
-                        setTimeout(startGreetingCycle, 5000);
+                        // Sử dụng cycleTimer thay vì gọi lại startGreetingCycle
+                        cycleTimer = setTimeout(() => {
+                            if (!isOpen && messages.length === 0) {
+                                startGreetingCycle();
+                            }
+                        }, 5000);
                     }, 5000);
                 }, 5000);
             } else {
                 setShowGreeting(false);
                 clearTimeout(greetingShowTimer);
                 clearTimeout(greetingHideTimer);
+                clearTimeout(cycleTimer);
             }
         };
 
@@ -67,6 +74,7 @@ const ChatbotWidget = () => {
         return () => {
             clearTimeout(greetingShowTimer);
             clearTimeout(greetingHideTimer);
+            clearTimeout(cycleTimer);
         };
     }, [isOpen, messages.length]);
 
@@ -210,7 +218,7 @@ const ChatbotWidget = () => {
             position: 'fixed',
             bottom: 16,
             right: 16,
-            zIndex: 1000,
+            zIndex: 1001, // Tăng zIndex để đảm bảo không bị che
         }}>
             {showGreeting && (
                 <Typography

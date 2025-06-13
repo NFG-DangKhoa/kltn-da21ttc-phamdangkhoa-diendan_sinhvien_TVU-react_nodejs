@@ -27,7 +27,7 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-    });    useEffect(() => {
+    }); useEffect(() => {
         const fetchCounts = async () => {
             try {
                 const token = localStorage.getItem('token');
@@ -93,16 +93,58 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                 transition: 'background-color 0.4s ease, box-shadow 0.4s ease',
             }}
         >
-            {/* Ảnh bìa */}
+            {/* Ảnh bìa với gradient overlay */}
             <Box
                 sx={{
-                    height: { xs: 150, sm: 200, md: 250 },
-                    backgroundImage: `url(https://source.unsplash.com/random)`, // Thay bằng userData.coverPhotoUrl nếu có
+                    height: { xs: 180, sm: 220, md: 280 },
+                    background: userData.coverPhotoUrl
+                        ? `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.1)), url(${userData.coverPhotoUrl})`
+                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    backgroundColor: theme.palette.action.disabledBackground,
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    justifyContent: 'center',
+                    '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 100%)',
+                        pointerEvents: 'none'
+                    }
                 }}
-            />
+            >
+                {/* Decorative elements */}
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: 20,
+                        right: 20,
+                        width: 60,
+                        height: 60,
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.1)',
+                        backdropFilter: 'blur(10px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid rgba(255,255,255,0.2)'
+                    }}
+                >
+                    <Box
+                        sx={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: '50%',
+                            background: 'rgba(255,255,255,0.3)',
+                        }}
+                    />
+                </Box>
+            </Box>
 
             {/* Avatar và thông tin */}
             <Box
@@ -116,18 +158,52 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                     zIndex: 1,
                 }}
             >
-                <Avatar
-                    alt={userData.fullName}
-                    src={userData.avatarUrl || '/admin-avatar.png'}
-                    sx={{
-                        width: { xs: 120, sm: 150, md: 180 },
-                        height: { xs: 120, sm: 150, md: 180 },
-                        border: `4px solid ${theme.palette.background.paper}`,
-                        boxShadow: theme.palette.mode === 'dark' ? 'none' : '0px 4px 10px rgba(0,0,0,0.1)',
-                        zIndex: 2,
-                        transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
-                    }}
-                />
+                {/* Avatar với hiệu ứng đẹp */}
+                <Box sx={{ position: 'relative' }}>
+                    <Avatar
+                        alt={userData.fullName}
+                        src={userData.avatarUrl || '/admin-avatar.png'}
+                        sx={{
+                            width: { xs: 140, sm: 160, md: 180 },
+                            height: { xs: 140, sm: 160, md: 180 },
+                            border: `6px solid ${theme.palette.background.paper}`,
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+                            zIndex: 2,
+                            transition: 'all 0.3s ease',
+                            cursor: 'pointer',
+                            '&:hover': {
+                                transform: 'scale(1.05)',
+                                boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
+                            },
+                        }}
+                    />
+                    {/* Online status indicator */}
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            bottom: 12,
+                            right: 12,
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            backgroundColor: '#4CAF50',
+                            border: `4px solid ${theme.palette.background.paper}`,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                            zIndex: 3,
+                            '&::before': {
+                                content: '""',
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                width: '60%',
+                                height: '60%',
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(255,255,255,0.3)',
+                            }
+                        }}
+                    />
+                </Box>
                 <Box
                     sx={{
                         ml: { xs: 0, md: 3 },

@@ -28,10 +28,14 @@ import PersonAdd from '@mui/icons-material/PersonAdd';
 import Home from '@mui/icons-material/Home'; // Thêm icon Home
 import Category from '@mui/icons-material/Category'; // Thêm icon Category
 import Search from '@mui/icons-material/Search'; // Thêm icon Search
+import Chat from '@mui/icons-material/Chat'; // Thêm icon Chat
 
 // Import your custom contexts
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; // Ensure this path is correct
+
+// Import NotificationBell component
+import NotificationBell from './NotificationBell';
 
 // Import logo nếu bạn đặt trong thư mục src/assets (chỉ khi dùng cách này)
 // import logoImage from '../assets/logo.png'; // Điều chỉnh đường dẫn nếu cần
@@ -41,14 +45,7 @@ const Header = () => {
     const { mode, toggleColorMode } = useContext(ThemeContext);
     const navigate = useNavigate();
 
-    // State for notification menu
-    const [anchorElNotifications, setAnchorElNotifications] = useState(null);
-    const handleOpenNotificationsMenu = (event) => {
-        setAnchorElNotifications(event.currentTarget);
-    };
-    const handleCloseNotificationsMenu = () => {
-        setAnchorElNotifications(null);
-    };
+
 
     // State for user menu
     const [anchorElUser, setAnchorElUser] = useState(null);
@@ -164,6 +161,25 @@ const Header = () => {
                     >
                         <Search />
                     </IconButton>
+
+                    {/* Nút Chat (chỉ hiển thị khi đã đăng nhập) */}
+                    {user && (
+                        <Button
+                            color="inherit"
+                            onClick={() => navigate('/chat')}
+                            sx={{
+                                color: 'white',
+                                fontWeight: 'bold',
+                                borderRadius: '8px',
+                                padding: '8px 12px',
+                                transition: 'background-color 0.3s ease',
+                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
+                            }}
+                            startIcon={<Chat />}
+                        >
+                            Chat
+                        </Button>
+                    )}
                 </Box>
 
                 {/* Navbar actions - Phía bên phải */}
@@ -212,49 +228,8 @@ const Header = () => {
                                 </Button>
                             )}
 
-                            {/* Chuông thông báo */}
-                            <Tooltip title="Thông báo">
-                                <IconButton
-                                    color="inherit"
-                                    sx={{ marginRight: 1 }}
-                                    onClick={handleOpenNotificationsMenu}
-                                >
-                                    <Badge badgeContent={3} color="error">
-                                        <Notifications />
-                                    </Badge>
-                                </IconButton>
-                            </Tooltip>
-                            <Menu
-                                sx={{ mt: '45px' }}
-                                id="menu-appbar-notifications"
-                                anchorEl={anchorElNotifications}
-                                anchorOrigin={{
-                                    vertical: 'top',
-                                    horizontal: 'right',
-                                }}
-                                keepMounted
-                                transformOrigin={{
-                                    vertical: 'top',
-                                    horizontal: 'right',
-                                }}
-                                open={Boolean(anchorElNotifications)}
-                                onClose={handleCloseNotificationsMenu}
-                            >
-                                <MenuItem onClick={handleCloseNotificationsMenu}>
-                                    <Typography textAlign="center">Thông báo 1</Typography>
-                                </MenuItem>
-                                <MenuItem onClick={handleCloseNotificationsMenu}>
-                                    <Typography textAlign="center">Thông báo 2</Typography>
-                                </MenuItem>
-                                <MenuItem onClick={handleCloseNotificationsMenu}>
-                                    <Typography textAlign="center">Thông báo 3</Typography>
-                                </MenuItem>
-                                <MenuItem onClick={handleCloseNotificationsMenu}>
-                                    <Typography textAlign="center" sx={{ color: (theme) => theme.palette.primary.main }}>
-                                        Xem tất cả
-                                    </Typography>
-                                </MenuItem>
-                            </Menu>
+                            {/* Real-time Notification Bell */}
+                            <NotificationBell />
 
                             {/* Nút cài đặt và thông tin người dùng */}
                             <Box sx={{ flexGrow: 0 }}>
@@ -296,8 +271,8 @@ const Header = () => {
                                 >
                                     {/* Thay đổi dòng này để điều hướng đến trang ProfilePage với userId */}
                                     <MenuItem onClick={() => {
-                                        if (user && user.id) {
-                                            navigate(`/profile/${user.id}`);
+                                        if (user && user._id) {
+                                            navigate(`/profile/${user._id}`);
                                         } else {
                                             navigate('/profile/default');
                                         }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useContext, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Box,
     Container,
@@ -70,6 +71,15 @@ const Home = () => {
     const [posts, setPosts] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({
+        userCount: 0,
+        postCount: 0,
+        topicCount: 0,
+        todayActivity: 0
+    });
+    const [featuredPosts, setFeaturedPosts] = useState([]);
+    const [featuredLoading, setFeaturedLoading] = useState(false);
+    const [trendingTopicsData, setTrendingTopicsData] = useState([]);
     const [visibleSections, setVisibleSections] = useState({
         hero: false,
         stats: false,
@@ -81,22 +91,163 @@ const Home = () => {
     const theme = useTheme();
     const { mode } = useContext(ThemeContext);
     const isDarkMode = mode === 'dark';
+    const navigate = useNavigate();
+
+    // Navigation handlers for stats
+    const handleStatsClick = (statLabel) => {
+        switch (statLabel) {
+            case 'Thành viên':
+                navigate('/MembersList');
+                break;
+            case 'Bài viết':
+                navigate('/all-posts');
+                break;
+            case 'Chủ đề':
+                // Scroll to trending topics section
+                const trendingSection = document.getElementById('trending-topics-section');
+                if (trendingSection) {
+                    trendingSection.scrollIntoView({ behavior: 'smooth' });
+                }
+                break;
+            case 'Hoạt động hôm nay':
+                // Navigate to first available topic detail page
+                if (topics.length > 0) {
+                    navigate(`/topic/${topics[0]._id}`);
+                } else {
+                    navigate('/');
+                }
+                break;
+            default:
+                break;
+        }
+    };
+
+    // Navigation handlers - Using correct URL patterns from App.jsx routes
+    const handlePostClick = (post) => {
+        console.log('🎯 Featured Post clicked:', post);
+
+        // Try multiple ways to extract topicId
+        const topicId = post.topicInfo?._id ||
+            post.topic?._id ||
+            post.topicId?._id ||
+            post.topicId ||
+            post.topic_id ||
+            post.topic;
+
+        // Try multiple ways to extract postId
+        const postId = post._id || post.id || post.postId;
+
+        console.log('🔍 Extracted IDs:', { topicId, postId });
+        console.log('🔍 Post structure debug:', {
+            topicInfo: post.topicInfo,
+            topic: post.topic,
+            topicId: post.topicId,
+            topic_id: post.topic_id,
+            _id: post._id,
+            id: post.id
+        });
+
+        if (topicId && postId) {
+            const url = `/post-detail?topicId=${topicId}&postId=${postId}`;
+            console.log('🚀 Navigating to:', url);
+            navigate(url);
+        } else {
+            console.error('❌ Missing topicId or postId:', { topicId, postId, post });
+        }
+    };
+
+    const handleTopicClick = (topic) => {
+        const topicId = topic._id || topic.id;
+        if (topicId) {
+            // Use /topic/:topicId route (matches TopicCard pattern and App.jsx)
+            navigate(`/topic/${topicId}`);
+        }
+    };
+
+    // Function to refresh featured posts only
+    const refreshFeaturedPosts = async () => {
+        try {
+            setFeaturedLoading(true);
+            console.log('Refreshing featured posts...');
+            const featuredRes = await axios.get(`http://localhost:5000/api/home/featured-posts?limit=10&t=${Date.now()}`);
+            if (featuredRes.data.success) {
+                console.log('Featured posts refreshed:', featuredRes.data.data.length);
+                setFeaturedPosts(featuredRes.data.data);
+            } else {
+                console.log('Featured posts API failed during refresh');
+                setFeaturedPosts([]);
+            }
+        } catch (error) {
+            console.log('Featured posts API error during refresh:', error.message);
+            setFeaturedPosts([]);
+        } finally {
+            setFeaturedLoading(false);
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setLoading(true);
 
-                // Fetch topics
-                const topicsRes = await axios.get('http://localhost:5000/api/topics/all');
-                setTopics(topicsRes.data);
-
-                // Fetch recent posts (if API exists)
+                // Fetch home statistics
                 try {
-                    const postsRes = await axios.get('http://localhost:5000/api/posts/recent?limit=6');
-                    setPosts(postsRes.data);
+                    const statsRes = await axios.get('http://localhost:5000/api/home/stats');
+                    if (statsRes.data.success) {
+                        setStats(statsRes.data.data);
+                    }
                 } catch (error) {
-                    console.log('Posts API not available, using mock data');
+                    console.log('Stats API not available, using default values');
+                }
+
+                // Fetch featured posts
+                try {
+                    const featuredRes = await axios.get(`http://localhost:5000/api/home/featured-posts?limit=10&t=${Date.now()}`);
+                    if (featuredRes.data.success) {
+                        console.log('Featured posts loaded:', featuredRes.data.data.length);
+                        console.log('🔍 Featured posts structure:', featuredRes.data.data[0]); // Debug first post structure
+                        setFeaturedPosts(featuredRes.data.data);
+                    } else {
+                        console.log('Featured posts API failed, showing empty');
+                        setFeaturedPosts([]); // Don't show mock data if API fails
+                    }
+                } catch (error) {
+                    console.log('Featured posts API error:', error.message);
+                    setFeaturedPosts([]); // Don't show mock data if API fails
+                }
+
+                // Fetch trending topics
+                try {
+                    const trendingRes = await axios.get('http://localhost:5000/api/home/trending-topics?limit=8');
+                    if (trendingRes.data.success) {
+                        console.log('Trending topics from API:', trendingRes.data.data);
+                        setTrendingTopicsData(trendingRes.data.data);
+                    } else {
+                        setTrendingTopicsData(trendingTopics);
+                    }
+                } catch (error) {
+                    console.log('Trending topics API not available, using mock data');
+                    setTrendingTopicsData(trendingTopics);
+                }
+
+                // Fetch all topics for search
+                try {
+                    const topicsRes = await axios.get('http://localhost:5000/api/topics/all');
+                    setTopics(topicsRes.data);
+                } catch (error) {
+                    console.log('Topics API not available');
+                }
+
+                // Fetch recent posts for backward compatibility
+                try {
+                    const postsRes = await axios.get('http://localhost:5000/api/home/recent-posts?limit=6');
+                    if (postsRes.data.success) {
+                        setPosts(postsRes.data.data);
+                    } else {
+                        setPosts(mockPosts);
+                    }
+                } catch (error) {
+                    console.log('Recent posts API not available, using mock data');
                     setPosts(mockPosts);
                 }
 
@@ -208,16 +359,13 @@ const Home = () => {
         { id: 5, name: 'Thắc mắc & Giải đáp', postCount: 55, growth: '+5%', icon: <FireIcon />, color: '#F44336' }
     ];
 
-    const forumStats = [
-        { label: 'Thành viên', value: '2,847', icon: <PeopleIcon />, color: '#2196F3' },
-        { label: 'Bài viết', value: '1,234', icon: <ForumIcon />, color: '#4CAF50' },
-        { label: 'Chủ đề', value: '156', icon: <SchoolIcon />, color: '#FF9800' },
-        { label: 'Hoạt động hôm nay', value: '89', icon: <TrendingUpIcon />, color: '#9C27B0' }
-    ];
 
-    const filteredTopics = topics.filter((topic) =>
-        topic.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+
+    // Helper functions - defined before use
+    const formatNumber = (num) => {
+        if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
+        return num.toString();
+    };
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -230,10 +378,37 @@ const Home = () => {
         return date.toLocaleDateString('vi-VN');
     };
 
-    const formatNumber = (num) => {
-        if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
-        return num.toString();
-    };
+    const filteredTopics = topics.filter((topic) =>
+        topic.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Dynamic forum stats using real data
+    const forumStats = [
+        {
+            label: 'Thành viên',
+            value: formatNumber(stats.userCount),
+            icon: <PeopleIcon />,
+            color: '#2196F3'
+        },
+        {
+            label: 'Bài viết',
+            value: formatNumber(stats.postCount),
+            icon: <ForumIcon />,
+            color: '#4CAF50'
+        },
+        {
+            label: 'Chủ đề',
+            value: formatNumber(stats.topicCount),
+            icon: <SchoolIcon />,
+            color: '#FF9800'
+        },
+        {
+            label: 'Hoạt động hôm nay',
+            value: formatNumber(stats.todayActivity),
+            icon: <TrendingUpIcon />,
+            color: '#9C27B0'
+        }
+    ];
 
     if (loading) {
         return (
@@ -275,7 +450,7 @@ const Home = () => {
                         background: mode === "dark" ? "#23272f" : "#fff"
                     }}>
                         <Typography variant="subtitle1" fontWeight="bold">{post.title}</Typography>
-                        <Typography variant="caption" color="text.secondary">{post.author.fullName} • {new Date(post.createdAt).toLocaleDateString()}</Typography>
+                        <Typography variant="caption" color="text.secondary">{post.author?.fullName || post.authorId?.fullName || 'Ẩn danh'} • {new Date(post.createdAt).toLocaleDateString()}</Typography>
                         <Typography variant="body2" sx={{ mt: 1 }}>{post.excerpt}</Typography>
                     </Box>
                 </Grid>
@@ -296,14 +471,15 @@ const Home = () => {
                 {/* Forum Stats */}
                 <Container maxWidth="lg" sx={{ py: 6 }}>
                     <Fade in={visibleSections.stats} timeout={1000}>
-                        <Grid container spacing={3}>
+                        <Grid container spacing={3} justifyContent="center">
                             {forumStats.map((stat, index) => (
-                                <Grid item xs={6} md={3} key={stat.label}>
+                                <Grid item xs={6} sm={6} md={3} key={stat.label}>
                                     <StatsCard
                                         stat={stat}
                                         index={index}
                                         visible={visibleSections.stats}
                                         variant="gradient"
+                                        onClick={() => handleStatsClick(stat.label)}
                                     />
                                 </Grid>
                             ))}
@@ -329,49 +505,108 @@ const Home = () => {
                                 variant="body1"
                                 textAlign="center"
                                 color="text.secondary"
-                                mb={5}
+                                mb={3}
                                 maxWidth="600px"
                                 mx="auto"
                             >
                                 Khám phá những bài viết được quan tâm nhất từ cộng đồng sinh viên TVU
                             </Typography>
 
-                            <Grid container spacing={4}>
-                                {posts.slice(0, 6).map((post, index) => (
-                                    <Grid item xs={12} md={6} lg={4} key={post.id}>
-                                        <Zoom in={visibleSections.featured} timeout={600 + index * 100}>
+                            {/* Debug refresh button */}
+                            <Box textAlign="center" mb={3}>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={refreshFeaturedPosts}
+                                    disabled={featuredLoading}
+                                    sx={{ fontSize: '0.8rem' }}
+                                >
+                                    {featuredLoading ? '⏳ Loading...' : '🔄 Refresh Featured Posts'}
+                                </Button>
+                            </Box>
+
+                            {featuredPosts.length > 0 ? (
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        gap: 3,
+                                        overflowX: 'auto',
+                                        pb: 2,
+                                        justifyContent: featuredPosts.length <= 3 ? 'center' : 'flex-start',
+                                        '&::-webkit-scrollbar': {
+                                            height: 8,
+                                        },
+                                        '&::-webkit-scrollbar-track': {
+                                            backgroundColor: 'rgba(0,0,0,0.1)',
+                                            borderRadius: 4,
+                                        },
+                                        '&::-webkit-scrollbar-thumb': {
+                                            backgroundColor: 'primary.main',
+                                            borderRadius: 4,
+                                            '&:hover': {
+                                                backgroundColor: 'primary.dark',
+                                            },
+                                        },
+                                    }}
+                                >
+                                    {featuredPosts.map((post, index) => (
+                                        <Zoom in={visibleSections.featured} timeout={600 + index * 100} key={post._id || post.id}>
                                             <Card
                                                 sx={{
-                                                    height: '100%',
+                                                    minWidth: 350,
+                                                    maxWidth: 350,
+                                                    height: 'auto',
                                                     display: 'flex',
                                                     flexDirection: 'column',
                                                     borderRadius: 3,
                                                     overflow: 'hidden',
                                                     transition: 'all 0.3s ease',
+                                                    flexShrink: 0,
+                                                    cursor: 'pointer',
                                                     '&:hover': {
                                                         transform: 'translateY(-8px)',
                                                         boxShadow: theme.shadows[20]
                                                     }
                                                 }}
+                                                onClick={() => handlePostClick(post)}
                                             >
-                                                <CardMedia
-                                                    component="img"
-                                                    height="200"
-                                                    image={post.image}
-                                                    alt={post.title}
-                                                    sx={{
-                                                        transition: 'transform 0.3s ease',
-                                                        '&:hover': { transform: 'scale(1.05)' }
-                                                    }}
-                                                />
+                                                {(post.thumbnailImage || post.images?.[0] || post.image) && (
+                                                    <CardMedia
+                                                        component="img"
+                                                        height="180"
+                                                        image={post.thumbnailImage || post.images?.[0] || post.image}
+                                                        alt={post.title}
+                                                        sx={{
+                                                            objectFit: 'cover',
+                                                            transition: 'transform 0.3s ease',
+                                                            '&:hover': { transform: 'scale(1.05)' }
+                                                        }}
+                                                    />
+                                                )}
+                                                {!(post.thumbnailImage || post.images?.[0] || post.image) && (
+                                                    <Box
+                                                        sx={{
+                                                            height: 180,
+                                                            bgcolor: 'grey.200',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            color: 'grey.500'
+                                                        }}
+                                                    >
+                                                        <Typography variant="body2">
+                                                            Không có ảnh
+                                                        </Typography>
+                                                    </Box>
+                                                )}
                                                 <CardContent sx={{ flexGrow: 1, p: 3 }}>
                                                     <Box sx={{ mb: 2 }}>
                                                         <Chip
-                                                            label={post.topic.name}
+                                                            label={post.topicInfo?.name || post.topic?.name || post.topicId?.name || 'Chưa phân loại'}
                                                             size="small"
                                                             sx={{
-                                                                bgcolor: alpha(post.topic.color, 0.1),
-                                                                color: post.topic.color,
+                                                                bgcolor: alpha(post.topicInfo?.color || post.topic?.color || post.topicId?.color || '#2196F3', 0.1),
+                                                                color: post.topicInfo?.color || post.topic?.color || post.topicId?.color || '#2196F3',
                                                                 fontWeight: 600
                                                             }}
                                                         />
@@ -408,12 +643,14 @@ const Home = () => {
 
                                                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                                                         <Avatar
-                                                            src={post.author.avatarUrl}
+                                                            src={post.authorInfo?.avatarUrl || post.author?.avatarUrl || post.authorId?.avatarUrl}
                                                             sx={{ width: 32, height: 32, mr: 1 }}
-                                                        />
+                                                        >
+                                                            {(post.authorInfo?.fullName || post.author?.fullName || post.authorId?.fullName || 'A').charAt(0)}
+                                                        </Avatar>
                                                         <Box sx={{ flexGrow: 1 }}>
                                                             <Typography variant="body2" fontWeight="medium">
-                                                                {post.author.fullName}
+                                                                {post.authorInfo?.fullName || post.author?.fullName || post.authorId?.fullName || 'Ẩn danh'}
                                                             </Typography>
                                                             <Typography variant="caption" color="text.secondary">
                                                                 {formatDate(post.createdAt)}
@@ -425,34 +662,64 @@ const Home = () => {
                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                                             <VisibilityIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                                                             <Typography variant="caption" color="text.secondary">
-                                                                {formatNumber(post.views)}
+                                                                {formatNumber(post.views || 0)}
                                                             </Typography>
                                                         </Box>
                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                                             <CommentIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                                                             <Typography variant="caption" color="text.secondary">
-                                                                {post.comments}
+                                                                {post.commentCount || post.comments || 0}
                                                             </Typography>
                                                         </Box>
                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                                             <FavoriteIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                                                             <Typography variant="caption" color="text.secondary">
-                                                                {post.likes}
+                                                                {post.likeCount || post.likes || 0}
                                                             </Typography>
                                                         </Box>
+                                                        {post.featured && (
+                                                            <Chip
+                                                                label="⭐ Nổi bật"
+                                                                size="small"
+                                                                sx={{
+                                                                    bgcolor: alpha('#FFD700', 0.1),
+                                                                    color: '#FF8F00',
+                                                                    fontWeight: 600,
+                                                                    fontSize: '0.7rem'
+                                                                }}
+                                                            />
+                                                        )}
                                                     </Box>
                                                 </CardContent>
                                             </Card>
                                         </Zoom>
-                                    </Grid>
-                                ))}
-                            </Grid>
+                                    ))}
+                                </Box>
+                            ) : (
+                                <Box
+                                    sx={{
+                                        textAlign: 'center',
+                                        py: 8,
+                                        bgcolor: 'grey.50',
+                                        borderRadius: 3,
+                                        border: '2px dashed',
+                                        borderColor: 'grey.300'
+                                    }}
+                                >
+                                    <Typography variant="h6" color="text.secondary" mb={1}>
+                                        Chưa có bài viết nổi bật
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Admin chưa đánh dấu bài viết nào là nổi bật
+                                    </Typography>
+                                </Box>
+                            )}
                         </Box>
                     </Fade>
                 </Container>
 
                 {/* Trending Topics */}
-                <Box sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02), py: 6 }}>
+                <Box id="trending-topics-section" sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02), py: 6 }}>
                     <Container maxWidth="lg">
                         <Fade in={visibleSections.trending} timeout={1000}>
                             <Box>
@@ -477,9 +744,9 @@ const Home = () => {
                                     Những chủ đề được quan tâm và thảo luận nhiều nhất trong tuần
                                 </Typography>
 
-                                <Grid container spacing={3}>
-                                    {trendingTopics.map((topic, index) => (
-                                        <Grid item xs={12} sm={6} md={4} lg={2.4} key={topic.id}>
+                                <Grid container spacing={3} justifyContent="center">
+                                    {trendingTopicsData.map((topic, index) => (
+                                        <Grid item xs={12} sm={6} md={4} lg={2.4} key={topic._id || topic.id}>
                                             <Zoom in={visibleSections.trending} timeout={600 + index * 100}>
                                                 <Paper
                                                     elevation={0}
@@ -487,48 +754,69 @@ const Home = () => {
                                                         p: 3,
                                                         textAlign: 'center',
                                                         borderRadius: 3,
-                                                        border: `2px solid ${alpha(topic.color, 0.2)}`,
-                                                        bgcolor: alpha(topic.color, 0.05),
+                                                        border: `2px solid ${alpha(topic.color || '#2196F3', 0.2)}`,
+                                                        bgcolor: alpha(topic.color || '#2196F3', 0.05),
                                                         transition: 'all 0.3s ease',
                                                         cursor: 'pointer',
                                                         '&:hover': {
                                                             transform: 'translateY(-8px)',
-                                                            boxShadow: `0 12px 40px ${alpha(topic.color, 0.3)}`,
-                                                            bgcolor: alpha(topic.color, 0.1)
+                                                            boxShadow: `0 12px 40px ${alpha(topic.color || '#2196F3', 0.3)}`,
+                                                            bgcolor: alpha(topic.color || '#2196F3', 0.1)
                                                         }
                                                     }}
+                                                    onClick={() => handleTopicClick(topic)}
                                                 >
                                                     <Box
                                                         sx={{
                                                             width: 60,
                                                             height: 60,
                                                             borderRadius: '50%',
-                                                            bgcolor: topic.color,
+                                                            bgcolor: topic.color || '#2196F3',
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
                                                             mx: 'auto',
                                                             mb: 2,
-                                                            color: 'white'
+                                                            color: 'white',
+                                                            fontSize: '1.5rem'
                                                         }}
                                                     >
-                                                        {topic.icon}
+                                                        {topic.icon || (topic.category === 'academic' ? '📚' :
+                                                            topic.category === 'social' ? '👥' :
+                                                                topic.category === 'career' ? '💼' :
+                                                                    topic.category === 'event' ? '🎉' : '💬')}
                                                     </Box>
                                                     <Typography variant="h6" fontWeight="bold" mb={1}>
                                                         {topic.name}
                                                     </Typography>
                                                     <Typography variant="body2" color="text.secondary" mb={1}>
-                                                        {topic.postCount} bài viết
+                                                        {topic.postCount || 0} bài viết
                                                     </Typography>
-                                                    <Chip
-                                                        label={topic.growth}
-                                                        size="small"
-                                                        sx={{
-                                                            bgcolor: alpha('#4CAF50', 0.1),
-                                                            color: '#4CAF50',
-                                                            fontWeight: 600
-                                                        }}
-                                                    />
+                                                    {topic.trending && (
+                                                        <Chip
+                                                            label="🔥 Thịnh hành"
+                                                            size="small"
+                                                            sx={{
+                                                                bgcolor: alpha('#FF5722', 0.1),
+                                                                color: '#FF5722',
+                                                                fontWeight: 600,
+                                                                mb: 1
+                                                            }}
+                                                        />
+                                                    )}
+                                                    {topic.recentPostCount > 0 && (
+                                                        <Chip
+                                                            label={`+${topic.recentPostCount} tuần này`}
+                                                            size="small"
+                                                            sx={{
+                                                                bgcolor: alpha('#4CAF50', 0.1),
+                                                                color: '#4CAF50',
+                                                                fontWeight: 600,
+                                                                ml: topic.trending ? 1 : 0,
+                                                                mt: topic.trending ? 1 : 0
+                                                            }}
+                                                        />
+                                                    )}
                                                 </Paper>
                                             </Zoom>
                                         </Grid>
@@ -596,14 +884,16 @@ const Home = () => {
                                 />
                             </Box>
 
-                            <TopicGrid
-                                topics={filteredTopics}
-                                isDarkMode={isDarkMode}
-                                visible={visibleSections.topics}
-                                variant="compact"
-                                maxItems={8}
-                                columns={{ xs: 6, sm: 4, md: 3, lg: 3 }}
-                            />
+                            <Box display="flex" justifyContent="center">
+                                <TopicGrid
+                                    topics={filteredTopics}
+                                    isDarkMode={isDarkMode}
+                                    visible={visibleSections.topics}
+                                    variant="compact"
+                                    maxItems={8}
+                                    columns={{ xs: 6, sm: 4, md: 3, lg: 3 }}
+                                />
+                            </Box>
                         </Box>
                     </Fade>
                 </Container>
@@ -633,11 +923,13 @@ const Home = () => {
                                 Duyệt qua tất cả chủ đề với giao diện chi tiết và đầy đủ thông tin
                             </Typography>
 
-                            <ThreeColumnLayout
-                                filteredTopics={filteredTopics}
-                                trendingTopics={trendingTopics}
-                                isDarkMode={isDarkMode}
-                            />
+                            <Box display="flex" justifyContent="center">
+                                <ThreeColumnLayout
+                                    filteredTopics={filteredTopics}
+                                    trendingTopics={trendingTopics}
+                                    isDarkMode={isDarkMode}
+                                />
+                            </Box>
                         </Box>
                     </Fade>
                 </Container>
@@ -679,8 +971,8 @@ const Home = () => {
                                 </Typography>
 
                                 {/* University Stats */}
-                                <Grid container spacing={4} mb={6}>
-                                    <Grid item xs={6} md={3}>
+                                <Grid container spacing={4} mb={6} justifyContent="center">
+                                    <Grid item xs={6} sm={6} md={3}>
                                         <Paper
                                             elevation={0}
                                             sx={{
@@ -705,7 +997,7 @@ const Home = () => {
                                             </Typography>
                                         </Paper>
                                     </Grid>
-                                    <Grid item xs={6} md={3}>
+                                    <Grid item xs={6} sm={6} md={3}>
                                         <Paper
                                             elevation={0}
                                             sx={{
@@ -730,7 +1022,7 @@ const Home = () => {
                                             </Typography>
                                         </Paper>
                                     </Grid>
-                                    <Grid item xs={6} md={3}>
+                                    <Grid item xs={6} sm={6} md={3}>
                                         <Paper
                                             elevation={0}
                                             sx={{
@@ -755,7 +1047,7 @@ const Home = () => {
                                             </Typography>
                                         </Paper>
                                     </Grid>
-                                    <Grid item xs={6} md={3}>
+                                    <Grid item xs={6} sm={6} md={3}>
                                         <Paper
                                             elevation={0}
                                             sx={{
@@ -783,7 +1075,7 @@ const Home = () => {
                                 </Grid>
 
                                 {/* University Details */}
-                                <Grid container spacing={4}>
+                                <Grid container spacing={4} justifyContent="center">
                                     {/* Contact Information */}
                                     <Grid item xs={12} md={6}>
                                         <Card
@@ -945,7 +1237,7 @@ const Home = () => {
                                         Đánh giá từ sinh viên
                                     </Typography>
 
-                                    <Grid container spacing={3}>
+                                    <Grid container spacing={3} justifyContent="center">
                                         <Grid item xs={12} md={4}>
                                             <Card
                                                 sx={{
@@ -1066,7 +1358,7 @@ const Home = () => {
                     </Container>
                 </Box>
             </Box>
-        </Box>
+        </Box >
     );
 };
 

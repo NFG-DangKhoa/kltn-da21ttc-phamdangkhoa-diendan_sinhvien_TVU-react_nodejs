@@ -110,6 +110,12 @@ const topicSchema = new mongoose.Schema({
     requireApproval: {
         type: Boolean,
         default: false
+    },
+
+    // Đánh dấu chủ đề thịnh hành
+    trending: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

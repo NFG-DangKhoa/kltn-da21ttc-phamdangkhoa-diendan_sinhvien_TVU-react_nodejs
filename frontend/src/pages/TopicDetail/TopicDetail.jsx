@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { Grid, Box, Typography, useTheme, CircularProgress } from '@mui/material';
+import { Grid, Box, Typography, useTheme, CircularProgress, Container, GlobalStyles } from '@mui/material';
 import { useParams, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
@@ -133,62 +133,156 @@ const TopicDetail = () => {
     }
 
     return (
-        <Box
-            sx={{
-                flexGrow: 1,
-                minHeight: '100vh',
-                fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-                backgroundColor: theme.palette.background.default,
-                transition: 'background-color 0.4s ease',
-            }}
-        >
-            {/* Global Breadcrumb Navigation */}
-            <BreadcrumbNavigation
-                topicName={topic?.name}
-                darkMode={theme.palette.mode === 'dark'}
+        <>
+            <GlobalStyles
+                styles={{
+                    body: {
+                        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+                        minHeight: '100vh'
+                    }
+                }}
             />
+            <Box
+                sx={{
+                    flexGrow: 1,
+                    minHeight: '100vh',
+                    fontFamily: "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+                    position: 'relative',
+                    '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundImage: `
+                            radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
+                            radial-gradient(circle at 75% 75%, rgba(139, 92, 246, 0.03) 0%, transparent 50%)
+                        `,
+                        zIndex: 0
+                    }
+                }}
+            >
+                {/* Global Breadcrumb Navigation */}
+                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                    <BreadcrumbNavigation
+                        topicName={topic?.name}
+                        darkMode={theme.palette.mode === 'dark'}
+                    />
+                </Box>
 
-            <Box sx={{ p: 2 }}>
-
-                <Grid
-                    container
-                    spacing={2}
+                {/* Main Content Container */}
+                <Box
                     sx={{
-                        // Đảm bảo Grid container không bị tràn hoặc gây ra vấn đề với các cột
-                        width: 'calc(100% - 32px)', // Trừ đi padding của Box cha (2 * 16px)
-                        ml: '16px', // Bù lại padding trái
-                        mr: '16px', // Bù lại padding phải
-                        // Thêm thuộc tính flex container để kiểm soát tốt hơn các item
-                        display: 'flex',
-                        flexWrap: 'nowrap', // Ngăn các cột xuống dòng nếu không gian bị hạn chế
+                        py: 3,
+                        px: { xs: 1, sm: 2, md: 3 },
+                        position: 'relative',
+                        zIndex: 1,
+                        maxWidth: '1600px',
+                        mx: 'auto'
                     }}
                 >
-                    <Grid item xs={12} md={3}>
-                        <LeftColumn user={user} />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        <CenterColumn
-                            user={user}
-                            topic={topic}
-                            topicId={topicId}
-                            newPost={newPost}
-                            setNewPost={setNewPost}
-                            handlePostSubmit={handlePostSubmit}
-                            detailedPosts={detailedPosts}
-                            setDetailedPosts={setDetailedPosts}
-                            showComments={showComments}
-                            toggleComments={toggleComments}
-                            showReplies={showReplies}
-                            toggleReplies={toggleReplies}
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={3}>
-                        {/* Grid item này không cần ml: 10 nữa vì RightColumn đã có ml: 10 */}
-                        <RightColumn />
-                    </Grid>
-                </Grid>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            gap: { xs: 2, md: 3 },
+                            alignItems: 'flex-start',
+                            minHeight: '100vh'
+                        }}
+                    >
+                        {/* Left Column - User Info & Navigation */}
+                        <Box
+                            sx={{
+                                width: { xs: '100%', lg: '280px', xl: '300px' },
+                                flexShrink: 0,
+                                display: { xs: 'none', lg: 'block' },
+                                position: 'sticky',
+                                top: 80,
+                                alignSelf: 'flex-start',
+                                maxHeight: 'calc(100vh - 100px)',
+                                overflowY: 'auto',
+                                '&::-webkit-scrollbar': {
+                                    width: '4px'
+                                },
+                                '&::-webkit-scrollbar-track': {
+                                    background: 'transparent'
+                                },
+                                '&::-webkit-scrollbar-thumb': {
+                                    background: 'rgba(0,0,0,0.1)',
+                                    borderRadius: '2px'
+                                }
+                            }}
+                        >
+                            <LeftColumn user={user} />
+                        </Box>
+
+                        {/* Center Column - Main Content */}
+                        <Box
+                            sx={{
+                                flex: 1,
+                                minWidth: 0, // Important for flex item to shrink
+                                maxWidth: {
+                                    xs: '100%',
+                                    md: '100%',
+                                    lg: 'calc(100% - 580px)',
+                                    xl: 'calc(100% - 620px)'
+                                }
+                            }}
+                        >
+                            <Box sx={{
+                                background: '#ffffff',
+                                borderRadius: { xs: 2, md: 2.5 },
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                overflow: 'hidden'
+                            }}>
+                                <CenterColumn
+                                    user={user}
+                                    topic={topic}
+                                    topicId={topicId}
+                                    newPost={newPost}
+                                    setNewPost={setNewPost}
+                                    handlePostSubmit={handlePostSubmit}
+                                    detailedPosts={detailedPosts}
+                                    setDetailedPosts={setDetailedPosts}
+                                    showComments={showComments}
+                                    toggleComments={toggleComments}
+                                    showReplies={showReplies}
+                                    toggleReplies={toggleReplies}
+                                />
+                            </Box>
+                        </Box>
+
+                        {/* Right Column - Sidebar Info */}
+                        <Box
+                            sx={{
+                                width: { xs: '100%', lg: '260px', xl: '280px' },
+                                flexShrink: 0,
+                                display: { xs: 'none', lg: 'block' },
+                                position: 'sticky',
+                                top: 80,
+                                alignSelf: 'flex-start',
+                                maxHeight: 'calc(100vh - 100px)',
+                                overflowY: 'auto',
+                                '&::-webkit-scrollbar': {
+                                    width: '4px'
+                                },
+                                '&::-webkit-scrollbar-track': {
+                                    background: 'transparent'
+                                },
+                                '&::-webkit-scrollbar-thumb': {
+                                    background: 'rgba(0,0,0,0.1)',
+                                    borderRadius: '2px'
+                                }
+                            }}
+                        >
+                            <RightColumn />
+                        </Box>
+                    </Box>
+                </Box>
             </Box>
-        </Box>
+        </>
     );
 };
 

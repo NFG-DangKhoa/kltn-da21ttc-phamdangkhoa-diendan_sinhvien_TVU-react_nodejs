@@ -6,6 +6,7 @@ const Like = require('../models/Like');
 const Image = require('../models/Image');
 const fs = require('fs'); // Để tương tác với hệ thống tệp
 const path = require('path'); // Để xử lý đường dẫn tệp
+const { getPostThumbnail } = require('../utils/imageExtractor');
 
 // Thêm biến io để sử dụng Socket.IO
 let io;
@@ -36,20 +37,73 @@ exports.getPosts = async (req, res) => {
     }
 };
 
-// Lấy bài viết theo topic
-exports.getPostsByTopic = async (req, res) => {
+// Lấy bài viết gần đây
+exports.getRecentPosts = async (req, res) => {
     try {
-        const topicId = req.params.topicId;
-        const posts = await Post.find({ topic: topicId })
-            .populate('author', 'username fullName avatarUrl')
-            .sort({ createdAt: -1 });
+        const limit = parseInt(req.query.limit) || 6;
 
-        res.status(200).json(posts);
+        const posts = await Post.find()
+            .populate('authorId', 'fullName')
+            .populate('topicId', 'name')
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .lean();
+
+        // Mock data nếu không có posts trong database
+        if (!posts || posts.length === 0) {
+            const mockPosts = [
+                {
+                    _id: '1',
+                    title: 'Hướng dẫn học React cho người mới bắt đầu',
+                    content: 'React là một thư viện JavaScript phổ biến...',
+                    authorId: { fullName: 'Nguyễn Văn A' },
+                    topicId: { name: 'Lập trình' },
+                    createdAt: new Date(),
+                    likeCount: 15,
+                    commentCount: 8
+                },
+                {
+                    _id: '2',
+                    title: 'Tips học tập hiệu quả cho sinh viên',
+                    content: 'Những phương pháp học tập được chứng minh...',
+                    authorId: { fullName: 'Trần Thị B' },
+                    topicId: { name: 'Học tập' },
+                    createdAt: new Date(),
+                    likeCount: 23,
+                    commentCount: 12
+                }
+            ];
+            return res.status(200).json(mockPosts);
+        }
+
+        // Add thumbnail image to each post
+        const postsWithThumbnails = posts.map(post => ({
+            ...post,
+            thumbnailImage: getPostThumbnail(post),
+            excerpt: post.content ? post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...' : ''
+        }));
+
+        res.status(200).json(postsWithThumbnails);
     } catch (error) {
-        console.error("Lỗi khi lấy bài viết theo topic:", error);
-        res.status(500).json({ message: "Không thể lấy bài viết từ topic" });
+        console.error("Lỗi khi lấy bài viết gần đây:", error);
+        res.status(500).json({ message: "Không thể lấy bài viết gần đây" });
     }
 };
+
+// Lấy bài viết theo topic (deprecated - use getPostsByTopicWithDetails)
+// exports.getPostsByTopic = async (req, res) => {
+//     try {
+//         const topicId = req.params.topicId;
+//         const posts = await Post.find({ topic: topicId })
+//             .populate('author', 'username fullName avatarUrl')
+//             .sort({ createdAt: -1 });
+
+//         res.status(200).json(posts);
+//     } catch (error) {
+//         console.error("Lỗi khi lấy bài viết theo topic:", error);
+//         res.status(500).json({ message: "Không thể lấy bài viết từ topic" });
+//     }
+// };
 
 // Lấy bài viết theo topic id
 exports.getPostsByTopicWithDetails = async (req, res) => {
@@ -130,6 +184,8 @@ exports.getPostsByTopicWithDetails = async (req, res) => {
                 images,
                 mainImage,
                 otherImages,
+                thumbnailImage: getPostThumbnail(post), // Add thumbnail from content
+                excerpt: post.content ? post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...' : ''
             };
         }));
 
@@ -252,9 +308,15 @@ exports.getPostByTopicAndPostIdWithDetails = async (req, res) => {
         const ratingCount = ratings.length; // Tính toán ratingCount từ số lượng ratings lấy được
 
         // 6. Lấy thông tin về Like của bài viết
-        const likes = await Like.find({ targetId: post._id, targetType: 'post' }).populate('userId', 'fullName avatar');
+        const likes = await Like.find({ postId: post._id, targetType: 'post' }).populate('userId', 'fullName avatar');
         const likeCount = likes.length; // Tính toán likeCount từ số lượng likes lấy được
         const likedUsers = likes.map(like => like.userId);
+
+        // 6.1. Kiểm tra xem user hiện tại đã thích bài viết chưa
+        let isLikedByCurrentUser = false;
+        if (req.user && req.user.id) {
+            isLikedByCurrentUser = likes.some(like => like.userId._id.toString() === req.user.id.toString());
+        }
 
         // 7. Lấy thông tin về Image
         const images = await Image.find({ postId: post._id });
@@ -273,10 +335,13 @@ exports.getPostByTopicAndPostIdWithDetails = async (req, res) => {
             ratingCount, // Sử dụng ratingCount đã tính toán
             likeCount, // Sử dụng likeCount đã tính toán
             likedUsers,
+            isLikedByCurrentUser, // Thêm thông tin user đã thích hay chưa
             commentCount: post.commentCount, // Lấy commentCount trực tiếp từ post model
             images,
             mainImage,
             otherImages,
+            thumbnailImage: getPostThumbnail(post), // Add thumbnail from content
+            excerpt: post.content ? post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...' : ''
         };
 
         // Gửi dữ liệu đã được xử lý về cho frontend
@@ -293,6 +358,9 @@ exports.createPost = async (req, res) => {
         const { authorId, title, content, topicId, tags } = req.body;
 
         console.log('🔄 Creating post with image processing...');
+        console.log('📝 Original content preview:', content.substring(0, 500));
+        console.log('🔍 Content includes img tags:', content.includes('<img'));
+        console.log('🔍 Content includes data:', content.includes('data:'));
 
         // 1. Process images first (convert data URLs and external URLs to files)
         let finalContent = content;
@@ -426,6 +494,22 @@ exports.createPost = async (req, res) => {
         );
 
         console.log(`✅ Post created with ${imageDocs.length} images saved to public/upload`);
+
+        // Populate post với thông tin author và topic
+        await savedPost.populate([
+            { path: 'authorId', select: 'fullName username' },
+            { path: 'topicId', select: 'name' }
+        ]);
+
+        // Gửi notification cho admin
+        if (global.notificationService) {
+            await global.notificationService.notifyPostCreated(
+                savedPost._id,
+                authorId,
+                savedPost.title,
+                savedPost.topicId.name
+            );
+        }
 
         // Phát sự kiện Socket.IO khi có bài viết mới
         if (io) {
