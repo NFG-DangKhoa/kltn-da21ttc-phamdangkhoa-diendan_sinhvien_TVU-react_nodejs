@@ -336,12 +336,15 @@ const ConversationView = ({
             <Box
                 ref={messagesContainerRef}
                 sx={{
-                    height: 'calc(100% - 180px)',
+                    flex: 1,
                     overflow: 'auto',
                     p: 3,
                     background: 'linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)',
                     scrollBehavior: 'smooth',
                     position: 'relative',
+                    minHeight: 0, // Important for flex child to shrink
+                    display: 'flex',
+                    flexDirection: 'column',
                     '&::-webkit-scrollbar': {
                         width: '6px',
                     },
@@ -364,14 +367,30 @@ const ConversationView = ({
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        height: '100%',
+                        flex: 1,
+                        minHeight: '300px',
                         color: 'text.secondary'
                     }}>
-                        <Typography variant="body2">
+                        <Box
+                            sx={{
+                                width: 80,
+                                height: 80,
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                mb: 3,
+                                boxShadow: '0 8px 24px rgba(102, 126, 234, 0.3)'
+                            }}
+                        >
+                            <Typography sx={{ fontSize: '2rem' }}>💬</Typography>
+                        </Box>
+                        <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
                             Chưa có tin nhắn nào
                         </Typography>
-                        <Typography variant="caption" sx={{ mt: 1 }}>
-                            Hãy gửi tin nhắn đầu tiên để bắt đầu cuộc trò chuyện
+                        <Typography variant="body2" sx={{ textAlign: 'center', maxWidth: 300, lineHeight: 1.6 }}>
+                            Hãy gửi tin nhắn đầu tiên để bắt đầu cuộc trò chuyện với {otherParticipant.fullName}
                         </Typography>
                     </Box>
                 ) : (
@@ -483,18 +502,13 @@ const ConversationView = ({
                 )}
             </Box>
 
-            {/* Message Input - Fixed at bottom */}
+            {/* Message Input - At bottom of flex container */}
             <Box
                 sx={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
                     p: 3,
                     borderTop: '1px solid rgba(0,0,0,0.08)',
                     background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-                    zIndex: 10,
-                    minHeight: '100px',
+                    flexShrink: 0,
                     boxShadow: '0 -4px 20px rgba(0,0,0,0.1)',
                     backdropFilter: 'blur(10px)'
                 }}

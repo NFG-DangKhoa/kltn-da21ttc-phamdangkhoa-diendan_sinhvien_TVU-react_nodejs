@@ -414,7 +414,7 @@ const AllPosts = () => {
                                             </Box>
                                         )}
 
-                                        <CardContent sx={{ 
+                                        <CardContent sx={{
                                             flexGrow: 1,
                                             p: 3,
                                             display: 'flex',
@@ -422,8 +422,8 @@ const AllPosts = () => {
                                             gap: 2
                                         }}>
                                             {/* Topic & Date */}
-                                            <Box sx={{ 
-                                                display: 'flex', 
+                                            <Box sx={{
+                                                display: 'flex',
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center'
                                             }}>
@@ -495,8 +495,8 @@ const AllPosts = () => {
                                                         {post.author?.name}
                                                     </Typography>
                                                 </Box>
-                                                <Box sx={{ 
-                                                    display: 'flex', 
+                                                <Box sx={{
+                                                    display: 'flex',
                                                     alignItems: 'center',
                                                     gap: 2,
                                                     color: 'text.secondary'

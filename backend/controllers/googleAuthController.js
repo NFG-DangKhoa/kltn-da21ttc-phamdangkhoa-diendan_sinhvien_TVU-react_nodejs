@@ -8,14 +8,20 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // Google login handler
 exports.googleLogin = async (req, res) => {
     try {
+        console.log('🔐 Google login request received');
+        console.log('🔐 Request body:', req.body);
+
         const { credential } = req.body;
 
         if (!credential) {
+            console.log('❌ No credential provided');
             return res.status(400).json({
                 success: false,
                 message: 'Google credential is required'
             });
         }
+
+        console.log('✅ Credential received, length:', credential.length);
 
         // Verify Google token
         console.log('Verifying Google token with Client ID:', process.env.GOOGLE_CLIENT_ID);
@@ -77,6 +83,12 @@ exports.googleLogin = async (req, res) => {
             await user.save();
         }
 
+        console.log('✅ User found/created:', {
+            _id: user._id,
+            email: user.email,
+            fullName: user.fullName
+        });
+
         // Generate JWT token
         const token = jwt.sign(
             {
@@ -88,20 +100,27 @@ exports.googleLogin = async (req, res) => {
             { expiresIn: '7d' }
         );
 
-        // Return success response
-        res.status(200).json({
+        console.log('✅ JWT token generated');
+
+        const responseData = {
             success: true,
             message: 'Google login successful',
             token,
             user: {
-                id: user._id,
+                _id: user._id,  // Sử dụng _id thay vì id để đồng nhất với frontend
                 email: user.email,
                 fullName: user.fullName,
                 username: user.username,
                 avatarUrl: user.avatarUrl,
+                role: user.role || 'user',
                 authProvider: user.authProvider || 'google'
             }
-        });
+        };
+
+        console.log('✅ Sending response:', responseData);
+
+        // Return success response
+        res.status(200).json(responseData);
 
     } catch (error) {
         console.error('Google login error:', error);

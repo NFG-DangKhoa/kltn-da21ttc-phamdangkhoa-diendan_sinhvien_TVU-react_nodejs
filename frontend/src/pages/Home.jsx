@@ -50,7 +50,7 @@ import { ThemeContext } from '../context/ThemeContext';
 import HeroSection from '../components/HeroSection';
 import StatsCard from '../components/StatsCard';
 import TopicCard from '../components/TopicCard';
-import ThreeColumnLayout from '../components/ThreeColumnLayout';
+
 import TopicGrid from '../components/TopicGrid';
 import BreadcrumbNavigation from '../components/BreadcrumbNavigation';
 
@@ -68,7 +68,6 @@ const Section = ({ title, children }) => (
 
 const Home = () => {
     const [topics, setTopics] = useState([]);
-    const [posts, setPosts] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
@@ -164,6 +163,23 @@ const Home = () => {
         }
     };
 
+    // Navigation handler for latest post in topics table
+    const handleLatestPostClick = (latestPost, topicId) => {
+        console.log('🎯 Latest Post clicked:', latestPost);
+
+        const postId = latestPost._id || latestPost.id;
+
+        console.log('🔍 Extracted IDs for latest post:', { topicId, postId });
+
+        if (topicId && postId) {
+            const url = `/posts/detail?topicId=${topicId}&postId=${postId}`;
+            console.log('🚀 Navigating to latest post:', url);
+            navigate(url);
+        } else {
+            console.error('❌ Missing topicId or postId for latest post:', { topicId, postId, latestPost });
+        }
+    };
+
     // Function to refresh featured posts only
     const refreshFeaturedPosts = async () => {
         try {
@@ -186,6 +202,9 @@ const Home = () => {
     };
 
     useEffect(() => {
+        // Scroll to top when component mounts
+        window.scrollTo(0, 0);
+
         const fetchData = async () => {
             try {
                 setLoading(true);
@@ -230,26 +249,29 @@ const Home = () => {
                     setTrendingTopicsData(trendingTopics);
                 }
 
-                // Fetch all topics for search
+                // Fetch all topics with latest posts for detailed table
                 try {
-                    const topicsRes = await axios.get('http://localhost:5000/api/topics/all');
-                    setTopics(topicsRes.data);
-                } catch (error) {
-                    console.log('Topics API not available');
-                }
-
-                // Fetch recent posts for backward compatibility
-                try {
-                    const postsRes = await axios.get('http://localhost:5000/api/home/recent-posts?limit=6');
-                    if (postsRes.data.success) {
-                        setPosts(postsRes.data.data);
+                    const topicsRes = await axios.get('http://localhost:5000/api/topics/with-latest-posts');
+                    if (topicsRes.data.success) {
+                        console.log('Topics with latest posts loaded:', topicsRes.data.data.length);
+                        setTopics(topicsRes.data.data);
                     } else {
-                        setPosts(mockPosts);
+                        // Fallback to basic topics API
+                        const basicTopicsRes = await axios.get('http://localhost:5000/api/topics/all');
+                        setTopics(basicTopicsRes.data);
                     }
                 } catch (error) {
-                    console.log('Recent posts API not available, using mock data');
-                    setPosts(mockPosts);
+                    console.log('Topics API not available, trying fallback');
+                    try {
+                        const basicTopicsRes = await axios.get('http://localhost:5000/api/topics/all');
+                        setTopics(basicTopicsRes.data);
+                    } catch (fallbackError) {
+                        console.log('All topics APIs failed');
+                        setTopics([]);
+                    }
                 }
+
+
 
                 setLoading(false);
 
@@ -269,87 +291,7 @@ const Home = () => {
         fetchData();
     }, []);
 
-    // Mock data for posts
-    const mockPosts = [
-        {
-            _id: "1",
-            title: 'Làm sao để học tốt kỳ này và không bị stress?',
-            author: { fullName: 'Nguyễn Văn A', avatarUrl: 'https://i.pravatar.cc/40?img=1' },
-            createdAt: '2024-01-15T10:30:00Z',
-            views: 245,
-            comments: 18,
-            likes: 32,
-            image: 'https://picsum.photos/400/250?random=1',
-            excerpt: 'Chia sẻ những phương pháp học tập hiệu quả và cách quản lý stress trong học tập...',
-            topic: { name: 'Học tập', color: '#2196F3' },
-            type: 'question'
-        },
-        {
-            _id: "2",
-            title: 'Top 5 địa điểm giải trí "chill" nhất Trà Vinh!',
-            author: { fullName: 'Trần Thị B', avatarUrl: 'https://i.pravatar.cc/40?img=2' },
-            createdAt: '2024-01-14T15:20:00Z',
-            views: 189,
-            comments: 25,
-            likes: 47,
-            image: 'https://picsum.photos/400/250?random=2',
-            excerpt: 'Khám phá những địa điểm thú vị và phù hợp với sinh viên tại Trà Vinh...',
-            topic: { name: 'Đời sống', color: '#FF9800' },
-            type: 'discussion'
-        },
-        {
-            _id: "3",
-            title: 'Sự kiện chào tân sinh viên 2024: Đừng bỏ lỡ!',
-            author: { fullName: 'Phạm Văn F', avatarUrl: 'https://i.pravatar.cc/40?img=6' },
-            createdAt: '2024-01-10T16:00:00Z',
-            views: 567,
-            comments: 45,
-            likes: 89,
-            image: 'https://picsum.photos/400/250?random=6',
-            excerpt: 'Thông tin chi tiết về sự kiện chào đón tân sinh viên và các hoạt động thú vị...',
-            topic: { name: 'Sự kiện', color: '#F44336' },
-            type: 'event'
-        },
-        {
-            _id: "4",
-            title: 'Kinh nghiệm tìm kiếm việc làm thêm cho sinh viên',
-            author: { fullName: 'Phạm Thị D', avatarUrl: 'https://i.pravatar.cc/40?img=4' },
-            createdAt: '2024-01-12T14:45:00Z',
-            views: 298,
-            comments: 34,
-            likes: 56,
-            image: 'https://picsum.photos/400/250?random=4',
-            excerpt: 'Chia sẻ kinh nghiệm và mẹo hay để tìm được công việc part-time phù hợp...',
-            topic: { name: 'Việc làm', color: '#9C27B0' },
-            type: 'job'
-        },
-        {
-            _id: "5",
-            title: 'Hướng dẫn làm đồ án cuối kỳ từ A đến Z',
-            author: { fullName: 'Võ Thị E', avatarUrl: 'https://i.pravatar.cc/40?img=5' },
-            createdAt: '2024-01-11T11:30:00Z',
-            views: 412,
-            comments: 28,
-            likes: 73,
-            image: 'https://picsum.photos/400/250?random=5',
-            excerpt: 'Quy trình chi tiết và những lưu ý quan trọng khi thực hiện đồ án cuối kỳ...',
-            topic: { name: 'Học tập', color: '#2196F3' },
-            type: 'discussion'
-        },
-        {
-            _id: "6",
-            title: 'Tin tức mới về học bổng 2024',
-            author: { fullName: 'Tin Tức', avatarUrl: 'https://i.pravatar.cc/40?img=7' },
-            createdAt: '2024-01-09T09:00:00Z',
-            views: 120,
-            comments: 10,
-            likes: 15,
-            image: 'https://picsum.photos/400/250?random=7',
-            excerpt: 'Thông báo học bổng mới nhất dành cho sinh viên...',
-            topic: { name: 'Tin tức', color: '#00BCD4' },
-            type: 'news'
-        }
-    ];
+
 
     const trendingTopics = [
         { id: 1, name: 'Học tập & Nghiên cứu', postCount: 120, growth: '+15%', icon: <SchoolIcon />, color: '#2196F3' },
@@ -367,15 +309,25 @@ const Home = () => {
         return num.toString();
     };
 
-    const formatDate = (dateString) => {
+
+
+    const formatTimeAgo = (dateString) => {
         const date = new Date(dateString);
         const now = new Date();
         const diffTime = Math.abs(now - date);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffMinutes = Math.floor(diffTime / (1000 * 60));
+        const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const diffWeeks = Math.floor(diffDays / 7);
+        const diffMonths = Math.floor(diffDays / 30);
 
-        if (diffDays === 1) return 'Hôm qua';
+        if (diffMinutes < 1) return 'Vừa xong';
+        if (diffMinutes < 60) return `${diffMinutes} phút trước`;
+        if (diffHours < 24) return `${diffHours} giờ trước`;
         if (diffDays < 7) return `${diffDays} ngày trước`;
-        return date.toLocaleDateString('vi-VN');
+        if (diffWeeks < 4) return `${diffWeeks} tuần trước`;
+        if (diffMonths < 12) return `${diffMonths} tháng trước`;
+        return `${Math.floor(diffMonths / 12)} năm trước`;
     };
 
     const filteredTopics = topics.filter((topic) =>
@@ -428,34 +380,7 @@ const Home = () => {
         );
     }
 
-    // Lọc bài viết theo loại
-    const questionPosts = posts.filter(post => post.type === "question");
-    const eventPosts = posts.filter(post => post.type === "event");
-    const jobPosts = posts.filter(post => post.type === "job");
-    const discussionPosts = posts.filter(post => post.type === "discussion");
-    const newsPosts = posts.filter(post => post.type === "news");
 
-    // Giả sử bạn có component PostCard, thay thế bằng Card hoặc Box nếu chưa có
-    const renderPosts = (postList) =>
-        postList.length === 0 ? (
-            <Typography variant="body2" sx={{ ml: 2, color: "text.secondary" }}>Chưa có bài viết.</Typography>
-        ) : (
-            postList.map(post => (
-                <Grid item xs={12} sm={6} md={4} key={post._id}>
-                    {/* <PostCard post={post} /> */}
-                    <Box sx={{
-                        border: "1px solid #eee",
-                        borderRadius: 2,
-                        p: 2,
-                        background: mode === "dark" ? "#23272f" : "#fff"
-                    }}>
-                        <Typography variant="subtitle1" fontWeight="bold">{post.title}</Typography>
-                        <Typography variant="caption" color="text.secondary">{post.author?.fullName || post.authorId?.fullName || 'Ẩn danh'} • {new Date(post.createdAt).toLocaleDateString()}</Typography>
-                        <Typography variant="body2" sx={{ mt: 1 }}>{post.excerpt}</Typography>
-                    </Box>
-                </Grid>
-            ))
-        );
 
     return (
         <Box>
@@ -467,25 +392,6 @@ const Home = () => {
             <Box sx={{ maxWidth: 1200, mx: "auto", pt: 4 }}>
                 {/* Hero Section */}
                 <HeroSection visible={visibleSections.hero} />
-
-                {/* Forum Stats */}
-                <Container maxWidth="lg" sx={{ py: 6 }}>
-                    <Fade in={visibleSections.stats} timeout={1000}>
-                        <Grid container spacing={3} justifyContent="center">
-                            {forumStats.map((stat, index) => (
-                                <Grid item xs={6} sm={6} md={3} key={stat.label}>
-                                    <StatsCard
-                                        stat={stat}
-                                        index={index}
-                                        visible={visibleSections.stats}
-                                        variant="gradient"
-                                        onClick={() => handleStatsClick(stat.label)}
-                                    />
-                                </Grid>
-                            ))}
-                        </Grid>
-                    </Fade>
-                </Container>
 
                 {/* Featured Posts */}
                 <Container maxWidth="lg" sx={{ py: 6 }}>
@@ -529,51 +435,54 @@ const Home = () => {
                                 <Box
                                     sx={{
                                         display: 'flex',
-                                        gap: 3,
+                                        gap: 2,
                                         overflowX: 'auto',
                                         pb: 2,
-                                        justifyContent: featuredPosts.length <= 3 ? 'center' : 'flex-start',
+                                        px: 1,
                                         '&::-webkit-scrollbar': {
                                             height: 8,
                                         },
                                         '&::-webkit-scrollbar-track': {
-                                            backgroundColor: 'rgba(0,0,0,0.1)',
+                                            backgroundColor: alpha(theme.palette.divider, 0.1),
                                             borderRadius: 4,
                                         },
                                         '&::-webkit-scrollbar-thumb': {
-                                            backgroundColor: 'primary.main',
+                                            backgroundColor: theme.palette.primary.main,
                                             borderRadius: 4,
                                             '&:hover': {
-                                                backgroundColor: 'primary.dark',
+                                                backgroundColor: theme.palette.primary.dark,
                                             },
                                         },
                                     }}
                                 >
-                                    {featuredPosts.map((post, index) => (
+                                    {featuredPosts.slice(0, 4).map((post, index) => (
                                         <Zoom in={visibleSections.featured} timeout={600 + index * 100} key={post._id || post.id}>
                                             <Card
                                                 sx={{
-                                                    minWidth: 350,
-                                                    maxWidth: 350,
-                                                    height: 'auto',
+                                                    minWidth: 280,
+                                                    maxWidth: 280,
+                                                    height: 320,
                                                     display: 'flex',
                                                     flexDirection: 'column',
                                                     borderRadius: 3,
                                                     overflow: 'hidden',
                                                     transition: 'all 0.3s ease',
-                                                    flexShrink: 0,
                                                     cursor: 'pointer',
+                                                    flexShrink: 0,
+                                                    boxShadow: theme.shadows[2],
+                                                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                                                     '&:hover': {
                                                         transform: 'translateY(-8px)',
-                                                        boxShadow: theme.shadows[20]
+                                                        boxShadow: theme.shadows[12],
+                                                        borderColor: alpha(theme.palette.primary.main, 0.3)
                                                     }
                                                 }}
                                                 onClick={() => handlePostClick(post)}
                                             >
-                                                {(post.thumbnailImage || post.images?.[0] || post.image) && (
+                                                {(post.thumbnailImage || post.images?.[0] || post.image) ? (
                                                     <CardMedia
                                                         component="img"
-                                                        height="180"
+                                                        height="140"
                                                         image={post.thumbnailImage || post.images?.[0] || post.image}
                                                         alt={post.title}
                                                         sx={{
@@ -582,113 +491,137 @@ const Home = () => {
                                                             '&:hover': { transform: 'scale(1.05)' }
                                                         }}
                                                     />
-                                                )}
-                                                {!(post.thumbnailImage || post.images?.[0] || post.image) && (
+                                                ) : (
                                                     <Box
                                                         sx={{
-                                                            height: 180,
-                                                            bgcolor: 'grey.200',
+                                                            height: 140,
+                                                            background: `linear-gradient(135deg, ${alpha(post.topicInfo?.color || post.topic?.color || post.topicId?.color || '#2196F3', 0.1)} 0%, ${alpha(post.topicInfo?.color || post.topic?.color || post.topicId?.color || '#2196F3', 0.3)} 100%)`,
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            color: 'grey.500'
+                                                            color: post.topicInfo?.color || post.topic?.color || post.topicId?.color || '#2196F3',
+                                                            position: 'relative',
+                                                            overflow: 'hidden',
+                                                            p: 2,
+                                                            '&::before': {
+                                                                content: '""',
+                                                                position: 'absolute',
+                                                                top: 0,
+                                                                left: 0,
+                                                                right: 0,
+                                                                bottom: 0,
+                                                                background: `radial-gradient(circle at 30% 30%, ${alpha(post.topicInfo?.color || post.topic?.color || post.topicId?.color || '#2196F3', 0.2)} 0%, transparent 50%)`,
+                                                            }
                                                         }}
                                                     >
-                                                        <Typography variant="body2">
-                                                            Không có ảnh
-                                                        </Typography>
+                                                        <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center', width: '100%' }}>
+                                                            <Typography
+                                                                variant="h6"
+                                                                fontWeight="bold"
+                                                                sx={{
+                                                                    display: '-webkit-box',
+                                                                    WebkitLineClamp: 3,
+                                                                    WebkitBoxOrient: 'vertical',
+                                                                    overflow: 'hidden',
+                                                                    lineHeight: 1.3,
+                                                                    fontSize: '0.9rem',
+                                                                    color: 'inherit',
+                                                                    textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                                                }}
+                                                            >
+                                                                {post.title}
+                                                            </Typography>
+                                                        </Box>
                                                     </Box>
                                                 )}
-                                                <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                                                    <Box sx={{ mb: 2 }}>
+                                                <CardContent sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column' }}>
+                                                    {/* Topic Chip */}
+                                                    <Box sx={{ mb: 1 }}>
                                                         <Chip
                                                             label={post.topicInfo?.name || post.topic?.name || post.topicId?.name || 'Chưa phân loại'}
                                                             size="small"
                                                             sx={{
                                                                 bgcolor: alpha(post.topicInfo?.color || post.topic?.color || post.topicId?.color || '#2196F3', 0.1),
                                                                 color: post.topicInfo?.color || post.topic?.color || post.topicId?.color || '#2196F3',
-                                                                fontWeight: 600
+                                                                fontWeight: 600,
+                                                                fontSize: '0.7rem'
                                                             }}
                                                         />
                                                     </Box>
 
+                                                    {/* Title */}
                                                     <Typography
                                                         variant="h6"
                                                         component="h3"
-                                                        mb={2}
+                                                        mb={1}
                                                         fontWeight="bold"
                                                         sx={{
                                                             display: '-webkit-box',
                                                             WebkitLineClamp: 2,
                                                             WebkitBoxOrient: 'vertical',
-                                                            overflow: 'hidden'
+                                                            overflow: 'hidden',
+                                                            fontSize: '0.95rem',
+                                                            lineHeight: 1.3
                                                         }}
                                                     >
                                                         {post.title}
                                                     </Typography>
 
-                                                    <Typography
-                                                        variant="body2"
-                                                        color="text.secondary"
-                                                        mb={3}
-                                                        sx={{
-                                                            display: '-webkit-box',
-                                                            WebkitLineClamp: 2,
-                                                            WebkitBoxOrient: 'vertical',
-                                                            overflow: 'hidden'
-                                                        }}
-                                                    >
-                                                        {post.excerpt}
-                                                    </Typography>
-
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                                                    {/* Author and Time */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                                                         <Avatar
                                                             src={post.authorInfo?.avatarUrl || post.author?.avatarUrl || post.authorId?.avatarUrl}
-                                                            sx={{ width: 32, height: 32, mr: 1 }}
+                                                            sx={{ width: 20, height: 20, mr: 1 }}
                                                         >
                                                             {(post.authorInfo?.fullName || post.author?.fullName || post.authorId?.fullName || 'A').charAt(0)}
                                                         </Avatar>
                                                         <Box sx={{ flexGrow: 1 }}>
-                                                            <Typography variant="body2" fontWeight="medium">
+                                                            <Typography variant="caption" fontWeight="medium" display="block" sx={{ fontSize: '0.75rem' }}>
                                                                 {post.authorInfo?.fullName || post.author?.fullName || post.authorId?.fullName || 'Ẩn danh'}
                                                             </Typography>
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                {formatDate(post.createdAt)}
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                                                {formatTimeAgo(post.createdAt)}
                                                             </Typography>
                                                         </Box>
                                                     </Box>
 
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                            <VisibilityIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                {formatNumber(post.views || 0)}
-                                                            </Typography>
-                                                        </Box>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                            <CommentIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                                            <Typography variant="caption" color="text.secondary">
+                                                    {/* Stats */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 'auto', flexWrap: 'wrap' }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                                                            <CommentIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                                                                 {post.commentCount || post.comments || 0}
                                                             </Typography>
                                                         </Box>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                            <FavoriteIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                                            <Typography variant="caption" color="text.secondary">
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                                                            <FavoriteIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                                                                 {post.likeCount || post.likes || 0}
                                                             </Typography>
                                                         </Box>
-                                                        {post.featured && (
-                                                            <Chip
-                                                                label="⭐ Nổi bật"
-                                                                size="small"
-                                                                sx={{
-                                                                    bgcolor: alpha('#FFD700', 0.1),
-                                                                    color: '#FF8F00',
-                                                                    fontWeight: 600,
-                                                                    fontSize: '0.7rem'
-                                                                }}
-                                                            />
-                                                        )}
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                                                            <VisibilityIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                                                {formatNumber(post.views || 0)}
+                                                            </Typography>
+                                                        </Box>
+                                                        {/* Rating Stars */}
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                                    <StarIcon
+                                                                        key={star}
+                                                                        sx={{
+                                                                            fontSize: 10,
+                                                                            color: star <= (post.averageRating || 0) ? '#FFD700' : 'rgba(0,0,0,0.2)'
+                                                                        }}
+                                                                    />
+                                                                ))}
+                                                            </Box>
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                                                ({post.totalRatings || 0})
+                                                            </Typography>
+                                                        </Box>
                                                     </Box>
                                                 </CardContent>
                                             </Card>
@@ -746,7 +679,7 @@ const Home = () => {
 
                                 <Grid container spacing={3} justifyContent="center">
                                     {trendingTopicsData.map((topic, index) => (
-                                        <Grid item xs={12} sm={6} md={4} lg={2.4} key={topic._id || topic.id}>
+                                        <Grid item xs={12} sm={6} md={4} lg={3} key={topic._id || topic.id}>
                                             <Zoom in={visibleSections.trending} timeout={600 + index * 100}>
                                                 <Paper
                                                     elevation={0}
@@ -852,27 +785,29 @@ const Home = () => {
                                 Khám phá và tham gia thảo luận về các chủ đề bạn quan tâm
                             </Typography>
 
-                            <Box maxWidth={600} mx="auto" mb={4}>
+                            <Box maxWidth={600} mx="auto" >
                                 <TextField
                                     fullWidth
                                     placeholder="Tìm kiếm chủ đề..."
                                     variant="outlined"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    InputProps={{
-                                        startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-                                        sx: {
-                                            borderRadius: '50px',
-                                            bgcolor: 'background.paper',
-                                            '& fieldset': {
-                                                borderColor: 'transparent'
-                                            },
-                                            '&:hover fieldset': {
-                                                borderColor: 'primary.main'
-                                            },
-                                            '&.Mui-focused fieldset': {
-                                                borderColor: 'primary.main',
-                                                borderWidth: '2px'
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                                            sx: {
+                                                borderRadius: '50px',
+                                                bgcolor: 'background.paper',
+                                                '& fieldset': {
+                                                    borderColor: 'transparent'
+                                                },
+                                                '&:hover fieldset': {
+                                                    borderColor: 'primary.main'
+                                                },
+                                                '&.Mui-focused fieldset': {
+                                                    borderColor: 'primary.main',
+                                                    borderWidth: '2px'
+                                                }
                                             }
                                         }
                                     }}
@@ -883,54 +818,232 @@ const Home = () => {
                                     }}
                                 />
                             </Box>
-
-                            <Box display="flex" justifyContent="center">
-                                <TopicGrid
-                                    topics={filteredTopics}
-                                    isDarkMode={isDarkMode}
-                                    visible={visibleSections.topics}
-                                    variant="compact"
-                                    maxItems={8}
-                                    columns={{ xs: 6, sm: 4, md: 3, lg: 3 }}
-                                />
-                            </Box>
                         </Box>
                     </Fade>
                 </Container>
 
-                {/* Three Column Layout - Detailed Topics View */}
-                <Container maxWidth="lg" sx={{ py: 6 }}>
+                {/* Topics Table - Detailed View */}
+                <Container maxWidth="xl" sx={{ py: 6 }}>
                     <Fade in={visibleSections.topics} timeout={1000}>
                         <Box>
-                            <Typography
-                                variant="h3"
-                                component="h2"
-                                textAlign="center"
-                                mb={1}
-                                fontWeight="bold"
-                                color="text.primary"
+                            {/* Topics Table */}
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    borderRadius: 3,
+                                    overflow: 'hidden',
+                                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                                    boxShadow: theme.shadows[4]
+                                }}
                             >
-                                Khám phá chi tiết
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                textAlign="center"
-                                color="text.secondary"
-                                mb={4}
-                                maxWidth="600px"
-                                mx="auto"
-                            >
-                                Duyệt qua tất cả chủ đề với giao diện chi tiết và đầy đủ thông tin
-                            </Typography>
+                                {filteredTopics.length > 0 ? (
+                                    <Box>
+                                        {/* Table Header */}
+                                        <Box
+                                            sx={{
+                                                display: 'grid',
+                                                gridTemplateColumns: '2fr 3fr 1fr 2fr',
+                                                gap: 2,
+                                                p: 3,
+                                                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                                            }}
+                                        >
+                                            <Typography variant="h6" fontWeight="bold" color="primary.main">
+                                                Chủ đề
+                                            </Typography>
+                                            <Typography variant="h6" fontWeight="bold" color="primary.main">
+                                                Mô tả
+                                            </Typography>
+                                            <Typography variant="h6" fontWeight="bold" color="primary.main" textAlign="center">
+                                                Bài viết
+                                            </Typography>
+                                            <Typography variant="h6" fontWeight="bold" color="primary.main">
+                                                Bài viết gần nhất
+                                            </Typography>
+                                        </Box>
 
-                            <Box display="flex" justifyContent="center">
-                                <ThreeColumnLayout
-                                    filteredTopics={filteredTopics}
-                                    trendingTopics={trendingTopics}
-                                    isDarkMode={isDarkMode}
-                                />
-                            </Box>
+                                        {/* Table Body */}
+                                        {filteredTopics.map((topic, index) => (
+                                            <Zoom in={visibleSections.topics} timeout={600 + index * 50} key={topic._id}>
+                                                <Box
+                                                    sx={{
+                                                        display: 'grid',
+                                                        gridTemplateColumns: '2fr 3fr 1fr 2fr',
+                                                        gap: 2,
+                                                        p: 3,
+                                                        borderBottom: index < filteredTopics.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.1)}` : 'none',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s ease',
+                                                        '&:hover': {
+                                                            bgcolor: alpha(theme.palette.primary.main, 0.02),
+                                                            transform: 'translateX(4px)'
+                                                        }
+                                                    }}
+                                                    onClick={() => handleTopicClick(topic)}
+                                                >
+                                                    {/* Topic Name */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                        <Box
+                                                            sx={{
+                                                                width: 48,
+                                                                height: 48,
+                                                                borderRadius: 2,
+                                                                bgcolor: topic.color || '#2196F3',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                color: 'white',
+                                                                fontSize: '1.2rem',
+                                                                flexShrink: 0
+                                                            }}
+                                                        >
+                                                            {topic.icon || '📚'}
+                                                        </Box>
+                                                        <Box>
+                                                            <Typography variant="h6" fontWeight="bold" mb={0.5}>
+                                                                {topic.name}
+                                                            </Typography>
+                                                            {topic.trending && (
+                                                                <Chip
+                                                                    label="🔥 Thịnh hành"
+                                                                    size="small"
+                                                                    sx={{
+                                                                        bgcolor: alpha('#FF5722', 0.1),
+                                                                        color: '#FF5722',
+                                                                        fontWeight: 600,
+                                                                        fontSize: '0.7rem'
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+
+                                                    {/* Description */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                        <Typography
+                                                            variant="body2"
+                                                            color="text.secondary"
+                                                            sx={{
+                                                                display: '-webkit-box',
+                                                                WebkitLineClamp: 2,
+                                                                WebkitBoxOrient: 'vertical',
+                                                                overflow: 'hidden',
+                                                                lineHeight: 1.4
+                                                            }}
+                                                        >
+                                                            {topic.description || `Thảo luận về ${topic.name.toLowerCase()}`}
+                                                        </Typography>
+                                                    </Box>
+
+                                                    {/* Post Count */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <Box sx={{ textAlign: 'center' }}>
+                                                            <Typography variant="h5" fontWeight="bold" color="primary.main">
+                                                                {topic.postCount || 0}
+                                                            </Typography>
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                bài viết
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+
+                                                    {/* Latest Post */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                        {topic.latestPost ? (
+                                                            <Box
+                                                                sx={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 1.5,
+                                                                    width: '100%',
+                                                                    cursor: 'pointer',
+                                                                    borderRadius: 2,
+                                                                    p: 1,
+                                                                    transition: 'all 0.2s ease',
+                                                                    '&:hover': {
+                                                                        bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                                                        transform: 'translateX(4px)'
+                                                                    }
+                                                                }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation(); // Prevent topic row click
+                                                                    handleLatestPostClick(topic.latestPost, topic._id);
+                                                                }}
+                                                            >
+                                                                <Avatar
+                                                                    src={topic.latestPost.authorInfo?.avatarUrl || topic.latestPost.author?.avatarUrl}
+                                                                    sx={{ width: 32, height: 32, flexShrink: 0 }}
+                                                                >
+                                                                    {(topic.latestPost.authorInfo?.fullName || topic.latestPost.author?.fullName || 'A').charAt(0)}
+                                                                </Avatar>
+                                                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                                    <Typography
+                                                                        variant="body2"
+                                                                        fontWeight="medium"
+                                                                        sx={{
+                                                                            display: '-webkit-box',
+                                                                            WebkitLineClamp: 1,
+                                                                            WebkitBoxOrient: 'vertical',
+                                                                            overflow: 'hidden',
+                                                                            color: 'primary.main',
+                                                                            '&:hover': {
+                                                                                textDecoration: 'underline'
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {topic.latestPost.title}
+                                                                    </Typography>
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        bởi {topic.latestPost.authorInfo?.fullName || topic.latestPost.author?.fullName || 'Ẩn danh'}
+                                                                    </Typography>
+                                                                    <Typography variant="caption" color="text.secondary" display="block">
+                                                                        {formatTimeAgo(topic.latestPost.createdAt)}
+                                                                    </Typography>
+                                                                </Box>
+                                                            </Box>
+                                                        ) : (
+                                                            <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                                                                Chưa có bài viết
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                            </Zoom>
+                                        ))}
+                                    </Box>
+                                ) : (
+                                    <Box sx={{ textAlign: 'center', py: 8 }}>
+                                        <Typography variant="h6" color="text.secondary" mb={1}>
+                                            Không tìm thấy chủ đề nào
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Thử thay đổi từ khóa tìm kiếm
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </Paper>
                         </Box>
+                    </Fade>
+                </Container>
+
+
+                {/* Forum Stats */}
+                <Container maxWidth="lg" sx={{ py: 6 }}>
+                    <Fade in={visibleSections.stats} timeout={1000}>
+                        <Grid container spacing={3} justifyContent="center">
+                            {forumStats.map((stat, index) => (
+                                <Grid item xs={6} sm={6} md={3} key={stat.label}>
+                                    <StatsCard
+                                        stat={stat}
+                                        index={index}
+                                        visible={visibleSections.stats}
+                                        variant="gradient"
+                                        onClick={() => handleStatsClick(stat.label)}
+                                    />
+                                </Grid>
+                            ))}
+                        </Grid>
                     </Fade>
                 </Container>
 
@@ -1225,134 +1338,7 @@ const Home = () => {
                                 </Grid>
 
                                 {/* Student Reviews */}
-                                <Box sx={{ mt: 6 }}>
-                                    <Typography
-                                        variant="h4"
-                                        component="h3"
-                                        textAlign="center"
-                                        mb={4}
-                                        fontWeight="bold"
-                                        color="text.primary"
-                                    >
-                                        Đánh giá từ sinh viên
-                                    </Typography>
 
-                                    <Grid container spacing={3} justifyContent="center">
-                                        <Grid item xs={12} md={4}>
-                                            <Card
-                                                sx={{
-                                                    p: 3,
-                                                    borderRadius: 3,
-                                                    border: `2px solid ${alpha('#4CAF50', 0.2)}`,
-                                                    bgcolor: alpha('#4CAF50', 0.05),
-                                                    transition: 'all 0.3s ease',
-                                                    '&:hover': {
-                                                        transform: 'translateY(-5px)',
-                                                        boxShadow: theme.shadows[8]
-                                                    }
-                                                }}
-                                            >
-                                                <Box sx={{ display: 'flex', mb: 2 }}>
-                                                    {[1, 2, 3, 4, 5].map((star) => (
-                                                        <StarIcon key={star} sx={{ color: '#FFD700', fontSize: 20 }} />
-                                                    ))}
-                                                </Box>
-                                                <Typography variant="body1" mb={2} fontStyle="italic">
-                                                    "Môi trường học tập tuyệt vời, giảng viên nhiệt tình. Cơ sở vật chất hiện đại, thư viện phong phú."
-                                                </Typography>
-                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                    <Avatar sx={{ width: 32, height: 32, mr: 1, bgcolor: '#4CAF50' }}>
-                                                        N
-                                                    </Avatar>
-                                                    <Box>
-                                                        <Typography variant="body2" fontWeight="medium">
-                                                            Nguyễn Văn An
-                                                        </Typography>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            Khoa Công nghệ Thông tin
-                                                        </Typography>
-                                                    </Box>
-                                                </Box>
-                                            </Card>
-                                        </Grid>
-
-                                        <Grid item xs={12} md={4}>
-                                            <Card
-                                                sx={{
-                                                    p: 3,
-                                                    borderRadius: 3,
-                                                    border: `2px solid ${alpha('#2196F3', 0.2)}`,
-                                                    bgcolor: alpha('#2196F3', 0.05),
-                                                    transition: 'all 0.3s ease',
-                                                    '&:hover': {
-                                                        transform: 'translateY(-5px)',
-                                                        boxShadow: theme.shadows[8]
-                                                    }
-                                                }}
-                                            >
-                                                <Box sx={{ display: 'flex', mb: 2 }}>
-                                                    {[1, 2, 3, 4, 5].map((star) => (
-                                                        <StarIcon key={star} sx={{ color: '#FFD700', fontSize: 20 }} />
-                                                    ))}
-                                                </Box>
-                                                <Typography variant="body1" mb={2} fontStyle="italic">
-                                                    "Chương trình đào tạo cập nhật, thực tế. Nhiều cơ hội thực tập và làm việc tại các doanh nghiệp lớn."
-                                                </Typography>
-                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                    <Avatar sx={{ width: 32, height: 32, mr: 1, bgcolor: '#2196F3' }}>
-                                                        T
-                                                    </Avatar>
-                                                    <Box>
-                                                        <Typography variant="body2" fontWeight="medium">
-                                                            Trần Thị Bình
-                                                        </Typography>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            Khoa Kinh tế
-                                                        </Typography>
-                                                    </Box>
-                                                </Box>
-                                            </Card>
-                                        </Grid>
-
-                                        <Grid item xs={12} md={4}>
-                                            <Card
-                                                sx={{
-                                                    p: 3,
-                                                    borderRadius: 3,
-                                                    border: `2px solid ${alpha('#FF9800', 0.2)}`,
-                                                    bgcolor: alpha('#FF9800', 0.05),
-                                                    transition: 'all 0.3s ease',
-                                                    '&:hover': {
-                                                        transform: 'translateY(-5px)',
-                                                        boxShadow: theme.shadows[8]
-                                                    }
-                                                }}
-                                            >
-                                                <Box sx={{ display: 'flex', mb: 2 }}>
-                                                    {[1, 2, 3, 4, 5].map((star) => (
-                                                        <StarIcon key={star} sx={{ color: '#FFD700', fontSize: 20 }} />
-                                                    ))}
-                                                </Box>
-                                                <Typography variant="body1" mb={2} fontStyle="italic">
-                                                    "Hoạt động ngoại khóa phong phú, đời sống sinh viên sôi động. Rất nhiều câu lạc bộ và tổ chức."
-                                                </Typography>
-                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                    <Avatar sx={{ width: 32, height: 32, mr: 1, bgcolor: '#FF9800' }}>
-                                                        L
-                                                    </Avatar>
-                                                    <Box>
-                                                        <Typography variant="body2" fontWeight="medium">
-                                                            Lê Văn Cường
-                                                        </Typography>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            Khoa Sư phạm
-                                                        </Typography>
-                                                    </Box>
-                                                </Box>
-                                            </Card>
-                                        </Grid>
-                                    </Grid>
-                                </Box>
                             </Box>
                         </Fade>
                     </Container>

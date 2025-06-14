@@ -112,28 +112,39 @@ io.on('connection', (socket) => {
         console.log(`🏠 Backend: Socket ID: ${socket.id}`);
         console.log(`🏠 Backend: User ID type: ${typeof userId}`);
 
-        socket.join(`user_${userId}`);
-        console.log(`🏠 Backend: Socket ${socket.id} joined user room: user_${userId}`);
+        // Kiểm tra userId hợp lệ
+        if (!userId || userId === null || userId === undefined) {
+            console.log(`❌ Backend: Invalid userId received: ${userId}`);
+            socket.emit('error', {
+                message: 'Invalid user ID',
+                code: 'INVALID_USER_ID'
+            });
+            return;
+        }
+
+        const userIdString = userId.toString();
+        socket.join(`user_${userIdString}`);
+        console.log(`🏠 Backend: Socket ${socket.id} joined user room: user_${userIdString}`);
 
         // Đăng ký user online cho chat
-        chatService.userConnected(userId.toString(), socket.id);
+        chatService.userConnected(userIdString, socket.id);
 
         // Store userId in socket for cleanup
-        socket.userId = userId.toString();
+        socket.userId = userIdString;
 
-        console.log(`👤 Backend: User ${userId} is now online with socket ${socket.id}`);
+        console.log(`👤 Backend: User ${userIdString} is now online with socket ${socket.id}`);
         console.log(`📊 Backend: Total online users: ${chatService.onlineUsers.size}`);
         console.log(`📊 Backend: Online users list: ${Array.from(chatService.onlineUsers.entries()).map(([id, data]) => `${id}:${data.socketId}`).join(', ')}`);
 
         // Gửi test event để kiểm tra connection
         socket.emit('test', {
             message: 'Connection successful',
-            userId: userId.toString(),
+            userId: userIdString,
             socketId: socket.id,
             timestamp: new Date().toISOString()
         });
 
-        console.log(`✅ Backend: Test event sent to user ${userId}`);
+        console.log(`✅ Backend: Test event sent to user ${userIdString}`);
     });
 
     // Join post room for real-time comments

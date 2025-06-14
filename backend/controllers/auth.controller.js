@@ -50,19 +50,27 @@ exports.googleLogin = async (req, res) => {
 
         // 3. Tạo token ứng dụng của bạn và gửi phản hồi
         // Phản hồi được cấu trúc giống như các hàm đăng nhập/đăng ký khác
+        const token = generateToken(user._id);
+
         res.json({
-            _id: user._id,
-            fullName: user.fullName,
-            email: user.email,
-            avatarUrl: user.avatarUrl, // Thêm avatarUrl vào phản hồi
-            role: user.role,
-            token: generateToken(user._id), // Token ứng dụng của bạn
+            success: true,
+            user: {
+                _id: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                avatarUrl: user.avatarUrl, // Thêm avatarUrl vào phản hồi
+                role: user.role
+            },
+            token: token
         });
 
     } catch (err) {
         // Xử lý lỗi xác minh token Google hoặc lỗi server
         console.error('Lỗi khi xác minh Google ID token hoặc lỗi server:', err.message);
-        res.status(401).json({ message: 'Token không hợp lệ hoặc lỗi xác thực Google.' });
+        res.status(401).json({
+            success: false,
+            message: 'Token không hợp lệ hoặc lỗi xác thực Google.'
+        });
     }
 };
 

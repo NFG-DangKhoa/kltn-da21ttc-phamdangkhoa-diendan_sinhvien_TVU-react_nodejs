@@ -179,7 +179,8 @@ const TopicDetail = () => {
                         px: { xs: 1, sm: 2, md: 3 },
                         position: 'relative',
                         zIndex: 1,
-                        maxWidth: '1600px',
+                        width: '100%',
+                        maxWidth: '100vw',
                         mx: 'auto'
                     }}
                 >
@@ -188,46 +189,52 @@ const TopicDetail = () => {
                             display: 'flex',
                             gap: { xs: 2, md: 3 },
                             alignItems: 'flex-start',
-                            minHeight: '100vh'
+                            minHeight: '100vh',
+                            width: '100%'
                         }}
                     >
-                        {/* Left Column - User Info & Navigation */}
+                        {/* Left Column - Combined User Info & Sidebar */}
                         <Box
                             sx={{
-                                width: { xs: '100%', lg: '280px', xl: '300px' },
+                                width: { xs: '100%', sm: '100%', md: '35%', lg: '30%' },
                                 flexShrink: 0,
-                                display: { xs: 'none', lg: 'block' },
+                                display: { xs: 'none', sm: 'none', md: 'block' },
                                 position: 'sticky',
                                 top: 80,
                                 alignSelf: 'flex-start',
                                 maxHeight: 'calc(100vh - 100px)',
                                 overflowY: 'auto',
+                                pr: 2,
                                 '&::-webkit-scrollbar': {
-                                    width: '4px'
+                                    width: '6px'
                                 },
                                 '&::-webkit-scrollbar-track': {
                                     background: 'transparent'
                                 },
                                 '&::-webkit-scrollbar-thumb': {
                                     background: 'rgba(0,0,0,0.1)',
-                                    borderRadius: '2px'
+                                    borderRadius: '3px'
                                 }
                             }}
                         >
-                            <LeftColumn user={user} />
+                            {/* User Info Section */}
+                            <Box sx={{ mb: 3 }}>
+                                <LeftColumn user={user} />
+                            </Box>
+
+                            {/* Sidebar Info Section */}
+                            <Box>
+                                <RightColumn />
+                            </Box>
                         </Box>
 
-                        {/* Center Column - Main Content */}
+                        {/* Right Column - Main Content (Posts) */}
                         <Box
                             sx={{
-                                flex: 1,
-                                minWidth: 0, // Important for flex item to shrink
-                                maxWidth: {
-                                    xs: '100%',
-                                    md: '100%',
-                                    lg: 'calc(100% - 580px)',
-                                    xl: 'calc(100% - 620px)'
-                                }
+                                width: { xs: '100%', sm: '100%', md: '65%', lg: '70%' },
+                                flexShrink: 0,
+                                minWidth: 0,
+                                pl: { md: 2 }
                             }}
                         >
                             <Box sx={{
@@ -235,7 +242,8 @@ const TopicDetail = () => {
                                 borderRadius: { xs: 2, md: 2.5 },
                                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                                 border: '1px solid rgba(226, 232, 240, 0.8)',
-                                overflow: 'hidden'
+                                overflow: 'hidden',
+                                minHeight: 'calc(100vh - 200px)'
                             }}>
                                 <CenterColumn
                                     user={user}
@@ -252,32 +260,6 @@ const TopicDetail = () => {
                                     toggleReplies={toggleReplies}
                                 />
                             </Box>
-                        </Box>
-
-                        {/* Right Column - Sidebar Info */}
-                        <Box
-                            sx={{
-                                width: { xs: '100%', lg: '260px', xl: '280px' },
-                                flexShrink: 0,
-                                display: { xs: 'none', lg: 'block' },
-                                position: 'sticky',
-                                top: 80,
-                                alignSelf: 'flex-start',
-                                maxHeight: 'calc(100vh - 100px)',
-                                overflowY: 'auto',
-                                '&::-webkit-scrollbar': {
-                                    width: '4px'
-                                },
-                                '&::-webkit-scrollbar-track': {
-                                    background: 'transparent'
-                                },
-                                '&::-webkit-scrollbar-thumb': {
-                                    background: 'rgba(0,0,0,0.1)',
-                                    borderRadius: '2px'
-                                }
-                            }}
-                        >
-                            <RightColumn />
                         </Box>
                     </Box>
                 </Box>

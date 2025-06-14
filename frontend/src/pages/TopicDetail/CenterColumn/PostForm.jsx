@@ -35,14 +35,22 @@ import CustomEditor from './CustomEditor';
 // Đảm bảo IMAGE_URL_REGEX được định nghĩa hoặc import từ RichTextEditor
 // const IMAGE_URL_REGEX = /(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|gif|png|jpeg|webp|svg)/g; // Ví dụ regex
 
-const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false }) => {
+const PostForm = ({
+    newPost = {},
+    setNewPost,
+    handlePostSubmit,
+    isEditMode = false,
+    topicId: propTopicId,
+    onPostCreated,
+    isModal = false
+}) => {
     const { user } = useContext(AuthContext);
     const { mode } = useContext(ThemeContext);
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(isModal || false);
     const [editorContent, setEditorContent] = useState(newPost.content || '');
     const [title, setTitle] = useState(newPost.title || '');
     const [tags, setTags] = useState(newPost.tags || '');
-    const [topicId, setTopicId] = useState(newPost.topicId || '');
+    const [topicIdState, setTopicIdState] = useState(propTopicId || newPost.topicId || '');
 
     const theme = useTheme();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
@@ -52,33 +60,33 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false })
             setTitle(newPost.title || '');
             setEditorContent(newPost.content || '');
             setTags(Array.isArray(newPost.tags) ? newPost.tags.join(',') : newPost.tags || '');
-            setTopicId(newPost.topicId || '');
+            setTopicIdState(newPost.topicId || '');
             setOpen(true);
-        } else if (!isEditMode) {
+        } else if (!isEditMode && !propTopicId) {
             setTitle('');
             setEditorContent('');
             setTags('');
-            setTopicId('');
+            setTopicIdState('');
         }
-    }, [newPost, isEditMode]);
+    }, [newPost, isEditMode, propTopicId]);
 
     const handleDialogOpen = () => {
         setOpen(true);
-        if (!isEditMode) {
+        if (!isEditMode && !propTopicId) {
             setTitle('');
             setEditorContent('');
             setTags('');
-            setTopicId('');
+            setTopicIdState('');
         }
     };
 
     const handleDialogClose = () => {
         setOpen(false);
-        if (!isEditMode) {
+        if (!isEditMode && !propTopicId) {
             setTitle('');
             setEditorContent('');
             setTags('');
-            setTopicId('');
+            setTopicIdState('');
         }
     };
 
@@ -143,7 +151,7 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false })
                 title: title,
                 content: editorContent, // Gửi content với data URLs, backend sẽ process
                 tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-                topicId: topicId,
+                topicId: topicIdState,
                 authorId: user?._id,
             };
 
@@ -156,7 +164,16 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false })
             // 2. Update content với server URLs
             // 3. Lưu post vào database
             console.log('📝 Submitting post (backend will process images)...');
-            handlePostSubmit(postDataToSend);
+
+            // Use appropriate callback based on usage context
+            if (onPostCreated) {
+                // Called from Header modal
+                onPostCreated(postDataToSend);
+            } else if (handlePostSubmit) {
+                // Called from TopicDetail
+                handlePostSubmit(postDataToSend);
+            }
+
             handleDialogClose();
 
             console.log('✅ Post submitted successfully!');
@@ -199,8 +216,8 @@ const PostForm = ({ newPost, setNewPost, handlePostSubmit, isEditMode = false })
                     variant="outlined"
                     label="ID Chủ đề"
                     placeholder="Nhập ID chủ đề"
-                    value={topicId}
-                    onChange={(e) => setTopicId(e.target.value)}
+                    value={topicIdState}
+                    onChange={(e) => setTopicIdState(e.target.value)}
                     sx={{ mt: 2 }}
                 /> */}
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>

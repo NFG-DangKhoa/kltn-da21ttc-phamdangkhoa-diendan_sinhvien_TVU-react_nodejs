@@ -80,16 +80,16 @@ const CenterColumn = ({
     return (
         <Box
             sx={{
-                p: 2,
-                backgroundColor: darkMode ? '#242526' : '#f0f2f5',
+                p: 3,
+                backgroundColor: darkMode ? '#242526' : '#ffffff',
                 color: darkMode ? '#e4e6eb' : '#1c1e21',
-                borderRadius: 2,
-                width: '45vw',
-                ml: 8,
-                height: 'calc(100vh - 64px)',
+                width: '100%',
+                height: '100%',
+                minHeight: 'calc(100vh - 200px)',
                 overflowY: 'auto',
-                boxShadow: darkMode ? '0px 0px 5px rgba(255,255,255,0.1)' : '0px 0px 5px rgba(0,0,0,0.1)',
-                transition: 'background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                transition: 'background-color 0.4s ease, color 0.4s ease',
             }}
         >
 
@@ -151,11 +151,23 @@ const CenterColumn = ({
             )}
 
             <Typography variant="h6" gutterBottom
-                sx={{ fontSize: '1rem', color: darkMode ? '#e4e6eb' : '#1c1e21', mt: 3 }}
+                sx={{
+                    fontSize: '1.2rem',
+                    color: darkMode ? '#e4e6eb' : '#1c1e21',
+                    mt: 2,
+                    mb: 3,
+                    fontWeight: 'bold'
+                }}
             >
                 Bài viết gần đây
             </Typography>
-            <Box sx={{ maxWidth: 5000, mx: 'auto', width: '100%' }}>
+            <Box sx={{
+                width: '100%',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2
+            }}>
                 {detailedPosts.length > 0 ? (
                     detailedPosts.map((post) => (
                         <PostCard
@@ -167,13 +179,24 @@ const CenterColumn = ({
                             goToDetail={goToDetail}
                             setDetailedPosts={setDetailedPosts}
                             handleEditPostFromCenterColumn={handleEditPostFromPostCard}
-                        // Bỏ prop contentRefs ở đây
                         />
                     ))
                 ) : (
-                    <Typography variant="body2" sx={{ fontSize: '0.9rem', color: darkMode ? '#b0b3b8' : 'text.secondary' }}>
-                        Chưa có bài viết nào.
-                    </Typography>
+                    <Box sx={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: '300px'
+                    }}>
+                        <Typography variant="body1" sx={{
+                            fontSize: '1rem',
+                            color: darkMode ? '#b0b3b8' : 'text.secondary',
+                            textAlign: 'center'
+                        }}>
+                            Chưa có bài viết nào trong chủ đề này.
+                        </Typography>
+                    </Box>
                 )}
             </Box>
 

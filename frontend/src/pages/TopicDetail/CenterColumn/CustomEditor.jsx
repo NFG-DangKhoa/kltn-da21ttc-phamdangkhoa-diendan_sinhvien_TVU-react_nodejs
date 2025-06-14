@@ -25,16 +25,41 @@ const CustomEditor = ({ content, onContentChange }) => {
         }
     }, [onContentChange]);
 
-    // Handle content change - ĐỊNH NGHĨA TRƯỚC với cursor preservation
+    // Handle content change với cursor preservation
     const handleContentChange = useCallback(() => {
-        // Use setTimeout to debounce and avoid cursor jumping
-        setTimeout(debouncedContentChange, 100);
-    }, [debouncedContentChange]);
+        if (editorRef.current) {
+            // Save cursor position before content change
+            const selection = window.getSelection();
+            const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+
+            // Get content and trigger change
+            const htmlContent = editorRef.current.innerHTML;
+            onContentChange(htmlContent);
+
+            // Restore cursor position after a short delay
+            if (range) {
+                setTimeout(() => {
+                    try {
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    } catch (e) {
+                        // Fallback: place cursor at end
+                        const newRange = document.createRange();
+                        newRange.selectNodeContents(editorRef.current);
+                        newRange.collapse(false);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                }, 10);
+            }
+        }
+    }, [onContentChange]);
 
     // Initialize editor content
     useEffect(() => {
         if (editorRef.current && content) {
-            console.log('🔄 Loading content into CustomEditor:', content.substring(0, 200));
+            // Only set content if it's different from current content to prevent cursor jumping
+            const currentContent = editorRef.current.innerHTML;
 
             // Fix URLs in content before setting
             let fixedContent = content;
@@ -48,9 +73,33 @@ const CustomEditor = ({ content, onContentChange }) => {
                 '<iframe$1 frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen>'
             );
 
-            console.log('🔧 Fixed content URLs:', fixedContent.substring(0, 200));
+            // Only update if content is actually different
+            if (currentContent !== fixedContent) {
+                console.log('🔄 Loading content into CustomEditor:', fixedContent.substring(0, 200));
 
-            editorRef.current.innerHTML = fixedContent;
+                // Save cursor position before setting content
+                const selection = window.getSelection();
+                const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+
+                editorRef.current.innerHTML = fixedContent;
+
+                // Restore cursor position after setting content
+                if (range && document.activeElement === editorRef.current) {
+                    setTimeout(() => {
+                        try {
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        } catch (e) {
+                            // Fallback: place cursor at end
+                            const newRange = document.createRange();
+                            newRange.selectNodeContents(editorRef.current);
+                            newRange.collapse(false);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                        }
+                    }, 10);
+                }
+            }
 
             // Check if images are loaded after setting content
             setTimeout(() => {
@@ -637,12 +686,9 @@ const CustomEditor = ({ content, onContentChange }) => {
                         ref={editorRef}
                         contentEditable
                         suppressContentEditableWarning
-                        onInput={() => {
-                            // Debounce input to prevent cursor jumping
-                            clearTimeout(window.editorInputTimeout);
-                            window.editorInputTimeout = setTimeout(() => {
-                                debouncedContentChange();
-                            }, 500); // 500ms debounce for typing
+                        onInput={(e) => {
+                            // Immediate content change without debounce to prevent cursor jumping
+                            handleContentChange();
                         }}
                         sx={{
                             minHeight: '300px',

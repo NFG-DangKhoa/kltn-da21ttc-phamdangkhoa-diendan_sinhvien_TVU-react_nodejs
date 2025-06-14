@@ -510,12 +510,12 @@ const PostDetail = () => {
                             }
                         }}
                     >
-                        {/* Main Content - Absolute Fixed 75% Width */}
+                        {/* Main Content - Reduced to 70% Width */}
                         <Box
                             sx={{
-                                width: { xs: '100%', md: '75%' },
-                                minWidth: { md: '75%' },
-                                maxWidth: { md: '75%' },
+                                width: { xs: '100%', md: '70%' },
+                                minWidth: { md: '70%' },
+                                maxWidth: { md: '70%' },
                                 flex: 'none',
                                 height: 'auto',
                                 minHeight: 'auto'
@@ -693,15 +693,16 @@ const PostDetail = () => {
                                     <Box sx={{
                                         p: { xs: 3, md: 5 },
                                         pt: 4,
-                                        pb: 8, // Thêm padding-bottom lớn để tránh che nội dung cuối bởi vùng nút
-                                        mb: 4, // Thêm margin-bottom để tạo khoảng cách
+                                        pb: 4, // Padding-bottom bình thường vì action buttons không sticky nữa
                                         width: '100%',
                                         height: 'auto',
                                         minHeight: 'auto',
                                         maxHeight: 'none',
                                         overflow: 'visible',
                                         overflowY: 'visible',
-                                        overflowX: 'visible'
+                                        overflowX: 'visible',
+                                        position: 'relative',
+                                        zIndex: 1
                                     }}>
                                         {/* Article Body - Enhanced Typography */}
                                         <Typography
@@ -835,12 +836,13 @@ const PostDetail = () => {
                                             : 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
                                         borderTop: `1px solid ${darkMode ? '#3a3b3c' : '#e0e0e0'}`,
                                         p: { xs: 3, md: 4 },
-                                        mt: 4, // Thêm margin-top để tạo khoảng cách với nội dung
-                                        position: 'relative',
-                                        zIndex: 2, // Tăng z-index để đảm bảo không bị che khuất
+                                        mt: 4, // Margin-top bình thường để nằm sau nội dung
+                                        position: 'relative', // Thay đổi về relative để nằm trong flow
+                                        zIndex: 2,
                                         boxShadow: darkMode
-                                            ? '0 -4px 20px rgba(0,0,0,0.3)'
-                                            : '0 -4px 20px rgba(0,0,0,0.1)' // Thêm shadow để tách biệt
+                                            ? '0 4px 20px rgba(0,0,0,0.3)'
+                                            : '0 4px 20px rgba(0,0,0,0.1)',
+                                        borderRadius: 2 // Border radius bình thường
                                     }}>
                                         {/* Main Action Buttons - Centered Layout */}
                                         <Box
@@ -1167,35 +1169,38 @@ const PostDetail = () => {
                             </Box>
                         </Box>
 
-                        {/* Sidebar - Absolute Fixed 25% Width */}
+                        {/* Sidebar - Increased to 30% Width */}
                         <Box
                             sx={{
-                                width: { xs: '100%', md: '25%' },
-                                minWidth: { md: '25%' },
-                                maxWidth: { md: '25%' },
+                                width: { xs: '100%', md: '30%' },
+                                minWidth: { md: '30%' },
+                                maxWidth: { md: '30%' },
                                 flex: 'none'
                             }}
                         >
                             <Box sx={{ position: { md: 'sticky' }, top: { md: 24 }, mb: { xs: 3, md: 0 } }}>
                                 <Card sx={{ mb: 3, backgroundColor: darkMode ? '#242526' : '#fff', boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.1)', borderRadius: 2 }}>
-                                    <CardContent sx={{ p: 2 }}>
-                                        <Typography variant="h6" fontWeight="bold" sx={{ mb: 2, fontSize: '1rem' }}>
+                                    <CardContent sx={{ p: 3 }}>
+                                        <Typography variant="h6" fontWeight="bold" sx={{ mb: 3, fontSize: '1.1rem' }}>
                                             📚 Bài viết liên quan
                                         </Typography>
-                                        <Stack spacing={2}>
+                                        <Stack spacing={3}>
                                             {relatedPosts.length > 0 ? (
                                                 relatedPosts.slice(0, 8).map((relatedPost) => (
                                                     <Box
                                                         key={relatedPost.id}
                                                         sx={{
                                                             cursor: 'pointer',
-                                                            p: 1.5,
-                                                            borderRadius: 1.5,
+                                                            p: 2,
+                                                            borderRadius: 2,
                                                             border: darkMode ? '1px solid #3a3b3c' : '1px solid #e0e0e0',
                                                             transition: 'all 0.2s ease',
+                                                            backgroundColor: darkMode ? '#2a2b2c' : '#fafafa',
                                                             '&:hover': {
-                                                                backgroundColor: darkMode ? '#3a3b3c' : '#f8f9fa',
-                                                                borderColor: theme.palette.primary.main
+                                                                backgroundColor: darkMode ? '#3a3b3c' : '#f0f0f0',
+                                                                borderColor: theme.palette.primary.main,
+                                                                transform: 'translateY(-2px)',
+                                                                boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.1)'
                                                             }
                                                         }}
                                                         onClick={() => window.location.href = relatedPost.link}
@@ -1205,12 +1210,13 @@ const PostDetail = () => {
                                                             {relatedPost.thumbnail ? (
                                                                 <Box
                                                                     sx={{
-                                                                        width: 48,
-                                                                        height: 36,
-                                                                        borderRadius: 1,
-                                                                        mr: 1.5,
+                                                                        width: 64,
+                                                                        height: 48,
+                                                                        borderRadius: 1.5,
+                                                                        mr: 2,
                                                                         overflow: 'hidden',
-                                                                        flexShrink: 0
+                                                                        flexShrink: 0,
+                                                                        boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.1)'
                                                                     }}
                                                                 >
                                                                     <img
@@ -1242,38 +1248,58 @@ const PostDetail = () => {
                                                             ) : (
                                                                 <Box
                                                                     sx={{
-                                                                        width: 48,
-                                                                        height: 36,
-                                                                        borderRadius: 1,
-                                                                        mr: 1.5,
-                                                                        bgcolor: 'grey.200',
+                                                                        width: 64,
+                                                                        height: 48,
+                                                                        borderRadius: 1.5,
+                                                                        mr: 2,
+                                                                        bgcolor: darkMode ? '#3a3b3c' : 'grey.200',
                                                                         display: 'flex',
                                                                         alignItems: 'center',
                                                                         justifyContent: 'center',
-                                                                        fontSize: '0.7rem',
-                                                                        color: 'grey.500',
-                                                                        flexShrink: 0
+                                                                        fontSize: '1rem',
+                                                                        color: darkMode ? '#b0b3b8' : 'grey.500',
+                                                                        flexShrink: 0,
+                                                                        boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.1)'
                                                                     }}
                                                                 >
                                                                     📄
                                                                 </Box>
                                                             )}
                                                             <Box flex={1}>
-                                                                <Typography variant="body2" fontWeight="bold" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.4, fontSize: '0.8rem', mb: 0.5 }}>
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    fontWeight="bold"
+                                                                    sx={{
+                                                                        display: '-webkit-box',
+                                                                        WebkitLineClamp: 2,
+                                                                        WebkitBoxOrient: 'vertical',
+                                                                        overflow: 'hidden',
+                                                                        lineHeight: 1.4,
+                                                                        fontSize: '0.9rem',
+                                                                        mb: 1,
+                                                                        color: darkMode ? '#e4e6eb' : '#1c1e21'
+                                                                    }}
+                                                                >
                                                                     {relatedPost.title}
                                                                 </Typography>
-                                                                <Box display="flex" alignItems="center" gap={1}>
-                                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                                                        <ThumbUpIcon sx={{ fontSize: 11, mr: 0.5 }} />
-                                                                        {relatedPost.likes}
-                                                                    </Typography>
-                                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                                                        <VisibilityIcon sx={{ fontSize: 11, mr: 0.5 }} />
-                                                                        {relatedPost.views}
-                                                                    </Typography>
-                                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                                                        💬 {relatedPost.comments}
-                                                                    </Typography>
+                                                                <Box display="flex" alignItems="center" gap={1.5} flexWrap="wrap">
+                                                                    <Box display="flex" alignItems="center" gap={0.5}>
+                                                                        <ThumbUpIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
+                                                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                                                                            {relatedPost.likes}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                    <Box display="flex" alignItems="center" gap={0.5}>
+                                                                        <VisibilityIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
+                                                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                                                                            {relatedPost.views}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                    <Box display="flex" alignItems="center" gap={0.5}>
+                                                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                                                                            💬 {relatedPost.comments}
+                                                                        </Typography>
+                                                                    </Box>
                                                                 </Box>
                                                             </Box>
                                                         </Box>
