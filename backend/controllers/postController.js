@@ -116,9 +116,9 @@ exports.getPostsByTopicWithDetails = async (req, res) => {
         // Lấy bài viết và populate thông tin tác giả, chủ đề
         // Bao gồm luôn commentCount, likeCount, ratingCount từ Post model
         const posts = await Post.find({ topicId })
-            .populate('authorId', 'fullName')
+            .populate('authorId', 'fullName avatarUrl role') // Thêm avatarUrl và role
             .populate('topicId', 'name')
-            .select('title content commentCount likeCount ratingCount') // Chọn rõ ràng các trường mong muốn
+            .select('title content commentCount likeCount ratingCount createdAt images') // Thêm createdAt và images
             .lean(); // Sử dụng .lean() để nhận về plain JavaScript objects
 
         console.log(`🔍 DEBUG: Found ${posts.length} posts for topicId ${topicId}`);
@@ -133,13 +133,13 @@ exports.getPostsByTopicWithDetails = async (req, res) => {
         const detailedPosts = await Promise.all(posts.map(async (post) => {
             // Lấy bình luận gốc (có populate tác giả)
             const comments = await Comment.find({ postId: post._id, parentCommentId: null })
-                .populate('authorId', 'fullName')
+                .populate('authorId', 'fullName avatarUrl role') // Thêm avatarUrl và role cho comments
                 .lean();
 
             // Duyệt từng comment để lấy replies và likeCount
             const detailedComments = await Promise.all(comments.map(async (comment) => {
                 const replies = await Comment.find({ parentCommentId: comment._id })
-                    .populate('authorId', 'fullName')
+                    .populate('authorId', 'fullName avatarUrl role') // Thêm avatarUrl và role cho replies
                     .lean();
 
                 const detailedReplies = await Promise.all(replies.map(async (reply) => {
@@ -170,7 +170,7 @@ exports.getPostsByTopicWithDetails = async (req, res) => {
             const ratedUsers = ratings.map(r => r.userId);
 
             // Lấy lượt thích bài viết
-            const likes = await Like.find({ targetId: post._id, targetType: 'post' }).populate('userId', 'fullName').lean();
+            const likes = await Like.find({ postId: post._id, targetType: 'post' }).populate('userId', 'fullName avatar').lean();
             const likedUsers = likes.map(like => like.userId);
 
             // Trả về một đối tượng mới với tất cả các thông tin đã lấy
@@ -311,6 +311,9 @@ exports.getPostByTopicAndPostIdWithDetails = async (req, res) => {
         const likes = await Like.find({ postId: post._id, targetType: 'post' }).populate('userId', 'fullName avatar');
         const likeCount = likes.length; // Tính toán likeCount từ số lượng likes lấy được
         const likedUsers = likes.map(like => like.userId);
+
+        console.log(`🔍 DEBUG: Post ${post._id} - Found ${likes.length} likes`);
+        console.log(`🔍 DEBUG: LikedUsers:`, likedUsers.map(u => ({ id: u._id, name: u.fullName })));
 
         // 6.1. Kiểm tra xem user hiện tại đã thích bài viết chưa
         let isLikedByCurrentUser = false;

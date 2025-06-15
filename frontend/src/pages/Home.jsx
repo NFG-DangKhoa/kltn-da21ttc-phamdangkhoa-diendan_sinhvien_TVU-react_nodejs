@@ -53,6 +53,7 @@ import TopicCard from '../components/TopicCard';
 
 import TopicGrid from '../components/TopicGrid';
 import BreadcrumbNavigation from '../components/BreadcrumbNavigation';
+import AdminContactInfo from '../components/AdminContactInfo';
 
 const Section = ({ title, children }) => (
     <Box mb={4}>
@@ -455,7 +456,7 @@ const Home = () => {
                                         },
                                     }}
                                 >
-                                    {featuredPosts.slice(0, 4).map((post, index) => (
+                                    {featuredPosts.map((post, index) => (
                                         <Zoom in={visibleSections.featured} timeout={600 + index * 100} key={post._id || post.id}>
                                             <Card
                                                 sx={{
@@ -1344,6 +1345,9 @@ const Home = () => {
                     </Container>
                 </Box>
             </Box>
+
+            {/* Admin Contact Info Section */}
+            <AdminContactInfo />
         </Box >
     );
 };

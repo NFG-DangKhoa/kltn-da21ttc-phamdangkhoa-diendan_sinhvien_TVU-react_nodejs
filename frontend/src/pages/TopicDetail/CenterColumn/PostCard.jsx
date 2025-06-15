@@ -1,8 +1,8 @@
 import React, { useRef, useState, useEffect, useContext, useCallback } from 'react';
 import {
     Box, Typography, Button, Divider,
-    Card, CardContent,
-    Menu, MenuItem, IconButton,
+    Card, CardContent, CardMedia,
+    Menu, MenuItem, IconButton, Avatar,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'; // Icon trái tim rỗng
@@ -55,6 +55,30 @@ const PostCard = ({
         allRatings, // NEW: Danh sách tất cả các đánh giá chi tiết từ hook
         handleRatePost, // Hàm gửi đánh giá từ hook
     } = usePostInteractions(initialPost, user, setDetailedPosts); // Truyền `initialPost` và `setDetailedPosts` vào hook
+
+    // Extract thumbnail image from post content
+    const getThumbnailImage = (post) => {
+        if (post.images && post.images.length > 0) {
+            return post.images[0];
+        }
+
+        // Extract first image from content
+        const imgMatch = post.content?.match(/<img[^>]+src=["']([^"']+)["']/);
+        if (imgMatch) {
+            let imgSrc = imgMatch[1];
+            // Fix URL if needed
+            if (imgSrc.startsWith('/upload/')) {
+                imgSrc = `http://localhost:5000${imgSrc}`;
+            } else if (imgSrc.includes('localhost:5173')) {
+                imgSrc = imgSrc.replace('localhost:5173', 'localhost:5000');
+            }
+            return imgSrc;
+        }
+
+        return null;
+    };
+
+    const thumbnailImage = getThumbnailImage(post);
 
     // State cục bộ để kích hoạt việc áp dụng style ảnh lại khi nội dung thay đổi
     const [imageContentKeyLocal, setImageContentKeyLocal] = useState(0);
@@ -194,20 +218,57 @@ const PostCard = ({
         <Card
             sx={{
                 mb: 2,
-                p: 1,
                 backgroundColor: darkMode ? '#242526' : '#ffffff',
                 color: darkMode ? '#e4e6eb' : '#1c1e21',
                 boxShadow: darkMode ? '0px 0px 5px rgba(255,255,255,0.1)' : '0px 0px 5px rgba(0,0,0,0.1)',
                 transition: 'background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease',
+                borderRadius: 2,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
             }}
         >
-            <CardContent sx={{ p: 1 }}>
+            {/* Thumbnail Image - Hiển thị ở trên giống Home page */}
+            {thumbnailImage && (
+                <CardMedia
+                    component="img"
+                    height="200"
+                    image={thumbnailImage}
+                    alt={post.title}
+                    sx={{
+                        objectFit: 'cover',
+                        cursor: 'pointer',
+                        transition: 'transform 0.3s ease',
+                        '&:hover': {
+                            transform: 'scale(1.02)'
+                        }
+                    }}
+                    onClick={() => goToDetail(post._id)}
+                />
+            )}
+
+            <CardContent sx={{ p: 2, flexGrow: 1 }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2"
-                        sx={{ fontSize: '0.875rem', color: darkMode ? '#b0b3b8' : '#65676b' }}
-                    >
-                        👤 {post.authorId?.fullName}
-                    </Typography>
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <Avatar
+                            src={post.authorId?.avatarUrl}
+                            sx={{
+                                width: 24,
+                                height: 24,
+                                fontSize: '0.75rem',
+                                background: post.authorId?.role === 'admin'
+                                    ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                                    : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                            }}
+                        >
+                            {!post.authorId?.avatarUrl && post.authorId?.fullName?.charAt(0)?.toUpperCase()}
+                        </Avatar>
+                        <Typography variant="body2"
+                            sx={{ fontSize: '0.8rem', color: darkMode ? '#b0b3b8' : '#65676b' }}
+                        >
+                            {post.authorId?.fullName}
+                        </Typography>
+                    </Box>
                     {user && user._id === post.authorId?._id && (
                         <>
                             <IconButton
@@ -330,6 +391,13 @@ const PostCard = ({
                             // Also fix relative URLs to absolute
                             content = content.replace(/src="\/upload\//g, 'src="http://localhost:5000/upload/');
 
+                            // Remove first image from content if it's being shown as thumbnail
+                            if (thumbnailImage) {
+                                // Remove the first img tag that matches the thumbnail
+                                const firstImgRegex = /<img[^>]*src=["'][^"']*["'][^>]*>/i;
+                                content = content.replace(firstImgRegex, '');
+                            }
+
                             // Debug: Check if content has images
                             if (content.includes('<img')) {
                                 console.log('🖼️ PostCard content has images:', post.title);
@@ -445,6 +513,7 @@ const PostCard = ({
                         onRatePost={handleRatingSubmit}
                         totalRatings={totalRatings} // NEW: Truyền tổng số lượt đánh giá
                         allRatings={allRatings} // NEW: Truyền danh sách chi tiết các đánh giá
+                        averageRating={averageRating} // NEW: Truyền điểm trung bình
                     />
                 )}
             </CardContent>

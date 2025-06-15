@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-// import axios from 'axios'; // Bỏ comment nếu bạn muốn xác thực token với backend khi tải lại trang
+import axios from 'axios';
+import forumRulesService from '../services/forumRulesService';
 
 export const AuthContext = createContext();
 
@@ -7,6 +8,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(null);
     const [loadingAuth, setLoadingAuth] = useState(true); // Trạng thái loading của AuthContext
+    const [showWelcomeRules, setShowWelcomeRules] = useState(false);
 
     useEffect(() => {
         const loadUserAndToken = async () => {
@@ -48,6 +50,9 @@ export const AuthProvider = ({ children }) => {
                     setToken(storedToken);
                     console.log('AuthContext (useEffect): User and token loaded from localStorage.');
 
+                    // Kiểm tra quy định diễn đàn cho user hiện tại
+                    checkForumRulesAgreement(parsedUser, storedToken);
+
                 } catch (error) {
                     console.error("AuthContext (useEffect): Error parsing user data from localStorage:", error);
                     // Xóa dữ liệu lỗi để tránh các vấn đề sau này
@@ -67,6 +72,24 @@ export const AuthProvider = ({ children }) => {
         loadUserAndToken();
     }, []); // Chỉ chạy một lần khi component mount
 
+    // Function to check forum rules agreement
+    const checkForumRulesAgreement = async (userData, userToken) => {
+        try {
+            // Chỉ kiểm tra cho user thường, không kiểm tra admin
+            if (userData.role === 'admin' || userData.role === 'editor') {
+                return;
+            }
+
+            const response = await forumRulesService.checkRulesAgreement();
+            if (response.success && response.data.needsAgreement) {
+                console.log('User needs to agree to forum rules');
+                setShowWelcomeRules(true);
+            }
+        } catch (error) {
+            console.error('Error checking forum rules agreement:', error);
+        }
+    };
+
     const login = (userData) => {
         // Luôn kiểm tra userData trước khi lưu trữ
         if (!userData || typeof userData !== 'object' || !userData.token) {
@@ -83,6 +106,9 @@ export const AuthProvider = ({ children }) => {
 
         console.log("AuthContext (login): User data being set:", userData);
         console.log("AuthContext (login): Token being set:", userData.token);
+
+        // Kiểm tra quy định diễn đàn cho user mới đăng nhập
+        checkForumRulesAgreement(userData, userData.token);
     };
 
     const logout = () => {
@@ -119,6 +145,9 @@ export const AuthProvider = ({ children }) => {
                 setUser(data.user);
                 setToken(data.token);
 
+                // Kiểm tra quy định diễn đàn cho user Google login
+                checkForumRulesAgreement(data.user, data.token);
+
                 return { success: true, user: data.user };
             } else {
                 console.error('AuthContext (googleLogin): Failed:', data.message);
@@ -139,9 +168,32 @@ export const AuthProvider = ({ children }) => {
     // Hàm mới để cung cấp token
     const getToken = () => token;
 
+    // Functions to manage welcome rules dialog
+    const hideWelcomeRules = () => setShowWelcomeRules(false);
+    const agreeToWelcomeRules = async () => {
+        try {
+            await forumRulesService.agreeToRules();
+            setShowWelcomeRules(false);
+            return true;
+        } catch (error) {
+            console.error('Error agreeing to welcome rules:', error);
+            return false;
+        }
+    };
+
     return (
         // Thêm loadingAuth vào value của context để các component con có thể truy cập
-        <AuthContext.Provider value={{ user, login, logout, googleLogin, getToken, loadingAuth }}>
+        <AuthContext.Provider value={{
+            user,
+            login,
+            logout,
+            googleLogin,
+            getToken,
+            loadingAuth,
+            showWelcomeRules,
+            hideWelcomeRules,
+            agreeToWelcomeRules
+        }}>
             {children}
         </AuthContext.Provider>
     );

@@ -24,6 +24,7 @@ import CommentIcon from '@mui/icons-material/Comment';
 import StarIcon from '@mui/icons-material/Star';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import StorageIcon from '@mui/icons-material/Storage';
+import GavelIcon from '@mui/icons-material/Gavel';
 import { styled } from '@mui/system';
 import { Link } from 'react-router-dom';
 
@@ -197,6 +198,14 @@ const Sidebar = () => {
                             <StorageIcon />
                         </ListItemIcon>
                         <ListItemText primary="Quản lý Dữ liệu" />
+                    </StyledListItem>
+
+                    {/* Forum Rules Management */}
+                    <StyledListItem button component={Link} to="/admin/forum-rules">
+                        <ListItemIcon>
+                            <GavelIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Quy định Diễn đàn" />
                     </StyledListItem>
                 </List>
                 <StyledDivider />

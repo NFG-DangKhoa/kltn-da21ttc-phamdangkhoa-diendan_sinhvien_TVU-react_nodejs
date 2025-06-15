@@ -66,6 +66,11 @@ const AdminUsersPage = () => {
 
     // Get auth token
     const getAuthToken = () => {
+        // Try to get token from localStorage directly first
+        const token = localStorage.getItem('token');
+        if (token) return token;
+
+        // Fallback to user.token for backward compatibility
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         return user.token;
     };

@@ -93,7 +93,7 @@ const CenterColumn = ({
             }}
         >
 
-            {!isEditingPost && (
+            {!isEditingPost && user && (
                 <PostForm
                     user={user}
                     newPost={newPost}
@@ -101,6 +101,35 @@ const CenterColumn = ({
                     handlePostSubmit={handlePostSubmit}
                     isEditMode={false}
                 />
+            )}
+
+            {!isEditingPost && !user && (
+                <Box
+                    sx={{
+                        p: 3,
+                        mb: 3,
+                        borderRadius: 2,
+                        border: '2px dashed',
+                        borderColor: 'grey.300',
+                        bgcolor: 'grey.50',
+                        textAlign: 'center'
+                    }}
+                >
+                    <Typography variant="h6" color="text.secondary" mb={1}>
+                        Đăng nhập để tham gia thảo luận
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" mb={2}>
+                        Bạn cần đăng nhập để có thể đăng bài viết và tham gia thảo luận trong chủ đề này
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => window.location.href = '/login'}
+                        sx={{ borderRadius: 2 }}
+                    >
+                        Đăng nhập ngay
+                    </Button>
+                </Box>
             )}
 
             {isEditingPost && currentEditingPost && (

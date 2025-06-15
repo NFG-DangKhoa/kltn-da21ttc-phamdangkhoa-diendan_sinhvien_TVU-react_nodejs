@@ -49,6 +49,15 @@ const userSchema = new mongoose.Schema({
     lastLogin: Date,
     loginAttempts: { type: Number, default: 0 },
 
+    // Forum rules agreement
+    rulesAgreedVersion: {
+        type: Number,
+        default: 0 // 0 means never agreed to any rules
+    },
+    rulesAgreedAt: {
+        type: Date
+    },
+
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });

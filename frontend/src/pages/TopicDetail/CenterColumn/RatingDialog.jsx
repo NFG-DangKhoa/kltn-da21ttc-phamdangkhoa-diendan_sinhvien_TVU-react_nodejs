@@ -7,7 +7,7 @@ import {
 import StarIcon from '@mui/icons-material/Star';
 import { ThemeContext } from '../../../context/ThemeContext'; // Đảm bảo đường dẫn đúng
 
-const RatingDialog = ({ open, onClose, postId, userId, currentRating, onRatePost, totalRatings, allRatings }) => {
+const RatingDialog = ({ open, onClose, postId, userId, currentRating, onRatePost, totalRatings, allRatings, averageRating }) => {
     const { mode } = useContext(ThemeContext);
     const darkMode = mode === 'dark';
 
@@ -139,9 +139,14 @@ const RatingDialog = ({ open, onClose, postId, userId, currentRating, onRatePost
 
                 <Divider sx={{ my: 2, width: '100%', borderColor: darkMode ? '#555' : '#eee' }} />
 
-                <Typography variant="h6" sx={{ color: darkMode ? '#e4e6eb' : '#1c1e21', mb: 1 }}>
-                    Tổng số lượt đánh giá: {totalRatings}
-                </Typography>
+                <Box sx={{ mb: 2 }}>
+                    <Typography variant="h6" sx={{ color: darkMode ? '#e4e6eb' : '#1c1e21', mb: 1 }}>
+                        Điểm trung bình: {averageRating ? averageRating.toFixed(1) : '0.0'}/5.0
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: darkMode ? '#b0b3b8' : '#666' }}>
+                        Tổng số lượt đánh giá: {totalRatings || 0}
+                    </Typography>
+                </Box>
 
                 {allRatings && allRatings.length > 0 ? (
                     <List sx={{ width: '100%', maxHeight: 200, overflowY: 'auto', bgcolor: darkMode ? '#444' : '#f9f9f9', borderRadius: '8px', p: 1 }}>

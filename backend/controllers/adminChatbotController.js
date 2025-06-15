@@ -1,6 +1,8 @@
 // File: backend/controllers/adminChatbotController.js
 const ChatbotIntent = require('../models/ChatbotIntent');
 const ChatbotConversation = require('../models/ChatbotConversation');
+const fs = require('fs').promises;
+const path = require('path');
 const DialogflowService = require('../services/dialogflowService');
 const mongoose = require('mongoose');
 
@@ -1124,6 +1126,154 @@ exports.getConversationAnalytics = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Lỗi server khi lấy thống kê conversations',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * @route GET /api/admin/chatbot/widget-settings
+ * @desc Lấy cài đặt widget chatbot
+ * @access Private (Admin Only)
+ */
+exports.getWidgetSettings = async (req, res) => {
+    try {
+        const settingsPath = path.join(__dirname, '../config/chatbot-widget-settings.json');
+
+        // Default settings
+        const defaultSettings = {
+            primaryColor: '#1976d2',
+            secondaryColor: '#f5f5f5',
+            textColor: '#333333',
+            greetingMessage: 'Hù, bạn cần hỗ trợ gì không nè',
+            greetingDelay: 3000,
+            position: 'bottom-right',
+            size: 'medium',
+            showAvatar: true,
+            autoOpen: false,
+            welcomeSound: true,
+            updatedAt: new Date(),
+            updatedBy: null
+        };
+
+        try {
+            const settingsData = await fs.readFile(settingsPath, 'utf8');
+            const settings = JSON.parse(settingsData);
+
+            res.status(200).json({
+                success: true,
+                data: { ...defaultSettings, ...settings }
+            });
+        } catch (fileError) {
+            // File doesn't exist, return default settings
+            res.status(200).json({
+                success: true,
+                data: defaultSettings
+            });
+        }
+    } catch (error) {
+        console.error('Error getting widget settings:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi lấy cài đặt widget',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * @route PUT /api/admin/chatbot/widget-settings
+ * @desc Cập nhật cài đặt widget chatbot
+ * @access Private (Admin Only)
+ */
+exports.updateWidgetSettings = async (req, res) => {
+    try {
+        const adminId = req.user._id;
+        const settingsPath = path.join(__dirname, '../config/chatbot-widget-settings.json');
+
+        // Validate settings
+        const {
+            primaryColor,
+            secondaryColor,
+            textColor,
+            greetingMessage,
+            greetingDelay,
+            position,
+            size,
+            showAvatar,
+            autoOpen,
+            welcomeSound
+        } = req.body;
+
+        // Validation
+        if (!primaryColor || !secondaryColor || !textColor || !greetingMessage) {
+            return res.status(400).json({
+                success: false,
+                message: 'Thiếu thông tin bắt buộc'
+            });
+        }
+
+        if (greetingDelay < 1000 || greetingDelay > 10000) {
+            return res.status(400).json({
+                success: false,
+                message: 'Thời gian hiển thị phải từ 1-10 giây'
+            });
+        }
+
+        const validPositions = ['bottom-right', 'bottom-left', 'top-right', 'top-left'];
+        const validSizes = ['small', 'medium', 'large'];
+
+        if (!validPositions.includes(position)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vị trí không hợp lệ'
+            });
+        }
+
+        if (!validSizes.includes(size)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Kích thước không hợp lệ'
+            });
+        }
+
+        // Prepare settings object
+        const settings = {
+            primaryColor,
+            secondaryColor,
+            textColor,
+            greetingMessage: greetingMessage.trim(),
+            greetingDelay: parseInt(greetingDelay),
+            position,
+            size,
+            showAvatar: Boolean(showAvatar),
+            autoOpen: Boolean(autoOpen),
+            welcomeSound: Boolean(welcomeSound),
+            updatedAt: new Date(),
+            updatedBy: adminId
+        };
+
+        // Ensure config directory exists
+        const configDir = path.dirname(settingsPath);
+        try {
+            await fs.access(configDir);
+        } catch {
+            await fs.mkdir(configDir, { recursive: true });
+        }
+
+        // Save settings to file
+        await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+
+        res.status(200).json({
+            success: true,
+            message: 'Cài đặt widget đã được cập nhật thành công',
+            data: settings
+        });
+    } catch (error) {
+        console.error('Error updating widget settings:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi cập nhật cài đặt widget',
             error: error.message
         });
     }

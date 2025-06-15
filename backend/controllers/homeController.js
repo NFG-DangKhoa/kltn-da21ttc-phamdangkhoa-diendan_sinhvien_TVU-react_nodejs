@@ -125,6 +125,7 @@ exports.getFeaturedPosts = async (req, res) => {
             {
                 $sort: {
                     featured: -1, // Ưu tiên bài viết được đánh dấu featured
+                    updatedAt: -1, // Bài viết mới được đánh dấu featured sẽ lên đầu
                     interactionScore: -1, // Sau đó sắp xếp theo điểm tương tác
                     createdAt: -1 // Cuối cùng theo thời gian tạo
                 }
@@ -137,6 +138,7 @@ exports.getFeaturedPosts = async (req, res) => {
                     views: 1,
                     featured: 1,
                     createdAt: 1,
+                    updatedAt: 1,
                     commentCount: 1,
                     likeCount: 1,
                     interactionScore: 1,

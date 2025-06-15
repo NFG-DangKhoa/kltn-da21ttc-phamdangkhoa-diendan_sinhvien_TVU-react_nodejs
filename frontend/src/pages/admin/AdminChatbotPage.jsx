@@ -36,7 +36,9 @@ import {
     ListItem,
     ListItemText,
     ListItemSecondaryAction,
-    Divider
+    Divider,
+    Slider,
+    Switch
 } from '@mui/material';
 import {
     SmartToy as BotIcon,
@@ -54,7 +56,8 @@ import {
     Pending as PendingIcon,
     Star as StarIcon,
     TrendingUp as TrendingUpIcon,
-    Refresh as RefreshIcon
+    Refresh as RefreshIcon,
+    Settings
 } from '@mui/icons-material';
 import {
     LineChart,
@@ -109,6 +112,20 @@ const AdminChatbotPage = () => {
         tags: []
     });
 
+    // Widget customization
+    const [widgetSettings, setWidgetSettings] = useState({
+        primaryColor: '#1976d2',
+        secondaryColor: '#f5f5f5',
+        textColor: '#333333',
+        greetingMessage: 'Hù, bạn cần hỗ trợ gì không nè',
+        greetingDelay: 3000, // milliseconds
+        position: 'bottom-right',
+        size: 'medium',
+        showAvatar: true,
+        autoOpen: false,
+        welcomeSound: true
+    });
+
     // Snackbar
     const [snackbar, setSnackbar] = useState({
         open: false,
@@ -121,6 +138,11 @@ const AdminChatbotPage = () => {
 
     // Get auth token
     const getAuthToken = () => {
+        // Try to get token from localStorage directly first
+        const token = localStorage.getItem('token');
+        if (token) return token;
+
+        // Fallback to user.token for backward compatibility
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         return user.token;
     };
@@ -387,6 +409,86 @@ const AdminChatbotPage = () => {
         return num?.toString() || '0';
     };
 
+    // Load widget settings
+    const loadWidgetSettings = async () => {
+        try {
+            const token = getAuthToken();
+            const response = await axios.get(`${API_BASE_URL}/admin/chatbot/widget-settings`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (response.data.success) {
+                setWidgetSettings(prev => ({
+                    ...prev,
+                    ...response.data.data
+                }));
+            }
+        } catch (error) {
+            console.error('Error loading widget settings:', error);
+            // Use default settings if API fails
+        }
+    };
+
+    // Save widget settings
+    const saveWidgetSettings = async () => {
+        try {
+            const token = getAuthToken();
+            const response = await axios.put(`${API_BASE_URL}/admin/chatbot/widget-settings`, widgetSettings, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (response.data.success) {
+                showSnackbar('Cài đặt widget đã được lưu thành công');
+                // Apply settings to current widget
+                applyWidgetSettings();
+            }
+        } catch (error) {
+            console.error('Error saving widget settings:', error);
+            showSnackbar('Lỗi khi lưu cài đặt widget', 'error');
+        }
+    };
+
+    // Apply widget settings to current widget
+    const applyWidgetSettings = () => {
+        // Update CSS variables for widget styling
+        const root = document.documentElement;
+        root.style.setProperty('--chatbot-primary-color', widgetSettings.primaryColor);
+        root.style.setProperty('--chatbot-secondary-color', widgetSettings.secondaryColor);
+        root.style.setProperty('--chatbot-text-color', widgetSettings.textColor);
+
+        // Store settings in localStorage for widget to use
+        localStorage.setItem('chatbotWidgetSettings', JSON.stringify(widgetSettings));
+
+        // Trigger widget update event
+        window.dispatchEvent(new CustomEvent('chatbotSettingsUpdated', {
+            detail: widgetSettings
+        }));
+    };
+
+    // Reset widget settings to default
+    const resetWidgetSettings = () => {
+        setWidgetSettings({
+            primaryColor: '#1976d2',
+            secondaryColor: '#f5f5f5',
+            textColor: '#333333',
+            greetingMessage: 'Hù, bạn cần hỗ trợ gì không nè',
+            greetingDelay: 3000,
+            position: 'bottom-right',
+            size: 'medium',
+            showAvatar: true,
+            autoOpen: false,
+            welcomeSound: true
+        });
+    };
+
+    // Handle widget setting change
+    const handleWidgetSettingChange = (key, value) => {
+        setWidgetSettings(prev => ({
+            ...prev,
+            [key]: value
+        }));
+    };
+
     // Effects
     useEffect(() => {
         if (selectedTab === 0) {
@@ -395,6 +497,8 @@ const AdminChatbotPage = () => {
             fetchConversations();
         } else if (selectedTab === 2) {
             fetchAnalytics();
+        } else if (selectedTab === 3) {
+            loadWidgetSettings();
         }
     }, [selectedTab, intentPage, intentRowsPerPage, conversationPage, conversationRowsPerPage]);
 
@@ -539,6 +643,7 @@ const AdminChatbotPage = () => {
                     <Tab label="Quản lý Intents" icon={<IntentIcon />} />
                     <Tab label="Conversations" icon={<ConversationIcon />} />
                     <Tab label="Thống kê" icon={<AnalyticsIcon />} />
+                    <Tab label="Tùy chỉnh Widget" icon={<Settings />} />
                 </Tabs>
 
                 {/* Tab Panel 0: Intent Management */}
@@ -929,6 +1034,282 @@ const AdminChatbotPage = () => {
                             )}
                         </Grid>
                     )}
+                </TabPanel>
+
+                {/* Tab Panel 3: Widget Customization */}
+                <TabPanel value={selectedTab} index={3}>
+                    <Grid container spacing={3}>
+                        {/* Color Settings */}
+                        <Grid item xs={12} md={6}>
+                            <Paper sx={{ p: 3 }}>
+                                <Typography variant="h6" gutterBottom>
+                                    Màu sắc
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    <Box>
+                                        <Typography variant="body2" gutterBottom>
+                                            Màu chính
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                            <input
+                                                type="color"
+                                                value={widgetSettings.primaryColor}
+                                                onChange={(e) => handleWidgetSettingChange('primaryColor', e.target.value)}
+                                                style={{ width: 50, height: 40, border: 'none', borderRadius: 4 }}
+                                            />
+                                            <TextField
+                                                size="small"
+                                                value={widgetSettings.primaryColor}
+                                                onChange={(e) => handleWidgetSettingChange('primaryColor', e.target.value)}
+                                                sx={{ width: 120 }}
+                                            />
+                                        </Box>
+                                    </Box>
+
+                                    <Box>
+                                        <Typography variant="body2" gutterBottom>
+                                            Màu phụ
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                            <input
+                                                type="color"
+                                                value={widgetSettings.secondaryColor}
+                                                onChange={(e) => handleWidgetSettingChange('secondaryColor', e.target.value)}
+                                                style={{ width: 50, height: 40, border: 'none', borderRadius: 4 }}
+                                            />
+                                            <TextField
+                                                size="small"
+                                                value={widgetSettings.secondaryColor}
+                                                onChange={(e) => handleWidgetSettingChange('secondaryColor', e.target.value)}
+                                                sx={{ width: 120 }}
+                                            />
+                                        </Box>
+                                    </Box>
+
+                                    <Box>
+                                        <Typography variant="body2" gutterBottom>
+                                            Màu chữ
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                            <input
+                                                type="color"
+                                                value={widgetSettings.textColor}
+                                                onChange={(e) => handleWidgetSettingChange('textColor', e.target.value)}
+                                                style={{ width: 50, height: 40, border: 'none', borderRadius: 4 }}
+                                            />
+                                            <TextField
+                                                size="small"
+                                                value={widgetSettings.textColor}
+                                                onChange={(e) => handleWidgetSettingChange('textColor', e.target.value)}
+                                                sx={{ width: 120 }}
+                                            />
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            </Paper>
+                        </Grid>
+
+                        {/* Message Settings */}
+                        <Grid item xs={12} md={6}>
+                            <Paper sx={{ p: 3 }}>
+                                <Typography variant="h6" gutterBottom>
+                                    Tin nhắn chào
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    <TextField
+                                        fullWidth
+                                        label="Câu chào"
+                                        multiline
+                                        rows={3}
+                                        value={widgetSettings.greetingMessage}
+                                        onChange={(e) => handleWidgetSettingChange('greetingMessage', e.target.value)}
+                                        helperText="Tin nhắn sẽ hiển thị khi chatbot xuất hiện"
+                                    />
+
+                                    <Box>
+                                        <Typography variant="body2" gutterBottom>
+                                            Thời gian hiển thị (giây): {widgetSettings.greetingDelay / 1000}
+                                        </Typography>
+                                        <Box sx={{ px: 2 }}>
+                                            <input
+                                                type="range"
+                                                min="1000"
+                                                max="10000"
+                                                step="500"
+                                                value={widgetSettings.greetingDelay}
+                                                onChange={(e) => handleWidgetSettingChange('greetingDelay', parseInt(e.target.value))}
+                                                style={{ width: '100%' }}
+                                            />
+                                        </Box>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'text.secondary' }}>
+                                            <span>1s</span>
+                                            <span>10s</span>
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            </Paper>
+                        </Grid>
+
+                        {/* Position & Size Settings */}
+                        <Grid item xs={12} md={6}>
+                            <Paper sx={{ p: 3 }}>
+                                <Typography variant="h6" gutterBottom>
+                                    Vị trí & Kích thước
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    <FormControl fullWidth>
+                                        <InputLabel>Vị trí</InputLabel>
+                                        <Select
+                                            value={widgetSettings.position}
+                                            label="Vị trí"
+                                            onChange={(e) => handleWidgetSettingChange('position', e.target.value)}
+                                        >
+                                            <MenuItem value="bottom-right">Góc phải dưới</MenuItem>
+                                            <MenuItem value="bottom-left">Góc trái dưới</MenuItem>
+                                            <MenuItem value="top-right">Góc phải trên</MenuItem>
+                                            <MenuItem value="top-left">Góc trái trên</MenuItem>
+                                        </Select>
+                                    </FormControl>
+
+                                    <FormControl fullWidth>
+                                        <InputLabel>Kích thước</InputLabel>
+                                        <Select
+                                            value={widgetSettings.size}
+                                            label="Kích thước"
+                                            onChange={(e) => handleWidgetSettingChange('size', e.target.value)}
+                                        >
+                                            <MenuItem value="small">Nhỏ</MenuItem>
+                                            <MenuItem value="medium">Vừa</MenuItem>
+                                            <MenuItem value="large">Lớn</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Box>
+                            </Paper>
+                        </Grid>
+
+                        {/* Behavior Settings */}
+                        <Grid item xs={12} md={6}>
+                            <Paper sx={{ p: 3 }}>
+                                <Typography variant="h6" gutterBottom>
+                                    Hành vi
+                                </Typography>
+                                <List>
+                                    <ListItem>
+                                        <ListItemText
+                                            primary="Hiển thị avatar"
+                                            secondary="Hiển thị hình đại diện của bot"
+                                        />
+                                        <ListItemSecondaryAction>
+                                            <input
+                                                type="checkbox"
+                                                checked={widgetSettings.showAvatar}
+                                                onChange={(e) => handleWidgetSettingChange('showAvatar', e.target.checked)}
+                                            />
+                                        </ListItemSecondaryAction>
+                                    </ListItem>
+
+                                    <ListItem>
+                                        <ListItemText
+                                            primary="Tự động mở"
+                                            secondary="Tự động mở chat khi trang được tải"
+                                        />
+                                        <ListItemSecondaryAction>
+                                            <input
+                                                type="checkbox"
+                                                checked={widgetSettings.autoOpen}
+                                                onChange={(e) => handleWidgetSettingChange('autoOpen', e.target.checked)}
+                                            />
+                                        </ListItemSecondaryAction>
+                                    </ListItem>
+
+                                    <ListItem>
+                                        <ListItemText
+                                            primary="Âm thanh chào"
+                                            secondary="Phát âm thanh khi hiển thị tin nhắn chào"
+                                        />
+                                        <ListItemSecondaryAction>
+                                            <input
+                                                type="checkbox"
+                                                checked={widgetSettings.welcomeSound}
+                                                onChange={(e) => handleWidgetSettingChange('welcomeSound', e.target.checked)}
+                                            />
+                                        </ListItemSecondaryAction>
+                                    </ListItem>
+                                </List>
+                            </Paper>
+                        </Grid>
+
+                        {/* Preview */}
+                        <Grid item xs={12}>
+                            <Paper sx={{ p: 3 }}>
+                                <Typography variant="h6" gutterBottom>
+                                    Xem trước
+                                </Typography>
+                                <Box
+                                    sx={{
+                                        position: 'relative',
+                                        height: 300,
+                                        border: '2px dashed #ccc',
+                                        borderRadius: 2,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: 'grey.50'
+                                    }}
+                                >
+                                    <Typography color="text.secondary">
+                                        Xem trước widget chatbot sẽ hiển thị ở đây
+                                    </Typography>
+
+                                    {/* Mini preview widget */}
+                                    <Box
+                                        sx={{
+                                            position: 'absolute',
+                                            bottom: 20,
+                                            right: 20,
+                                            width: 60,
+                                            height: 60,
+                                            borderRadius: '50%',
+                                            bgcolor: widgetSettings.primaryColor,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: 'white',
+                                            fontSize: '24px',
+                                            cursor: 'pointer',
+                                            boxShadow: 3
+                                        }}
+                                    >
+                                        💬
+                                    </Box>
+                                </Box>
+                            </Paper>
+                        </Grid>
+
+                        {/* Action Buttons */}
+                        <Grid item xs={12}>
+                            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={resetWidgetSettings}
+                                >
+                                    Đặt lại mặc định
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    onClick={applyWidgetSettings}
+                                >
+                                    Áp dụng ngay
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    onClick={saveWidgetSettings}
+                                >
+                                    Lưu cài đặt
+                                </Button>
+                            </Box>
+                        </Grid>
+                    </Grid>
                 </TabPanel>
             </Paper>
 

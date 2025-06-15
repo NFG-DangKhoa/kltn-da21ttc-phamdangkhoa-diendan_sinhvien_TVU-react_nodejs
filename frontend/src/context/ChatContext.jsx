@@ -40,7 +40,8 @@ const CHAT_ACTIONS = {
     SET_UNREAD_COUNT: 'SET_UNREAD_COUNT',
     SET_CONNECTED: 'SET_CONNECTED',
     SET_HEARTBEAT_INTERVAL: 'SET_HEARTBEAT_INTERVAL',
-    CLEAR_CHAT: 'CLEAR_CHAT'
+    CLEAR_CHAT: 'CLEAR_CHAT',
+    SET_CURRENT_CONVERSATION: 'SET_CURRENT_CONVERSATION'
 };
 
 // Reducer
@@ -207,6 +208,12 @@ function chatReducer(state, action) {
             }
             return { ...initialState };
 
+        case CHAT_ACTIONS.SET_CURRENT_CONVERSATION:
+            return {
+                ...state,
+                currentConversation: action.payload
+            };
+
         default:
             return state;
     }
@@ -268,6 +275,32 @@ export function ChatProvider({ children }) {
             // Play notification sound if this is a received message (not sent by current user)
             if (currentUserId === messageReceiverId) {
                 console.log('🔔 Playing notification sound for received message');
+
+                // Check if user is currently viewing this conversation
+                const isViewingConversation = window.location.pathname === '/chat' &&
+                    state.currentConversation &&
+                    state.currentConversation._id === normalizedMessage.conversationId;
+
+                // Also check if this is a message sent by the current user (should not increase unread count)
+                const isSentByCurrentUser = normalizedMessage.senderId === currentUserId;
+
+                // Only update unread count if:
+                // 1. User is NOT currently viewing this conversation AND
+                // 2. Message is NOT sent by current user
+                if (!isViewingConversation && !isSentByCurrentUser) {
+                    console.log('🔔 User not viewing conversation and message from other user, updating unread count');
+                    dispatch({
+                        type: CHAT_ACTIONS.SET_UNREAD_COUNT,
+                        payload: state.unreadCount + 1
+                    });
+                } else {
+                    console.log('🔔 Not updating unread count:', {
+                        isViewingConversation,
+                        isSentByCurrentUser,
+                        currentUserId,
+                        senderId: normalizedMessage.senderId
+                    });
+                }
 
                 // Get settings from localStorage
                 const chatSettings = JSON.parse(localStorage.getItem('chatSettings') || '{}');
@@ -511,6 +544,25 @@ export function ChatProvider({ children }) {
         };
     }, [user, handleNewMessage]);
 
+    // Load unread count when user is available
+    useEffect(() => {
+        if (user && user._id) {
+            const loadUnreadCount = async () => {
+                try {
+                    const response = await chatService.getUnreadCount();
+                    dispatch({
+                        type: CHAT_ACTIONS.SET_UNREAD_COUNT,
+                        payload: response.data.unreadCount || 0
+                    });
+                } catch (error) {
+                    console.error('Error loading unread count:', error);
+                    dispatch({ type: CHAT_ACTIONS.SET_UNREAD_COUNT, payload: 0 });
+                }
+            };
+            loadUnreadCount();
+        }
+    }, [user]);
+
     // Heartbeat functions
     const startHeartbeat = useCallback(() => {
         if (state.heartbeatInterval) {
@@ -679,8 +731,63 @@ export function ChatProvider({ children }) {
             try {
                 socket.emit('markMessageRead', { messageId, userId: user._id });
                 await chatService.markMessageAsRead(messageId);
+
+                // Decrease unread count
+                if (state.unreadCount > 0) {
+                    dispatch({
+                        type: CHAT_ACTIONS.SET_UNREAD_COUNT,
+                        payload: state.unreadCount - 1
+                    });
+                }
             } catch (error) {
                 console.error('Error marking message as read:', error);
+            }
+        },
+
+        // Mark all messages in conversation as read
+        markConversationAsRead: async (conversationId) => {
+            try {
+                const response = await chatService.markConversationAsRead(conversationId);
+                if (response.success) {
+                    // Update unread count
+                    const markedCount = response.data.markedCount || 0;
+                    if (markedCount > 0) {
+                        const newUnreadCount = Math.max(0, state.unreadCount - markedCount);
+                        dispatch({
+                            type: CHAT_ACTIONS.SET_UNREAD_COUNT,
+                            payload: newUnreadCount
+                        });
+
+                        // Update conversation unread count to 0
+                        const updatedConversations = state.conversations.map(conv =>
+                            conv._id === conversationId
+                                ? { ...conv, unreadCount: 0 }
+                                : conv
+                        );
+                        dispatch({
+                            type: CHAT_ACTIONS.SET_CONVERSATIONS,
+                            payload: updatedConversations
+                        });
+                    }
+                }
+                return response;
+            } catch (error) {
+                console.error('Error marking conversation as read:', error);
+                throw error;
+            }
+        },
+
+        // Load unread count from API
+        loadUnreadCount: async () => {
+            try {
+                const response = await chatService.getUnreadCount();
+                dispatch({
+                    type: CHAT_ACTIONS.SET_UNREAD_COUNT,
+                    payload: response.data.unreadCount || 0
+                });
+            } catch (error) {
+                console.error('Error loading unread count:', error);
+                dispatch({ type: CHAT_ACTIONS.SET_UNREAD_COUNT, payload: 0 });
             }
         },
 
@@ -736,6 +843,11 @@ export function ChatProvider({ children }) {
             dispatch({ type: CHAT_ACTIONS.ADD_MESSAGE, payload: message });
         },
 
+        // Update conversations (for optimistic updates)
+        updateConversations: (updatedConversations) => {
+            dispatch({ type: CHAT_ACTIONS.SET_CONVERSATIONS, payload: updatedConversations });
+        },
+
         // Clear chat data (on logout)
         clearChat: () => {
             dispatch({ type: CHAT_ACTIONS.CLEAR_CHAT });
@@ -763,6 +875,14 @@ export function ChatProvider({ children }) {
             dispatch({
                 type: CHAT_ACTIONS.UPDATE_USER_LAST_SEEN,
                 payload: { userId, lastSeen }
+            });
+        },
+
+        // Set current conversation for unread count logic
+        setCurrentConversation: (conversation) => {
+            dispatch({
+                type: CHAT_ACTIONS.SET_CURRENT_CONVERSATION,
+                payload: conversation
             });
         }
     };

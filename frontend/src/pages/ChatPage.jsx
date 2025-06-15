@@ -53,7 +53,10 @@ const ChatPage = () => {
         loading,
         error,
         socket,
-        isConnected
+        isConnected,
+        markConversationAsRead,
+        updateConversations,
+        setCurrentConversation
     } = useChat();
 
     // Check if user is authenticated (chờ AuthContext load xong)
@@ -107,9 +110,32 @@ const ChatPage = () => {
         }
     }, [searchParams, conversations]); // Removed loadMessages to prevent infinite loop
 
-    const handleSelectConversation = (conversation) => {
+    const handleSelectConversation = async (conversation) => {
         setSelectedConversation(conversation);
+
+        // Set current conversation in context for unread count logic
+        setCurrentConversation(conversation);
+
+        // Mark all messages in this conversation as read immediately (optimistic update)
+        // Update conversation unread count to 0 in UI first for instant feedback
+        const updatedConversations = conversations.map(conv =>
+            conv._id === conversation._id
+                ? { ...conv, unreadCount: 0 }
+                : conv
+        );
+        updateConversations(updatedConversations);
+
         loadMessages(conversation._id, conversation);
+
+        // Mark all messages in this conversation as read on server
+        try {
+            await markConversationAsRead(conversation._id);
+        } catch (error) {
+            console.error('Error marking conversation as read:', error);
+            // Optionally revert the optimistic update on error
+            // For now, we'll keep the optimistic update even on error
+        }
+
         if (isMobile) {
             // On mobile, we'll show the conversation in full screen
         }
@@ -117,6 +143,7 @@ const ChatPage = () => {
 
     const handleBackToList = () => {
         setSelectedConversation(null);
+        setCurrentConversation(null); // Clear current conversation in context
     };
 
     const handleTabChange = (event, newValue) => {

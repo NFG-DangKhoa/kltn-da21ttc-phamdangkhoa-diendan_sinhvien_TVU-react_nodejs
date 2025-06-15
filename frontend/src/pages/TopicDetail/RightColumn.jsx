@@ -4,13 +4,16 @@ import { ThemeContext } from '../../context/ThemeContext';
 import { Link } from 'react-router-dom';
 import { TrendingUp, People, Campaign } from '@mui/icons-material';
 import axios from 'axios';
+import { OnlineBadge } from '../../components/Chat/OnlineIndicator';
 
 const RightColumn = () => {
     const { mode } = useContext(ThemeContext);
     const darkMode = mode === 'dark';
 
     const [activeMembers, setActiveMembers] = useState([]);
+    const [featuredPosts, setFeaturedPosts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingPosts, setLoadingPosts] = useState(true);
 
     // Fetch recent active members
     useEffect(() => {
@@ -38,7 +41,28 @@ const RightColumn = () => {
             }
         };
 
+        const fetchFeaturedPosts = async () => {
+            try {
+                const response = await axios.get('http://localhost:5000/api/posts/featured');
+                if (response.data.success) {
+                    setFeaturedPosts(response.data.data.slice(0, 4)); // Lấy 4 bài viết nổi bật
+                }
+            } catch (error) {
+                console.error('Error fetching featured posts:', error);
+                // Fallback to dummy data if API fails
+                setFeaturedPosts([
+                    { _id: 1, title: 'React Hooks Advanced', author: { fullName: 'John Doe' }, createdAt: new Date() },
+                    { _id: 2, title: 'Responsive Design with MUI', author: { fullName: 'Jane Smith' }, createdAt: new Date() },
+                    { _id: 3, title: 'Deploy to Vercel', author: { fullName: 'Peter Jones' }, createdAt: new Date() },
+                    { _id: 4, title: 'Node.js REST API', author: { fullName: 'Alice Brown' }, createdAt: new Date() },
+                ]);
+            } finally {
+                setLoadingPosts(false);
+            }
+        };
+
         fetchActiveMembers();
+        fetchFeaturedPosts();
     }, []);
 
     return (
@@ -112,7 +136,12 @@ const RightColumn = () => {
                                 }}
                             >
                                 <ListItemAvatar sx={{ minWidth: 36 }}>
-                                    <Box sx={{ position: 'relative' }}>
+                                    <OnlineBadge
+                                        userId={member._id}
+                                        size="small"
+                                        showTooltip={true}
+                                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                    >
                                         <Avatar
                                             alt={member.fullName}
                                             src={member.avatarUrl}
@@ -128,19 +157,7 @@ const RightColumn = () => {
                                         >
                                             {!member.avatarUrl && member.fullName?.charAt(0)?.toUpperCase()}
                                         </Avatar>
-                                        <Box
-                                            sx={{
-                                                position: 'absolute',
-                                                bottom: -1,
-                                                right: -1,
-                                                width: 8,
-                                                height: 8,
-                                                borderRadius: '50%',
-                                                backgroundColor: '#22c55e',
-                                                border: '1px solid #ffffff',
-                                            }}
-                                        />
-                                    </Box>
+                                    </OnlineBadge>
                                 </ListItemAvatar>
                                 <ListItemText
                                     primary={member.fullName}
@@ -197,39 +214,53 @@ const RightColumn = () => {
                     </Typography>
                 </Box>
 
-                <List sx={{ pt: 0, pb: 1 }}>
-                    {['React Hooks', 'Responsive MUI', 'Deploy Vercel', 'Node.js API'].map((item, index) => (
-                        <ListItem
-                            key={index}
-                            sx={{
-                                px: 2.5,
-                                py: 1,
-                                borderBottom: index < 3 ? '1px solid #f1f5f9' : 'none',
-                                '&:hover': {
-                                    backgroundColor: '#f8fafc',
-                                    cursor: 'pointer',
-                                    '& .post-title': {
-                                        color: '#3b82f6'
-                                    }
-                                },
-                                transition: 'all 0.2s ease',
-                            }}
-                        >
-                            <ListItemText
-                                primary={item}
-                                primaryTypographyProps={{
-                                    className: 'post-title',
-                                    color: '#374151',
-                                    fontSize: '0.8rem',
-                                    fontWeight: 500,
-                                    transition: 'color 0.2s ease',
-                                    lineHeight: 1.3,
-                                    noWrap: true
+                {loadingPosts ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                        <CircularProgress size={24} />
+                    </Box>
+                ) : (
+                    <List sx={{ pt: 0, pb: 1 }}>
+                        {featuredPosts.map((post, index) => (
+                            <ListItem
+                                key={post._id}
+                                component={Link}
+                                to={`/posts/detail?topicId=${post.topicId}&postId=${post._id}`}
+                                sx={{
+                                    px: 2.5,
+                                    py: 1,
+                                    textDecoration: 'none',
+                                    borderBottom: index < featuredPosts.length - 1 ? '1px solid #f1f5f9' : 'none',
+                                    '&:hover': {
+                                        backgroundColor: '#f8fafc',
+                                        cursor: 'pointer',
+                                        '& .post-title': {
+                                            color: '#3b82f6'
+                                        }
+                                    },
+                                    transition: 'all 0.2s ease',
                                 }}
-                            />
-                        </ListItem>
-                    ))}
-                </List>
+                            >
+                                <ListItemText
+                                    primary={post.title}
+                                    secondary={
+                                        <Typography variant="caption" color="text.secondary">
+                                            {post.author?.fullName} • {new Date(post.createdAt).toLocaleDateString('vi-VN')}
+                                        </Typography>
+                                    }
+                                    primaryTypographyProps={{
+                                        className: 'post-title',
+                                        color: '#374151',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 500,
+                                        transition: 'color 0.2s ease',
+                                        lineHeight: 1.3,
+                                        noWrap: true
+                                    }}
+                                />
+                            </ListItem>
+                        ))}
+                    </List>
+                )}
             </Paper>
 
             {/* Advertisement Section - Compact */}

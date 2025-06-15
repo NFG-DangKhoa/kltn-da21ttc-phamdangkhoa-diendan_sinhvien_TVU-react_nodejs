@@ -131,4 +131,20 @@ router.get('/analytics/intents', adminChatbotController.getIntentAnalytics);
  */
 router.get('/analytics/conversations', adminChatbotController.getConversationAnalytics);
 
+// Widget Settings Routes
+
+/**
+ * @route GET /api/admin/chatbot/widget-settings
+ * @desc Lấy cài đặt widget chatbot
+ * @access Private (Admin Only)
+ */
+router.get('/widget-settings', adminChatbotController.getWidgetSettings);
+
+/**
+ * @route PUT /api/admin/chatbot/widget-settings
+ * @desc Cập nhật cài đặt widget chatbot
+ * @access Private (Admin Only)
+ */
+router.put('/widget-settings', adminChatbotController.updateWidgetSettings);
+
 module.exports = router;

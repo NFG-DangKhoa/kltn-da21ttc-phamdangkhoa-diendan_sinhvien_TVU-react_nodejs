@@ -38,6 +38,7 @@ import Home from '@mui/icons-material/Home'; // Thêm icon Home
 import Category from '@mui/icons-material/Category'; // Thêm icon Category
 import Search from '@mui/icons-material/Search'; // Thêm icon Search
 import Chat from '@mui/icons-material/Chat'; // Thêm icon Chat
+import Gavel from '@mui/icons-material/Gavel'; // Thêm icon Gavel cho quy định
 
 // Import your custom contexts
 import { AuthContext } from '../context/AuthContext';
@@ -50,6 +51,10 @@ import NotificationBell from './NotificationBell';
 // Import PostForm component
 import PostForm from '../pages/TopicDetail/CenterColumn/PostForm';
 
+// Import ForumRules components
+import ForumRulesDialog from './ForumRulesDialog';
+import useForumRules from '../hooks/useForumRules';
+
 // Import logo nếu bạn đặt trong thư mục src/assets (chỉ khi dùng cách này)
 // import logoImage from '../assets/logo.png'; // Điều chỉnh đường dẫn nếu cần
 
@@ -58,6 +63,15 @@ const Header = () => {
     const { mode, toggleColorMode } = useContext(ThemeContext);
     const { unreadCount } = useChat();
     const navigate = useNavigate();
+
+    // Forum rules hook
+    const {
+        needsAgreement,
+        showRulesDialog,
+        agreeToRules,
+        hideRules,
+        setShowRulesDialog
+    } = useForumRules(user);
 
 
 
@@ -88,6 +102,12 @@ const Header = () => {
     };
 
     const handleOpenPostDialog = () => {
+        // Kiểm tra quy định trước khi cho phép đăng bài
+        if (needsAgreement) {
+            setShowRulesDialog(true);
+            return;
+        }
+
         setOpenPostDialog(true);
         setSelectedTopic('');
     };
@@ -140,6 +160,12 @@ const Header = () => {
                 handleClosePostDialog();
                 // Show success message
                 alert('Đăng bài thành công!');
+
+                // Redirect to TopicDetail page
+                if (postData.topicId) {
+                    console.log('🔄 Redirecting to TopicDetail:', postData.topicId);
+                    navigate(`/topic/${postData.topicId}`);
+                }
             }
         } catch (error) {
             console.error('❌ Error creating post:', error);
@@ -278,6 +304,24 @@ const Header = () => {
                         >
                             Chủ đề
                         </Button>
+
+                        {/* Nút Quy định diễn đàn */}
+                        <Button
+                            color="inherit"
+                            onClick={() => setShowRulesDialog(true)}
+                            sx={{
+                                color: 'white',
+                                fontWeight: 'bold',
+                                borderRadius: '8px',
+                                padding: '8px 12px',
+                                transition: 'background-color 0.3s ease',
+                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
+                            }}
+                            startIcon={<Gavel />}
+                        >
+                            Quy định
+                        </Button>
+
                         {/* Nút Tìm kiếm (có thể là IconButton nếu bạn muốn icon không có text) */}
                         <IconButton
                             color="inherit"
@@ -290,41 +334,7 @@ const Header = () => {
                             <Search />
                         </IconButton>
 
-                        {/* Nút Chat (chỉ hiển thị khi đã đăng nhập) */}
-                        {user && (
-                            <Button
-                                color="inherit"
-                                onClick={() => navigate('/chat')}
-                                sx={{
-                                    color: 'white',
-                                    fontWeight: 'bold',
-                                    borderRadius: '8px',
-                                    padding: '8px 12px',
-                                    transition: 'background-color 0.3s ease',
-                                    '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
-                                }}
-                                startIcon={
-                                    <Badge
-                                        badgeContent={unreadCount > 0 ? (unreadCount > 5 ? '5+' : unreadCount) : 0}
-                                        color="error"
-                                        sx={{
-                                            '& .MuiBadge-badge': {
-                                                fontSize: '0.7rem',
-                                                minWidth: '18px',
-                                                height: '18px',
-                                                borderRadius: '9px',
-                                                border: '1px solid white',
-                                                fontWeight: 'bold'
-                                            }
-                                        }}
-                                    >
-                                        <Chat />
-                                    </Badge>
-                                }
-                            >
-                                Chat
-                            </Button>
-                        )}
+
                     </Box>
 
                     {/* Navbar actions - Phía bên phải */}
@@ -372,6 +382,41 @@ const Header = () => {
                                         Dashboard
                                     </Button>
                                 )}
+
+                                {/* Nút Chat (hiển thị cho tất cả user đã đăng nhập) */}
+                                <Button
+                                    color="inherit"
+                                    onClick={() => navigate('/chat')}
+                                    sx={{
+                                        marginRight: 2,
+                                        color: 'white',
+                                        fontWeight: 'bold',
+                                        borderRadius: '8px',
+                                        padding: '8px 12px',
+                                        transition: 'background-color 0.3s ease',
+                                        '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
+                                    }}
+                                    startIcon={
+                                        <Badge
+                                            badgeContent={unreadCount > 0 ? (unreadCount > 5 ? '5+' : unreadCount) : 0}
+                                            color="error"
+                                            sx={{
+                                                '& .MuiBadge-badge': {
+                                                    fontSize: '0.7rem',
+                                                    minWidth: '18px',
+                                                    height: '18px',
+                                                    borderRadius: '9px',
+                                                    border: '1px solid white',
+                                                    fontWeight: 'bold'
+                                                }
+                                            }}
+                                        >
+                                            <Chat />
+                                        </Badge>
+                                    }
+                                >
+                                    Chat
+                                </Button>
 
                                 {/* Real-time Notification Bell */}
                                 <NotificationBell />
@@ -593,6 +638,22 @@ const Header = () => {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Forum Rules Dialog */}
+            <ForumRulesDialog
+                open={showRulesDialog}
+                onClose={hideRules}
+                onAgree={async () => {
+                    const success = await agreeToRules();
+                    if (success) {
+                        // Sau khi đồng ý quy định, mở dialog đăng bài
+                        setOpenPostDialog(true);
+                        setSelectedTopic('');
+                    }
+                }}
+                showCloseButton={false} // Không cho phép đóng mà không đồng ý
+                title="Quy định diễn đàn - Bắt buộc đọc trước khi đăng bài"
+            />
         </>
     );
 };

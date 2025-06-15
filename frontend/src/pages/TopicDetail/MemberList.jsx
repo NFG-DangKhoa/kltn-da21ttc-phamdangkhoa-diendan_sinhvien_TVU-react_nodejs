@@ -16,6 +16,7 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ThemeContext } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { OnlineBadge } from '../../components/Chat/OnlineIndicator';
 
 const MembersList = () => {
     const { mode } = useContext(ThemeContext);
@@ -286,22 +287,28 @@ const MembersList = () => {
                                             >
                                                 {/* Avatar with online status */}
                                                 <Box sx={{ position: 'relative', mb: 2 }}>
-                                                    <Avatar
-                                                        alt={member.fullName}
-                                                        src={member.avatarUrl}
-                                                        sx={{
-                                                            width: 80,
-                                                            height: 80,
-                                                            border: `3px solid ${theme.palette.primary.main}`,
-                                                            background: member.role === 'admin'
-                                                                ? 'linear-gradient(135deg, #ff4757 0%, #ff3742 100%)'
-                                                                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                                            fontSize: '2rem',
-                                                            fontWeight: 600
-                                                        }}
+                                                    <OnlineBadge
+                                                        userId={member._id}
+                                                        size="medium"
+                                                        showTooltip={true}
                                                     >
-                                                        {!member.avatarUrl && member.fullName?.charAt(0)?.toUpperCase()}
-                                                    </Avatar>
+                                                        <Avatar
+                                                            alt={member.fullName}
+                                                            src={member.avatarUrl}
+                                                            sx={{
+                                                                width: 80,
+                                                                height: 80,
+                                                                border: `3px solid ${theme.palette.primary.main}`,
+                                                                background: member.role === 'admin'
+                                                                    ? 'linear-gradient(135deg, #ff4757 0%, #ff3742 100%)'
+                                                                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                                fontSize: '2rem',
+                                                                fontWeight: 600
+                                                            }}
+                                                        >
+                                                            {!member.avatarUrl && member.fullName?.charAt(0)?.toUpperCase()}
+                                                        </Avatar>
+                                                    </OnlineBadge>
                                                 </Box>
 
                                                 <CardContent sx={{ textAlign: 'center', p: 0, width: '100%' }}>

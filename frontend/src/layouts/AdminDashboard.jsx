@@ -26,6 +26,7 @@ import AdminSecurity from '../pages/admin/AdminSecurity';
 import AdminFeaturedPage from '../pages/admin/AdminFeaturedPage';
 import AdminNotificationsPage from '../pages/admin/AdminNotificationsPage';
 import AdminDataManagementPage from '../pages/admin/AdminDataManagementPage';
+import AdminForumRulesPage from '../pages/admin/AdminForumRulesPage';
 
 const AdminDashboard = () => {
     const { mode, toggleColorMode } = useContext(ThemeContext);
@@ -76,6 +77,7 @@ const AdminDashboard = () => {
                         <Route path="featured" element={<AdminFeaturedPage />} />
                         <Route path="notifications" element={<AdminNotificationsPage />} />
                         <Route path="data" element={<AdminDataManagementPage />} />
+                        <Route path="forum-rules" element={<AdminForumRulesPage />} />
 
                         {/* Thêm các route admin khác tại đây nếu cần
                             Ví dụ: <Route path="posts/new" element={<AdminNewPostPage />} />

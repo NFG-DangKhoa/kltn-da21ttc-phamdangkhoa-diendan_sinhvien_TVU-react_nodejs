@@ -60,6 +60,17 @@ const AdminCommentsPage = () => {
         totalReplies: 0
     });
 
+    // Get auth token
+    const getAuthToken = () => {
+        // Try to get token from localStorage directly first
+        const token = localStorage.getItem('token');
+        if (token) return token;
+
+        // Fallback to user.token for backward compatibility
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        return user.token;
+    };
+
     useEffect(() => {
         fetchComments(page);
         fetchStats();
@@ -68,7 +79,7 @@ const AdminCommentsPage = () => {
     const fetchComments = async (pageNum = 1) => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = getAuthToken();
             const params = new URLSearchParams({
                 page: pageNum,
                 limit: limit,
@@ -92,7 +103,7 @@ const AdminCommentsPage = () => {
 
     const fetchStats = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = getAuthToken();
             const res = await axios.get('http://localhost:5000/api/admin/comments/stats', {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -149,7 +160,7 @@ const AdminCommentsPage = () => {
     const handleBulkDelete = async () => {
         if (window.confirm(`Bạn có chắc muốn xóa ${selectedComments.length} bình luận đã chọn?`)) {
             try {
-                const token = localStorage.getItem('token');
+                const token = getAuthToken();
                 await axios.delete('http://localhost:5000/api/admin/comments/bulk-delete', {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -192,7 +203,7 @@ const AdminCommentsPage = () => {
 
     const handleDelete = async (commentId) => {
         try {
-            const token = localStorage.getItem('token');
+            const token = getAuthToken();
             await axios.delete(`http://localhost:5000/api/admin/comments/${commentId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,

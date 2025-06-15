@@ -183,6 +183,7 @@ const SimpleConversationList = ({
                         {filteredConversations.map((conversation) => {
                             const otherParticipant = getOtherParticipant(conversation);
                             const isSelected = selectedConversation?._id === conversation._id;
+                            const unreadCount = conversation.unreadCount || 0;
 
                             return (
                                 <React.Fragment key={conversation._id}>
@@ -269,8 +270,28 @@ const SimpleConversationList = ({
                                                         <span style={{ flex: 1, color: '#666', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                             {truncateMessage(conversation.lastMessage?.content)}
                                                         </span>
-                                                        <span style={{ marginLeft: '8px', color: '#999', fontSize: '0.7rem' }}>
-                                                            {formatLastMessageTime(conversation.lastMessage?.createdAt)}
+                                                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            {unreadCount > 0 && (
+                                                                <Chip
+                                                                    label={unreadCount > 5 ? '5+' : unreadCount}
+                                                                    size="small"
+                                                                    sx={{
+                                                                        height: 20,
+                                                                        minWidth: 20,
+                                                                        fontSize: '0.7rem',
+                                                                        fontWeight: 'bold',
+                                                                        background: 'linear-gradient(135deg, #ff4757 0%, #ff3742 100%)',
+                                                                        color: 'white',
+                                                                        border: 'none',
+                                                                        '& .MuiChip-label': {
+                                                                            px: 0.5
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            )}
+                                                            <span style={{ color: '#999', fontSize: '0.7rem' }}>
+                                                                {formatLastMessageTime(conversation.lastMessage?.createdAt)}
+                                                            </span>
                                                         </span>
                                                     </span>
                                                 }

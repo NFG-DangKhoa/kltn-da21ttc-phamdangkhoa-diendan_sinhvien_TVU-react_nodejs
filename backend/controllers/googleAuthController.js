@@ -68,8 +68,25 @@ exports.googleLogin = async (req, res) => {
             if (!user.fullName && fullName) {
                 user.fullName = fullName;
             }
+
+            // Check if this email belongs to an admin and update role if needed
+            const existingAdmin = await User.findOne({ email, role: 'admin' });
+            if (existingAdmin && user._id.toString() !== existingAdmin._id.toString()) {
+                // If there's an admin with same email but different ID, give this Google user admin role
+                user.role = 'admin';
+                console.log('🔑 Granting admin role to Google user with admin email:', email);
+            }
+
             await user.save();
         } else {
+            // Check if there's an admin with this email
+            const existingAdmin = await User.findOne({ email, role: 'admin' });
+            const userRole = existingAdmin ? 'admin' : 'user';
+
+            if (existingAdmin) {
+                console.log('🔑 Creating Google user with admin role for admin email:', email);
+            }
+
             // Create new user
             user = new User({
                 googleId,
@@ -78,7 +95,8 @@ exports.googleLogin = async (req, res) => {
                 avatarUrl,
                 username: email.split('@')[0], // Use email prefix as username
                 isEmailVerified: true,
-                authProvider: 'google'
+                authProvider: 'google',
+                role: userRole // Set admin role if email matches existing admin
             });
             await user.save();
         }

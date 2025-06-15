@@ -54,6 +54,17 @@ class ChatService {
         }
     }
 
+    // Đánh dấu tất cả tin nhắn trong cuộc trò chuyện đã đọc
+    async markConversationAsRead(conversationId) {
+        try {
+            const response = await api.put(`/messages/conversations/${conversationId}/read`);
+            return response.data;
+        } catch (error) {
+            console.error('Error marking conversation as read:', error);
+            throw error;
+        }
+    }
+
     // Lấy số tin nhắn chưa đọc
     async getUnreadCount() {
         try {

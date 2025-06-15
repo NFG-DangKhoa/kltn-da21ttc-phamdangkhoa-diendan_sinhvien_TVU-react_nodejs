@@ -29,6 +29,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { styled } from '@mui/system';
 import NotificationBell from '../../components/NotificationBell';
+import { useAuth } from '../../context/AuthContext';
 
 const drawerWidth = 240;
 
@@ -67,6 +68,7 @@ const StyledMenu = styled(Menu)(({ theme }) => ({
 const AdminHeader = ({ toggleColorMode, mode }) => {
     const [anchorEl, setAnchorEl] = useState(null);
     const navigate = useNavigate();
+    const { logout } = useAuth();
 
     // Get user info from localStorage
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -80,8 +82,7 @@ const AdminHeader = ({ toggleColorMode, mode }) => {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        logout(); // Use AuthContext logout function
         navigate('/login');
         handleMenuClose();
     };

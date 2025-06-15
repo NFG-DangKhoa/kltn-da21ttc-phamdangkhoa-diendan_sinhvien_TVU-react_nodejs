@@ -16,7 +16,7 @@ import Footer from './components/Footer';
 import ScrollToTop from "./components/ScrollToTop";
 import ChatbotWidget from './components/ChatbotWidget';
 import LoadingScreen from './components/LoadingScreen';
-// import ChatButton from './components/Chat/ChatButton'; // Disabled as requested
+import WelcomeRulesDialog from './components/WelcomeRulesDialog';
 
 // Contexts
 import { AuthProvider, AuthContext } from './context/AuthContext'; // Import AuthContext để sử dụng useContext
@@ -119,10 +119,10 @@ const AppContent = () => {
   const isAdminRoute = location.pathname.startsWith('/admin');
 
   // Lấy trạng thái loading từ AuthContext
-  const { loading } = useContext(AuthContext); // <--- Đã thêm dòng này
+  const { loadingAuth } = useContext(AuthContext); // <--- Đã thêm dòng này
 
   // Hiển thị màn hình loading nếu AuthContext đang trong quá trình khôi phục trạng thái
-  if (loading) {
+  if (loadingAuth) {
     return <LoadingScreen message="Đang tải ứng dụng và thông tin người dùng..." />;
   }
 
@@ -174,8 +174,10 @@ const AppContent = () => {
       {/* ChatbotWidget sẽ hiển thị trên mọi trang, ngoại trừ các trang admin */}
       {!isAdminRoute && <ChatbotWidget />}
 
-      {/* ChatButton disabled as requested by user */}
-      {/* {!isAdminRoute && <ChatButton />} */}
+
+
+      {/* Welcome Rules Dialog for new users */}
+      <WelcomeRulesDialog />
     </>
   );
 };

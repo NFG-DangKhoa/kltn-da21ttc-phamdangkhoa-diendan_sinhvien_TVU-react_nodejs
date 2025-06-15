@@ -266,6 +266,59 @@ class ChatService {
         }
     }
 
+    // Đánh dấu tất cả tin nhắn trong cuộc trò chuyện đã đọc
+    async markConversationAsRead(conversationId, userId) {
+        try {
+            // Kiểm tra user có quyền truy cập cuộc trò chuyện không
+            const conversation = await Conversation.findById(conversationId);
+            if (!conversation || !conversation.participants.includes(userId)) {
+                throw new Error('Không có quyền truy cập cuộc trò chuyện này');
+            }
+
+            // Đánh dấu tất cả tin nhắn chưa đọc của user trong cuộc trò chuyện
+            const result = await Message.updateMany(
+                {
+                    conversationId: conversationId,
+                    receiverId: userId,
+                    status: { $ne: 'read' },
+                    isDeleted: false
+                },
+                {
+                    $set: {
+                        status: 'read',
+                        readAt: new Date()
+                    }
+                }
+            );
+
+            // Cập nhật readStatus trong conversation
+            await conversation.markAsRead(userId);
+
+            // Thông báo cho người gửi rằng tin nhắn đã được đọc
+            conversation.participants.forEach(participantId => {
+                if (participantId.toString() !== userId.toString()) {
+                    const userData = this.onlineUsers.get(participantId.toString());
+                    if (userData) {
+                        const socketId = typeof userData === 'string' ? userData : userData.socketId;
+                        this.io.to(socketId).emit('conversationRead', {
+                            conversationId: conversationId,
+                            readBy: userId,
+                            markedCount: result.modifiedCount
+                        });
+                    }
+                }
+            });
+
+            return {
+                markedCount: result.modifiedCount,
+                conversationId: conversationId
+            };
+        } catch (error) {
+            console.error('Error marking conversation as read:', error);
+            throw error;
+        }
+    }
+
     // Lấy tin nhắn trong cuộc trò chuyện
     async getConversationMessages(conversationId, userId, page = 1, limit = 50) {
         try {

@@ -1432,6 +1432,7 @@ const PostDetail = () => {
                         onRatePost={handleRatingSubmit}
                         totalRatings={totalRatings}
                         allRatings={allRatings}
+                        averageRating={averageRating}
                     />
                 )
             }

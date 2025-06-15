@@ -31,6 +31,8 @@ const ChatService = require('./services/chatService');
 const notificationRoutes = require('./routes/notificationRoutes');
 const adminNotificationRoutes = require('./routes/adminNotificationRoutes');
 const adminDataRoutes = require('./routes/adminDataRoutes');
+const forumRulesRoutes = require('./routes/forumRulesRoutes');
+const adminContactRoutes = require('./routes/adminContactRoutes');
 
 // Import notification service
 const NotificationService = require('./services/notificationService');
@@ -101,6 +103,8 @@ app.use('/api/messages', messageRoutes(io));
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin/notifications', adminNotificationRoutes);
 app.use('/api/admin/data', adminDataRoutes);
+app.use('/api/forum-rules', forumRulesRoutes);
+app.use('/api/admin', adminContactRoutes);
 
 // Socket.IO connection handler
 io.on('connection', (socket) => {

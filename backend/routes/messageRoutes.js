@@ -343,6 +343,31 @@ router.delete('/:messageId', auth, async (req, res) => {
     }
 });
 
+// PUT /api/messages/conversations/:conversationId/read - Đánh dấu tất cả tin nhắn trong cuộc trò chuyện đã đọc
+router.put('/conversations/:conversationId/read', auth, initChatService, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const userId = req.user.id;
+
+        const result = await req.chatService.markConversationAsRead(conversationId, userId);
+
+        res.json({
+            success: true,
+            message: 'Đã đánh dấu tất cả tin nhắn trong cuộc trò chuyện đã đọc',
+            data: {
+                markedCount: result.markedCount
+            }
+        });
+    } catch (error) {
+        console.error('Error marking conversation as read:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi khi đánh dấu cuộc trò chuyện đã đọc',
+            error: error.message
+        });
+    }
+});
+
 module.exports = (io) => {
     // Attach io to request object
     router.use((req, res, next) => {

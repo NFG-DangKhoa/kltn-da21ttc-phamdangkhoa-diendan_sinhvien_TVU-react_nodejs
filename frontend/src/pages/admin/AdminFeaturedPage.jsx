@@ -52,10 +52,21 @@ const AdminFeaturedPage = () => {
         fetchData();
     }, []);
 
+    // Get auth token
+    const getAuthToken = () => {
+        // Try to get token from localStorage directly first
+        const token = localStorage.getItem('token');
+        if (token) return token;
+
+        // Fallback to user.token for backward compatibility
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        return user.token;
+    };
+
     const fetchData = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
+            const token = getAuthToken();
 
             const [postsRes, topicsRes] = await Promise.all([
                 axios.get('http://localhost:5000/api/admin/featured/posts', {
