@@ -368,6 +368,38 @@ router.put('/conversations/:conversationId/read', auth, initChatService, async (
     }
 });
 
+// PUT /api/messages/conversations/:conversationId/reset-read-status - Reset read status khi có vấn đề đồng bộ
+router.put('/conversations/:conversationId/reset-read-status', auth, initChatService, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const userId = req.user.id;
+
+        const Conversation = require('../models/Conversation');
+        const conversation = await Conversation.findById(conversationId);
+
+        if (!conversation || !conversation.participants.includes(userId)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Không có quyền truy cập cuộc trò chuyện này'
+            });
+        }
+
+        await conversation.resetReadStatus(userId);
+
+        res.json({
+            success: true,
+            message: 'Đã reset read status thành công'
+        });
+    } catch (error) {
+        console.error('Error resetting read status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi khi reset read status',
+            error: error.message
+        });
+    }
+});
+
 module.exports = (io) => {
     // Attach io to request object
     router.use((req, res, next) => {

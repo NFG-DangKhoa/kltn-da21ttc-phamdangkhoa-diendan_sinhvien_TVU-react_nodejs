@@ -69,7 +69,15 @@ function chatReducer(state, action) {
                     conv._id === action.payload.conversationId ? {
                         ...conv,
                         lastMessage: action.payload.lastMessage,
-                        lastMessageAt: action.payload.lastMessageAt
+                        lastMessageAt: action.payload.lastMessageAt,
+                        // If this is current conversation (user is viewing it), keep unread count at 0
+                        // regardless of who sent the message
+                        unreadCount: (state.currentConversation &&
+                            state.currentConversation._id === action.payload.conversationId) ? 0 :
+                            // If user sent the message, don't increase unread count
+                            action.payload.isSentByCurrentUser ? conv.unreadCount :
+                                // Otherwise, increase unread count by 1 for received messages
+                                (conv.unreadCount || 0) + 1
                     } : conv
                 )
             };
@@ -418,7 +426,8 @@ export function ChatProvider({ children }) {
                 payload: {
                     conversationId: data.conversationId,
                     lastMessage: data.lastMessage,
-                    lastMessageAt: data.lastMessageAt
+                    lastMessageAt: data.lastMessageAt,
+                    isSentByCurrentUser: data.senderId === user._id // Check if current user sent the message
                 }
             });
         });
@@ -481,6 +490,13 @@ export function ChatProvider({ children }) {
             });
         });
 
+        // Conversation read (when someone reads all messages in a conversation)
+        socket.on('conversationRead', (data) => {
+            console.log('📖 Conversation read event received:', data);
+            // Update all messages in the conversation to read status
+            // This is mainly for updating UI to show that messages were read
+        });
+
         // Message deleted
         socket.on('messageDeleted', (data) => {
             console.log('🗑️ Message deleted:', data.messageId);
@@ -536,6 +552,7 @@ export function ChatProvider({ children }) {
             socket.off('conversationUpdate');
             socket.off('messageSent');
             socket.off('messageRead');
+            socket.off('conversationRead');
             socket.off('messageDeleted');
             socket.off('userOnline');
             socket.off('userOffline');
@@ -600,7 +617,7 @@ export function ChatProvider({ children }) {
     // Actions
     const actions = {
         // Load conversations
-        loadConversations: async () => {
+        loadConversations: async (forceRefresh = false) => {
             if (!user || !user._id) {
                 console.warn('Cannot load conversations: user not available');
                 return;
@@ -609,6 +626,16 @@ export function ChatProvider({ children }) {
             try {
                 dispatch({ type: CHAT_ACTIONS.SET_LOADING, payload: true });
                 const response = await chatService.getConversations();
+
+                // Log để debug unread count
+                console.log('📊 Loaded conversations with unread counts:',
+                    response.data.map(conv => ({
+                        id: conv._id,
+                        unreadCount: conv.unreadCount,
+                        lastMessage: conv.lastMessage?.content?.substring(0, 20)
+                    }))
+                );
+
                 dispatch({ type: CHAT_ACTIONS.SET_CONVERSATIONS, payload: response.data });
             } catch (error) {
                 console.error('Error loading conversations:', error);
@@ -878,13 +905,22 @@ export function ChatProvider({ children }) {
             });
         },
 
-        // Set current conversation for unread count logic
-        setCurrentConversation: (conversation) => {
-            dispatch({
-                type: CHAT_ACTIONS.SET_CURRENT_CONVERSATION,
-                payload: conversation
-            });
+        // Reset read status khi có vấn đề đồng bộ
+        resetReadStatus: async (conversationId) => {
+            try {
+                const response = await chatService.resetReadStatus(conversationId);
+                if (response.success) {
+                    console.log('✅ Read status reset successfully for conversation:', conversationId);
+                    // Reload conversations để cập nhật unread count
+                    await actions.loadConversations(true);
+                }
+                return response;
+            } catch (error) {
+                console.error('Error resetting read status:', error);
+                throw error;
+            }
         }
+
     };
 
     return (

@@ -221,25 +221,30 @@ const ConversationView = ({
 
     return (
         <Box
+            className="conversation-view"
             sx={{
                 height: '100%',
-                width: '100%', // Chiếm toàn bộ width
+                width: '100%',
+                maxWidth: '100%', // Đảm bảo không vượt quá container
                 position: 'relative',
                 display: 'flex',
                 flexDirection: 'column',
-                backgroundColor: 'background.paper'
+                backgroundColor: 'background.paper',
+                overflow: 'hidden' // Ngăn overflow
             }}
         >
             {/* Header */}
             <Box
                 sx={{
-                    p: 3,
+                    p: { xs: 2, sm: 3 },
                     borderBottom: '1px solid rgba(0,0,0,0.08)',
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     position: 'relative',
                     boxShadow: '0 2px 10px rgba(102, 126, 234, 0.2)',
+                    width: '100%',
+                    flexShrink: 0, // Không cho header co lại
                     '&::after': {
                         content: '""',
                         position: 'absolute',
@@ -335,30 +340,19 @@ const ConversationView = ({
             {/* Messages */}
             <Box
                 ref={messagesContainerRef}
+                className="messages-container custom-scrollbar"
                 sx={{
                     flex: 1,
                     overflow: 'auto',
-                    p: 3,
+                    p: { xs: 2, sm: 3 },
                     background: 'linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)',
                     scrollBehavior: 'smooth',
                     position: 'relative',
                     minHeight: 0, // Important for flex child to shrink
+                    width: '100%',
+                    maxWidth: '100%',
                     display: 'flex',
-                    flexDirection: 'column',
-                    '&::-webkit-scrollbar': {
-                        width: '6px',
-                    },
-                    '&::-webkit-scrollbar-track': {
-                        background: 'rgba(0,0,0,0.05)',
-                        borderRadius: '3px',
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                        background: 'linear-gradient(180deg, #667eea 0%, #764ba2 100%)',
-                        borderRadius: '3px',
-                        '&:hover': {
-                            background: 'linear-gradient(180deg, #5a6fd8 0%, #6a4190 100%)',
-                        }
-                    }
+                    flexDirection: 'column'
                 }}
             >
                 {messages.length === 0 ? (
@@ -427,32 +421,33 @@ const ConversationView = ({
                                         <Avatar
                                             src={otherParticipant.avatar}
                                             sx={{
-                                                width: 32,
-                                                height: 32,
-                                                mr: 1,
-                                                bgcolor: otherParticipant.role === 'admin' ? 'error.main' : 'primary.main'
+                                                width: { xs: 28, sm: 32 },
+                                                height: { xs: 28, sm: 32 },
+                                                mr: { xs: 0.5, sm: 1 },
+                                                bgcolor: otherParticipant.role === 'admin' ? 'error.main' : 'primary.main',
+                                                flexShrink: 0
                                             }}
                                         >
                                             {otherParticipant.fullName?.charAt(0)?.toUpperCase() || 'U'}
                                         </Avatar>
                                     )}
                                     {!isOwnMessage && !showAvatar && (
-                                        <Box sx={{ width: 32, mr: 1 }} />
+                                        <Box sx={{ width: { xs: 28, sm: 32 }, mr: { xs: 0.5, sm: 1 } }} />
                                     )}
 
                                     <Paper
                                         elevation={0}
                                         sx={{
-                                            p: 2,
-                                            maxWidth: '75%',
+                                            p: { xs: 1.5, sm: 2 },
+                                            maxWidth: { xs: '85%', sm: '80%', md: '75%' },
                                             minWidth: '120px',
                                             background: isOwnMessage
                                                 ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                                 : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
                                             color: isOwnMessage ? 'white' : 'text.primary',
-                                            borderRadius: '20px',
-                                            borderBottomLeftRadius: !isOwnMessage && showAvatar ? '6px' : '20px',
-                                            borderBottomRightRadius: isOwnMessage && showAvatar ? '6px' : '20px',
+                                            borderRadius: { xs: '16px', sm: '20px' },
+                                            borderBottomLeftRadius: !isOwnMessage && showAvatar ? '6px' : { xs: '16px', sm: '20px' },
+                                            borderBottomRightRadius: isOwnMessage && showAvatar ? '6px' : { xs: '16px', sm: '20px' },
                                             wordBreak: 'break-word',
                                             boxShadow: isOwnMessage
                                                 ? '0 4px 12px rgba(102, 126, 234, 0.3)'
@@ -504,16 +499,25 @@ const ConversationView = ({
 
             {/* Message Input - At bottom of flex container */}
             <Box
+                className="message-input-container"
                 sx={{
-                    p: 3,
+                    p: { xs: 2, sm: 3 },
                     borderTop: '1px solid rgba(0,0,0,0.08)',
                     background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
                     flexShrink: 0,
+                    width: '100%',
+                    maxWidth: '100%',
                     boxShadow: '0 -4px 20px rgba(0,0,0,0.1)',
                     backdropFilter: 'blur(10px)'
                 }}
             >
-                <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2, width: '100%' }}>
+                <Box sx={{
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    gap: { xs: 1, sm: 2 },
+                    width: '100%',
+                    maxWidth: '100%'
+                }}>
                     <TextField
                         fullWidth
                         multiline
@@ -526,7 +530,7 @@ const ConversationView = ({
                         variant="outlined"
                         sx={{
                             '& .MuiOutlinedInput-root': {
-                                borderRadius: '25px',
+                                borderRadius: { xs: '20px', sm: '25px' },
                                 backgroundColor: 'white',
                                 border: '2px solid rgba(102, 126, 234, 0.2)',
                                 transition: 'all 0.3s ease',
@@ -543,23 +547,26 @@ const ConversationView = ({
                                 }
                             },
                             '& .MuiInputBase-input': {
-                                padding: '12px 20px',
-                                fontSize: '0.95rem'
+                                padding: { xs: '10px 16px', sm: '12px 20px' },
+                                fontSize: { xs: '0.9rem', sm: '0.95rem' }
                             },
                             flex: 1,
                             minWidth: 0,
+                            width: '100%',
+                            maxWidth: '100%'
                         }}
                     />
                     <IconButton
                         onClick={handleSendMessage}
                         disabled={!messageText.trim() || sending}
                         sx={{
-                            width: 48,
-                            height: 48,
+                            width: { xs: 44, sm: 48 },
+                            height: { xs: 44, sm: 48 },
                             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                             color: 'white',
                             boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
                             transition: 'all 0.3s ease',
+                            flexShrink: 0, // Không cho button co lại
                             '&:hover': {
                                 background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
                                 transform: 'scale(1.05)',

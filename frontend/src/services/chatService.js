@@ -65,6 +65,17 @@ class ChatService {
         }
     }
 
+    // Reset read status khi có vấn đề đồng bộ
+    async resetReadStatus(conversationId) {
+        try {
+            const response = await api.put(`/messages/conversations/${conversationId}/reset-read-status`);
+            return response.data;
+        } catch (error) {
+            console.error('Error resetting read status:', error);
+            throw error;
+        }
+    }
+
     // Lấy số tin nhắn chưa đọc
     async getUnreadCount() {
         try {

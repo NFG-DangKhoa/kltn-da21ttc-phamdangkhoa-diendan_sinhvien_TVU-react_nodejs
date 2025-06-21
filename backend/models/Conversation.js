@@ -119,13 +119,15 @@ conversationSchema.methods.updateLastMessage = function (messageId) {
 };
 
 // Method để đánh dấu đã đọc
-conversationSchema.methods.markAsRead = function (userId, messageId) {
+conversationSchema.methods.markAsRead = function (userId, messageId = null) {
     const readStatusIndex = this.readStatus.findIndex(
         status => status.userId.toString() === userId.toString()
     );
 
     if (readStatusIndex >= 0) {
-        this.readStatus[readStatusIndex].lastReadMessageId = messageId;
+        if (messageId) {
+            this.readStatus[readStatusIndex].lastReadMessageId = messageId;
+        }
         this.readStatus[readStatusIndex].lastReadAt = new Date();
     } else {
         this.readStatus.push({
@@ -158,15 +160,56 @@ conversationSchema.methods.getUnreadCount = async function (userId) {
     // Đếm tin nhắn sau tin nhắn đã đọc cuối cùng
     const lastReadMessage = await Message.findById(userReadStatus.lastReadMessageId);
     if (!lastReadMessage) {
-        return 0;
+        // Nếu không tìm thấy tin nhắn đã đọc cuối cùng, reset và đếm lại
+        console.log(`Warning: lastReadMessage not found for user ${userId} in conversation ${this._id}`);
+        return await Message.countDocuments({
+            conversationId: this._id,
+            senderId: { $ne: userId },
+            isDeleted: false
+        });
     }
 
-    return await Message.countDocuments({
+    // Đếm tin nhắn chưa đọc dựa trên status thay vì chỉ dựa vào createdAt
+    const unreadByStatus = await Message.countDocuments({
+        conversationId: this._id,
+        receiverId: userId,
+        status: { $ne: 'read' },
+        isDeleted: false
+    });
+
+    // Đếm tin nhắn sau tin nhắn đã đọc cuối cùng (backup method)
+    const unreadByTime = await Message.countDocuments({
         conversationId: this._id,
         senderId: { $ne: userId },
         createdAt: { $gt: lastReadMessage.createdAt },
         isDeleted: false
     });
+
+    // Sử dụng method nào cho kết quả chính xác hơn
+    return Math.min(unreadByStatus, unreadByTime);
+};
+
+// Method để reset read status khi có vấn đề đồng bộ
+conversationSchema.methods.resetReadStatus = async function (userId) {
+    const Message = mongoose.model('Message');
+
+    // Tìm tin nhắn mới nhất mà user đã đọc (status = 'read')
+    const latestReadMessage = await Message.findOne({
+        conversationId: this._id,
+        receiverId: userId,
+        status: 'read',
+        isDeleted: false
+    }).sort({ createdAt: -1 });
+
+    if (latestReadMessage) {
+        await this.markAsRead(userId, latestReadMessage._id);
+    } else {
+        // Nếu không có tin nhắn nào đã đọc, xóa read status
+        this.readStatus = this.readStatus.filter(
+            status => status.userId.toString() !== userId.toString()
+        );
+        await this.save();
+    }
 };
 
 // Static method để tìm hoặc tạo cuộc trò chuyện giữa 2 người

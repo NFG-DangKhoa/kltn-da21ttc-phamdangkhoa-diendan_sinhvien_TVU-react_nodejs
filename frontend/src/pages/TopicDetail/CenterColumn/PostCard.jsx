@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useContext, useCallback } from 'react';
 import {
     Box, Typography, Button, Divider,
-    Card, CardContent, CardMedia,
+    Card, CardContent,
     Menu, MenuItem, IconButton, Avatar,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -56,29 +56,7 @@ const PostCard = ({
         handleRatePost, // Hàm gửi đánh giá từ hook
     } = usePostInteractions(initialPost, user, setDetailedPosts); // Truyền `initialPost` và `setDetailedPosts` vào hook
 
-    // Extract thumbnail image from post content
-    const getThumbnailImage = (post) => {
-        if (post.images && post.images.length > 0) {
-            return post.images[0];
-        }
 
-        // Extract first image from content
-        const imgMatch = post.content?.match(/<img[^>]+src=["']([^"']+)["']/);
-        if (imgMatch) {
-            let imgSrc = imgMatch[1];
-            // Fix URL if needed
-            if (imgSrc.startsWith('/upload/')) {
-                imgSrc = `http://localhost:5000${imgSrc}`;
-            } else if (imgSrc.includes('localhost:5173')) {
-                imgSrc = imgSrc.replace('localhost:5173', 'localhost:5000');
-            }
-            return imgSrc;
-        }
-
-        return null;
-    };
-
-    const thumbnailImage = getThumbnailImage(post);
 
     // State cục bộ để kích hoạt việc áp dụng style ảnh lại khi nội dung thay đổi
     const [imageContentKeyLocal, setImageContentKeyLocal] = useState(0);
@@ -218,36 +196,14 @@ const PostCard = ({
         <Card
             sx={{
                 mb: 2,
+                p: 1,
                 backgroundColor: darkMode ? '#242526' : '#ffffff',
                 color: darkMode ? '#e4e6eb' : '#1c1e21',
                 boxShadow: darkMode ? '0px 0px 5px rgba(255,255,255,0.1)' : '0px 0px 5px rgba(0,0,0,0.1)',
                 transition: 'background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease',
-                borderRadius: 2,
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
             }}
         >
-            {/* Thumbnail Image - Hiển thị ở trên giống Home page */}
-            {thumbnailImage && (
-                <CardMedia
-                    component="img"
-                    height="200"
-                    image={thumbnailImage}
-                    alt={post.title}
-                    sx={{
-                        objectFit: 'cover',
-                        cursor: 'pointer',
-                        transition: 'transform 0.3s ease',
-                        '&:hover': {
-                            transform: 'scale(1.02)'
-                        }
-                    }}
-                    onClick={() => goToDetail(post._id)}
-                />
-            )}
-
-            <CardContent sx={{ p: 2, flexGrow: 1 }}>
+            <CardContent sx={{ p: 1 }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Box display="flex" alignItems="center" gap={1}>
                         <Avatar
@@ -382,21 +338,15 @@ const PostCard = ({
                     key={imageContentKeyLocal} // Sử dụng key để ép re-render styles ảnh
                     dangerouslySetInnerHTML={{
                         __html: (() => {
-                            let content = post.content.length > 300 && !expandedPosts[post._id]
-                                ? `${post.content.substring(0, 300)}...`
+                            // Hiển thị preview ngắn (150 ký tự) cho trang xem nhanh
+                            let content = post.content.length > 150 && !expandedPosts[post._id]
+                                ? `${post.content.substring(0, 150)}...`
                                 : post.content;
 
                             // Fix URLs: replace localhost:5173 with localhost:5000
                             content = content.replace(/http:\/\/localhost:5173\/upload\//g, 'http://localhost:5000/upload/');
                             // Also fix relative URLs to absolute
                             content = content.replace(/src="\/upload\//g, 'src="http://localhost:5000/upload/');
-
-                            // Remove first image from content if it's being shown as thumbnail
-                            if (thumbnailImage) {
-                                // Remove the first img tag that matches the thumbnail
-                                const firstImgRegex = /<img[^>]*src=["'][^"']*["'][^>]*>/i;
-                                content = content.replace(firstImgRegex, '');
-                            }
 
                             // Debug: Check if content has images
                             if (content.includes('<img')) {
@@ -409,7 +359,7 @@ const PostCard = ({
                     }}
                 />
 
-                {post.content.length > 300 && (
+                {post.content.length > 150 && (
                     <Button
                         onClick={() => toggleExpanded(post._id)}
                         sx={{
@@ -425,6 +375,26 @@ const PostCard = ({
                         {expandedPosts[post._id] ? 'Thu gọn' : 'Xem thêm'}
                     </Button>
                 )}
+
+                {/* Nút "Xem chi tiết" để đi đến PostDetail */}
+                <Button
+                    onClick={() => goToDetail(post._id)}
+                    variant="outlined"
+                    size="small"
+                    sx={{
+                        mt: 1,
+                        textTransform: 'none',
+                        fontSize: '0.75rem',
+                        borderColor: darkMode ? '#90caf9' : 'primary.main',
+                        color: darkMode ? '#90caf9' : 'primary.main',
+                        '&:hover': {
+                            backgroundColor: darkMode ? 'rgba(144, 202, 249, 0.1)' : 'rgba(25, 118, 210, 0.1)',
+                            borderColor: darkMode ? '#fff' : 'primary.dark',
+                        }
+                    }}
+                >
+                    Xem chi tiết
+                </Button>
 
                 <Box mt={2} display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap">
                     <Typography

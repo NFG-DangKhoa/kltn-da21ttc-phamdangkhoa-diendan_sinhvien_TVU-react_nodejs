@@ -139,6 +139,9 @@ class ChatService {
             // Cập nhật cuộc trò chuyện
             await conversation.updateLastMessage(message._id);
 
+            // Đánh dấu cuộc trò chuyện đã đọc cho người gửi (vì họ đang gửi tin nhắn)
+            await conversation.markAsRead(senderId, message._id);
+
             // Gửi tin nhắn realtime
             this.sendRealtimeMessage(message);
 
@@ -217,12 +220,14 @@ class ChatService {
         this.io.to(senderRoom).emit('conversationUpdate', {
             conversationId: message.conversationId,
             lastMessage: messageData,
-            lastMessageAt: message.createdAt
+            lastMessageAt: message.createdAt,
+            senderId: message.senderId._id
         });
         this.io.to(receiverRoom).emit('conversationUpdate', {
             conversationId: message.conversationId,
             lastMessage: messageData,
-            lastMessageAt: message.createdAt
+            lastMessageAt: message.createdAt,
+            senderId: message.senderId._id
         });
 
         console.log(`✅ === REALTIME MESSAGE PROCESSING COMPLETED ===\n`);
@@ -275,6 +280,12 @@ class ChatService {
                 throw new Error('Không có quyền truy cập cuộc trò chuyện này');
             }
 
+            // Tìm tin nhắn mới nhất trong cuộc trò chuyện
+            const latestMessage = await Message.findOne({
+                conversationId: conversationId,
+                isDeleted: false
+            }).sort({ createdAt: -1 });
+
             // Đánh dấu tất cả tin nhắn chưa đọc của user trong cuộc trò chuyện
             const result = await Message.updateMany(
                 {
@@ -291,8 +302,15 @@ class ChatService {
                 }
             );
 
-            // Cập nhật readStatus trong conversation
-            await conversation.markAsRead(userId);
+            // Cập nhật readStatus trong conversation với tin nhắn mới nhất
+            if (latestMessage) {
+                await conversation.markAsRead(userId, latestMessage._id);
+                console.log(`✅ Updated readStatus for user ${userId} with latest message ${latestMessage._id}`);
+            } else {
+                // Nếu không có tin nhắn nào, vẫn cập nhật lastReadAt
+                await conversation.markAsRead(userId);
+                console.log(`✅ Updated readStatus for user ${userId} without specific message`);
+            }
 
             // Thông báo cho người gửi rằng tin nhắn đã được đọc
             conversation.participants.forEach(participantId => {

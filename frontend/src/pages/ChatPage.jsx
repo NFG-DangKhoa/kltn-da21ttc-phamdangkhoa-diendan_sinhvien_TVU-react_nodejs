@@ -79,6 +79,18 @@ const ChatPage = () => {
         }
     }, [user]); // Removed loadConversations from dependencies to prevent infinite loop
 
+    // Reload conversations định kỳ để đồng bộ unread count (mỗi 30 giây)
+    useEffect(() => {
+        if (!user || !user._id) return;
+
+        const interval = setInterval(() => {
+            console.log('🔄 Auto-reloading conversations to sync unread counts');
+            loadConversations(true);
+        }, 30000); // 30 giây
+
+        return () => clearInterval(interval);
+    }, [user, loadConversations]);
+
     // Auto-reload conversations when new messages arrive
     useEffect(() => {
         if (!socket || !user) return;
@@ -130,6 +142,7 @@ const ChatPage = () => {
         // Mark all messages in this conversation as read on server
         try {
             await markConversationAsRead(conversation._id);
+            console.log('✅ Conversation marked as read:', conversation._id);
         } catch (error) {
             console.error('Error marking conversation as read:', error);
             // Optionally revert the optimistic update on error
@@ -370,6 +383,7 @@ const ChatPage = () => {
 
                 {/* Chat Interface */}
                 <Paper
+                    className="chat-container"
                     elevation={0}
                     sx={{
                         height: isMobile ? 'calc(100vh - 200px)' : 'calc(100vh - 180px)',
@@ -381,7 +395,9 @@ const ChatPage = () => {
                         border: '1px solid rgba(226, 232, 240, 0.8)',
                         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
                         position: 'relative',
-                        zIndex: 2
+                        zIndex: 2,
+                        width: '100%',
+                        maxWidth: '100%'
                     }}
                 >
                     {isMobile ? (
@@ -439,14 +455,16 @@ const ChatPage = () => {
                         </Box>
                     ) : (
                         // Desktop Layout - Two Columns
-                        <Box sx={{ height: '100%', display: 'flex' }}>
+                        <Box className="chat-content" sx={{ height: '100%', display: 'flex', width: '100%' }}>
                             {/* Left Sidebar - Fixed width */}
                             <Box
+                                className="chat-sidebar"
                                 sx={{
-                                    width: '400px',
+                                    width: { md: '380px', lg: '400px' },
                                     borderRight: '1px solid #e2e8f0',
                                     flexShrink: 0,
-                                    minWidth: '400px',
+                                    minWidth: { md: '380px', lg: '400px' },
+                                    maxWidth: { md: '380px', lg: '400px' },
                                     background: '#f8fafc',
                                     position: 'relative'
                                 }}
@@ -530,9 +548,11 @@ const ChatPage = () => {
 
                             {/* Right Content - Messages */}
                             <Box
+                                className="chat-main"
                                 sx={{
                                     flex: 1,
-                                    minWidth: '500px',
+                                    minWidth: 0, // Cho phép flex item co lại
+                                    width: '100%', // Đảm bảo sử dụng toàn bộ width
                                     overflow: 'hidden',
                                     display: 'flex',
                                     flexDirection: 'column',
