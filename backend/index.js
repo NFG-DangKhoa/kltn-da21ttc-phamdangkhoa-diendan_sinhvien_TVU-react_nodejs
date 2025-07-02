@@ -34,6 +34,9 @@ const adminDataRoutes = require('./routes/adminDataRoutes');
 const forumRulesRoutes = require('./routes/forumRulesRoutes');
 const adminContactRoutes = require('./routes/adminContactRoutes');
 
+// Import middleware
+const updateUserActivity = require('./middlewares/updateUserActivity');
+
 // Import notification service
 const NotificationService = require('./services/notificationService');
 
@@ -68,6 +71,9 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '50mb' }));
+
+// Middleware to update user's last seen status
+app.use(updateUserActivity);
 
 // Serve static files from public/upload directory
 app.use('/upload', express.static('public/upload'));

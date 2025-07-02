@@ -1,13 +1,14 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { Box, Typography, List, ListItem, ListItemText, ListItemAvatar, Avatar, Divider, Tooltip, Button, CircularProgress, Paper, Chip } from '@mui/material';
 import { ThemeContext } from '../../context/ThemeContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { TrendingUp, People, Campaign } from '@mui/icons-material';
 import axios from 'axios';
 import { OnlineBadge } from '../../components/Chat/OnlineIndicator';
 
 const RightColumn = () => {
     const { mode } = useContext(ThemeContext);
+    const navigate = useNavigate();
     const darkMode = mode === 'dark';
 
     const [activeMembers, setActiveMembers] = useState([]);
@@ -224,10 +225,11 @@ const RightColumn = () => {
                             <ListItem
                                 key={post._id}
                                 component={Link}
-                                to={`/posts/detail?topicId=${post.topicId}&postId=${post._id}`}
+                                to={`/post-detail?topicId=${post.topic?._id}&postId=${post._id}`}
                                 sx={{
                                     px: 2.5,
-                                    py: 1,
+                                    py: 1.5,
+                                    alignItems: 'flex-start',
                                     textDecoration: 'none',
                                     borderBottom: index < featuredPosts.length - 1 ? '1px solid #f1f5f9' : 'none',
                                     '&:hover': {
@@ -240,6 +242,19 @@ const RightColumn = () => {
                                     transition: 'all 0.2s ease',
                                 }}
                             >
+                                <ListItemAvatar sx={{ minWidth: 48, mt: 0.5 }}>
+                                    <Avatar
+                                        alt={post.author?.fullName}
+                                        src={post.author?.avatarUrl}
+                                        sx={{ width: 36, height: 36, cursor: 'pointer' }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (post.author?._id) {
+                                                navigate(`/profile/${post.author._id}`);
+                                            }
+                                        }}
+                                    />
+                                </ListItemAvatar>
                                 <ListItemText
                                     primary={post.title}
                                     secondary={

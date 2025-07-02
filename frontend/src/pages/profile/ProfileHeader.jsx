@@ -178,31 +178,33 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                         }}
                     />
                     {/* Online status indicator */}
-                    <Box
-                        sx={{
-                            position: 'absolute',
-                            bottom: 12,
-                            right: 12,
-                            width: 28,
-                            height: 28,
-                            borderRadius: '50%',
-                            backgroundColor: '#4CAF50',
-                            border: `4px solid ${theme.palette.background.paper}`,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                            zIndex: 3,
-                            '&::before': {
-                                content: '""',
+                    {userData.isOnline && (
+                        <Box
+                            sx={{
                                 position: 'absolute',
-                                top: '50%',
-                                left: '50%',
-                                transform: 'translate(-50%, -50%)',
-                                width: '60%',
-                                height: '60%',
+                                bottom: 12,
+                                right: 12,
+                                width: 28,
+                                height: 28,
                                 borderRadius: '50%',
-                                backgroundColor: 'rgba(255,255,255,0.3)',
-                            }
-                        }}
-                    />
+                                backgroundColor: '#4CAF50',
+                                border: `4px solid ${theme.palette.background.paper}`,
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                                zIndex: 3,
+                                '&::before': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    width: '60%',
+                                    height: '60%',
+                                    borderRadius: '50%',
+                                    backgroundColor: 'rgba(255,255,255,0.3)',
+                                }
+                            }}
+                        />
+                    )}
                 </Box>
                 <Box
                     sx={{

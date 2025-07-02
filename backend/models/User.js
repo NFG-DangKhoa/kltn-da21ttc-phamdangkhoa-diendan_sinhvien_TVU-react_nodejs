@@ -58,9 +58,14 @@ const userSchema = new mongoose.Schema({
         type: Date
     },
 
+    // Real-time status
+    isOnline: { type: Boolean, default: false },
+    lastSeen: { type: Date, default: Date.now },
+
+    postsCount: { type: Number, default: 0 },
+
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('User', userSchema);
-

@@ -1,214 +1,373 @@
-import React, { useEffect, useState } from "react";
-import { Box, Typography, CircularProgress, Grid, Tabs, Tab } from "@mui/material";
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import {
+    Box, Typography, CircularProgress, Grid, Tabs, Tab, Paper,
+    Stack, Link, Select, MenuItem, FormControl, Alert, Tooltip,
+    useTheme, useMediaQuery, Button
+} from "@mui/material";
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import PostAddIcon from '@mui/icons-material/PostAdd';
-import ActivityCard from "./ActivityCard";
+import SortIcon from '@mui/icons-material/Sort';
+import ArticleIcon from '@mui/icons-material/Article';
+import CommentIcon from '@mui/icons-material/Comment';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import { formatDistanceToNow } from 'date-fns';
+import { vi } from 'date-fns/locale';
+import { Link as RouterLink } from 'react-router-dom';
 import axios from "axios";
-import { useNavigate } from 'react-router-dom';
+import DOMPurify from 'dompurify';
+import parse from 'html-react-parser';
 
-const UserActivity = ({ userId }) => {
-    const [loading, setLoading] = useState(true);
-    const [activities, setActivities] = useState([]);
-    const [error, setError] = useState(null);
-    const [activeTab, setActiveTab] = useState(0);
-    const navigate = useNavigate();
+// Helper function for formatting time
+const formatTimeAgo = (date) => {
+    return formatDistanceToNow(new Date(date), { addSuffix: true, locale: vi });
+};
+
+// A more visually appealing empty state component
+const EmptyState = ({ icon, message }) => (
+    <Box textAlign="center" p={5}>
+        <Box component="span" sx={{ fontSize: 60, color: 'text.disabled' }}>{icon}</Box>
+        <Typography variant="h6" color="text.secondary">{message}</Typography>
+    </Box>
+);
+
+// Base card for activities
+const ActivityCard = ({ children, ...props }) => (
+    <Paper
+        elevation={2}
+        sx={{
+            p: 2.5,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'box-shadow 0.3s ease-in-out, transform 0.2s ease-in-out',
+            '&:hover': {
+                transform: 'translateY(-5px)',
+                boxShadow: 6,
+            }
+        }}
+        {...props}
+    >
+        {children}
+    </Paper>
+);
+
+// Card for Post activities
+const PostActivityCard = ({ post }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const containerRef = useRef(null);
+    const [isOverflowing, setIsOverflowing] = useState(false);
+    const theme = useTheme();
+
+    const sanitizedContent = useMemo(() => DOMPurify.sanitize(post.content, { USE_PROFILES: { html: true } }), [post.content]);
 
     useEffect(() => {
-        setLoading(true);
-        const fetchActivities = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                if (!token) return;
-
-                const config = {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                };
-
-                // Fetch posts with author details
-                const postsRes = await axios.get(`http://localhost:5000/api/users/posts?authorId=${userId}`, config);
-                console.log('Posts response:', postsRes.data);
-
-                // Fetch user comments
-                const commentsRes = await axios.get(`http://localhost:5000/api/users/comments?authorId=${userId}`, config);
-                console.log('Comments response:', commentsRes.data);
-
-                // Fetch user likes
-                const likesRes = await axios.get(`http://localhost:5000/api/users/likes?userId=${userId}`, config);// Process and transform the data                console.log('Raw posts data:', postsRes.data);
-                // Build a map from postId to topicId for quick lookup
-                const postIdToTopicId = {};
-                (Array.isArray(postsRes.data) ? postsRes.data : postsRes.data.posts || []).forEach(post => {
-                    let topicId = post.topicId;
-                    if (topicId && typeof topicId === 'object' && topicId._id) topicId = topicId._id;
-                    postIdToTopicId[post._id] = topicId;
-                });
-
-                const posts = (Array.isArray(postsRes.data) ? postsRes.data : postsRes.data.posts || []).map(post => {
-                    let topicId = post.topicId;
-                    if (topicId && typeof topicId === 'object' && topicId._id) topicId = topicId._id;
-                    return {
-                        type: "post",
-                        title: post.title || "Bài viết không có tiêu đề",
-                        content: post.content || '',
-                        timestamp: post.createdAt || new Date().toISOString(),
-                        likes: post.likeCount || 0,
-                        comments: post.commentCount || 0,
-                        link: `/posts/${post._id}`,
-                        topic: post.topicId,
-                        topicId, // always string or undefined
-                        status: post.status,
-                        _id: post._id
-                    };
-                });
-
-                const comments = commentsRes.data.map(comment => {
-                    let topicId = postIdToTopicId[comment.postId];
-                    if (topicId && typeof topicId === 'object' && topicId._id) topicId = topicId._id;
-                    return {
-                        type: "comment",
-                        title: `Bình luận về \"${comment.postTitle || 'Bài viết'}\"`,
-                        content: comment.content,
-                        timestamp: comment.createdAt,
-                        likes: comment.likes?.length || 0,
-                        comments: 0,
-                        link: `/posts/${comment.postId}#comment-${comment._id}`,
-                        postId: comment.postId,
-                        topicId // always string or undefined
-                    };
-                });
-
-                const likes = likesRes.data.map(like => ({
-                    type: "like",
-                    title: like.postId ? "Đã thích bài viết" : "Đã thích bình luận",
-                    content: like.postId
-                        ? `Đã thích bài viết "${like.postTitle || 'Không có tiêu đề'}"`
-                        : `Đã thích bình luận của ${like.commentAuthor || 'ai đó'}`,
-                    timestamp: like.createdAt,
-                    link: like.postId
-                        ? `/posts/${like.postId}`
-                        : `/posts/${like.commentPostId}#comment-${like.commentId}`,
-                    targetId: like.postId || like.commentId
-                }));
-
-                // Combine all activities and sort by timestamp
-                const allActivities = [...posts, ...comments, ...likes]
-                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-                setActivities(allActivities);
-                setLoading(false);
-            } catch (error) {
-                console.error("Error fetching activities:", error);
-                setError("Không thể tải hoạt động.");
-                setLoading(false);
+        const checkOverflow = () => {
+            const element = containerRef.current;
+            if (element) {
+                const isCurrentlyOverflowing = element.scrollHeight > element.clientHeight;
+                if (isCurrentlyOverflowing !== isOverflowing) {
+                    setIsOverflowing(isCurrentlyOverflowing);
+                }
             }
         };
 
-        if (userId) {
-            fetchActivities();
-        }
-    }, [userId]); const handleTabChange = (event, newValue) => {
-        setActiveTab(newValue);
-    };
+        // Use a timeout to allow content (like images) to load before checking
+        const timer = setTimeout(checkOverflow, 100);
+        window.addEventListener('resize', checkOverflow);
 
-    const filterActivities = () => {
-        if (!activities.length) return [];
-        switch (activeTab) {
-            case 0: // Posts
-                return activities.filter(act => act.type === 'post');
-            case 1: // Comments
-                return activities.filter(act => act.type === 'comment');
-            case 2: // Likes
-                return activities.filter(act => act.type === 'like');
-            default:
-                return activities;
-        }
-    };
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('resize', checkOverflow);
+        };
+    }, [isOverflowing, sanitizedContent]);
 
-    if (loading) return <CircularProgress />;
-    if (error) return <Typography color="error">{error}</Typography>;
-
-    const filteredActivities = filterActivities();
-
-    if (!filteredActivities.length) {
-        return (
-            <Box sx={{ mt: 2 }}>
-                <Typography align="center">Chưa có hoạt động nào.</Typography>
-            </Box>
-        );
-    } return (
-        <Box sx={{ width: '100%', mt: 3 }}>
-            <Tabs
-                value={activeTab}
-                onChange={handleTabChange}
-                centered
-                variant="fullWidth"
-                sx={{ mb: 2 }}
-            >
-                <Tab
-                    icon={<PostAddIcon />}
-                    label={`Bài viết (${activities.filter(a => a.type === 'post').length})`}
-                    sx={{ minHeight: 'auto', py: 2 }}
-                />
-                <Tab
-                    icon={<ChatBubbleOutlineIcon />}
-                    label={`Bình luận (${activities.filter(a => a.type === 'comment').length})`}
-                    sx={{ minHeight: 'auto', py: 2 }}
-                />
-                <Tab
-                    icon={<ThumbUpIcon />}
-                    label={`Lượt thích (${activities.filter(a => a.type === 'like').length})`}
-                    sx={{ minHeight: 'auto', py: 2 }}
-                />
-            </Tabs>
-
-            <Box sx={{ py: 2 }}>
-                {loading ? (
-                    <Box display="flex" justifyContent="center" p={3}>
-                        <CircularProgress />
-                    </Box>
-                ) : filteredActivities.length === 0 ? (
-                    <Typography textAlign="center" color="text.secondary">
-                        Không có hoạt động nào trong mục này
+    return (
+        <ActivityCard>
+            <Stack direction="row" spacing={2} alignItems="flex-start">
+                <PostAddIcon color="action" sx={{ mt: 0.5 }} />
+                <Box flexGrow={1}>
+                    <Typography
+                        variant="h6"
+                        component={RouterLink}
+                        to={`/posts/${post._id}`}
+                        sx={{
+                            fontWeight: 'bold',
+                            textDecoration: 'none',
+                            color: 'text.primary',
+                            '&:hover': { color: 'primary.main' }
+                        }}
+                    >
+                        {post.title}
                     </Typography>
-                ) : (
-                    <Grid container spacing={3}>
-                        {filteredActivities.map((activity) => (
-                            <Grid item xs={12} sm={6} md={4} key={activity._id || activity.timestamp}>
-                                <div
-                                    style={{ cursor: 'pointer', height: '100%' }}
-                                    onClick={() => {
-                                        // Điều hướng đúng format PostDetail: /posts/detail?topicId=...&postId=...
-                                        if (activity.type === 'post' || activity.type === 'comment') {
-                                            const postId = activity.type === 'post' ? activity._id : activity.postId;
-                                            const topicId = activity.topicId;
-                                            if (postId && topicId) {
-                                                navigate(`/posts/detail?topicId=${topicId}&postId=${postId}`, { replace: true });
-                                            } else if (postId) {
-                                                // fallback if topicId missing
-                                                navigate(`/posts/detail?postId=${postId}`, { replace: true });
-                                            }
-                                        } else if (activity.type === 'like') {
-                                            // Like có thể là post hoặc comment
-                                            if (activity.link && activity.link.startsWith('/posts/')) {
-                                                // Nếu là like bài viết hoặc bình luận, lấy postId từ link
-                                                const match = activity.link.match(/\/posts\/(\w+)/);
-                                                if (match) {
-                                                    navigate(`/posts/detail?postId=${match[1]}`, { replace: true });
-                                                }
-                                            }
-                                        }
-                                    }}
-                                >
-                                    <ActivityCard {...activity} />
-                                </div>
-                            </Grid>
-                        ))}
-                    </Grid>
-                )}
+                    <Typography variant="caption" color="text.secondary" gutterBottom>
+                        {formatTimeAgo(post.createdAt)}
+                    </Typography>
+                </Box>
+            </Stack>
+            <Box
+                ref={containerRef}
+                sx={{
+                    my: 2,
+                    flexGrow: 1,
+                    maxHeight: isExpanded ? 'none' : '120px', // Reduced height
+                    overflow: 'hidden',
+                    position: 'relative',
+                    transition: 'max-height 0.4s ease-in-out',
+                    '&::after': !isExpanded && isOverflowing ? {
+                        content: '""',
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: '40px',
+                        background: `linear-gradient(to bottom, rgba(255,255,255,0), ${theme.palette.background.paper})`,
+                    } : {},
+                }}
+            >
+                <Typography component="div" variant="body2" color="text.secondary">
+                    {parse(sanitizedContent)}
+                </Typography>
             </Box>
+
+            {isOverflowing && (
+                <Button onClick={() => setIsExpanded(!isExpanded)} size="small" sx={{ mt: 1, alignSelf: 'flex-start' }}>
+                    {isExpanded ? 'Thu gọn' : 'Xem thêm'}
+                </Button>
+            )}
+
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 'auto', pt: isOverflowing ? 0 : 2 }}>
+                <Tooltip title="Lượt thích">
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <ThumbUpIcon fontSize="small" color="primary" />
+                        <Typography variant="body2">{post.likeCount || 0}</Typography>
+                    </Stack>
+                </Tooltip>
+                <Tooltip title="Bình luận">
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <ChatBubbleOutlineIcon fontSize="small" color="primary" />
+                        <Typography variant="body2">{post.commentCount || 0}</Typography>
+                    </Stack>
+                </Tooltip>
+            </Stack>
+        </ActivityCard>
+    );
+};
+
+// Card for Comment activities
+const CommentActivityCard = ({ comment }) => (
+    <ActivityCard>
+        <Stack direction="row" spacing={2} alignItems="flex-start">
+            <CommentIcon color="action" sx={{ mt: 0.5 }} />
+            <Box flexGrow={1}>
+                <Typography variant="body1" sx={{ fontStyle: 'italic', flexGrow: 1 }}>
+                    "{parse(DOMPurify.sanitize(comment.content))}"
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                    Bình luận {formatTimeAgo(comment.createdAt)} trong bài viết:
+                </Typography>
+                <Link component={RouterLink} to={`/posts/${comment.postId}`} sx={{ fontWeight: 'medium' }}>
+                    {comment.postTitle || 'Không có tiêu đề'}
+                </Link>
+            </Box>
+        </Stack>
+        <Box sx={{ mt: 'auto', pt: 2, textAlign: 'right' }}>
+            <Link
+                component={RouterLink}
+                to={`/posts/${comment.postId}#comment-${comment._id}`}
+                sx={{ fontWeight: 'bold' }}
+            >
+                Xem chi tiết
+            </Link>
+        </Box>
+    </ActivityCard>
+);
+
+// Card for Like activities
+const LikeActivityCard = ({ like }) => {
+    const sanitizedContent = useMemo(() => DOMPurify.sanitize(like.postTitle || like.commentContent || 'Nội dung không có sẵn'), [like]);
+
+    return (
+        <ActivityCard>
+            <Stack direction="row" spacing={2} alignItems="center">
+                <FavoriteIcon color="error" />
+                <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                        Đã thích {like.postId ? 'bài viết' : 'bình luận'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        {formatTimeAgo(like.createdAt)}
+                    </Typography>
+                </Box>
+            </Stack>
+            <Box sx={{ my: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1, flexGrow: 1 }}>
+                <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                    {parse(sanitizedContent)}
+                </Typography>
+            </Box>
+            <Box sx={{ mt: 'auto', textAlign: 'right' }}>
+                <Link
+                    component={RouterLink}
+                    to={like.postId ? `/posts/${like.postId}` : `/posts/${like.commentPostId}#comment-${like.commentId}`}
+                    sx={{ fontWeight: 'bold' }}
+                >
+                    Xem nội dung gốc
+                </Link>
+            </Box>
+        </ActivityCard>
+    );
+};
+
+const UserActivity = ({ userId }) => {
+    const [loading, setLoading] = useState(true);
+    const [activities, setActivities] = useState({ posts: [], comments: [], likes: [] });
+    const [activeTab, setActiveTab] = useState(0);
+    const [error, setError] = useState(null);
+    const [sortBy, setSortBy] = useState('newest');
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+    useEffect(() => {
+        const fetchActivities = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const token = localStorage.getItem('token');
+                const config = { headers: { 'Authorization': `Bearer ${token}` } };
+                const [posts, comments, likes] = await Promise.all([
+                    axios.get(`http://localhost:5000/api/users/posts?authorId=${userId}`, config),
+                    axios.get(`http://localhost:5000/api/users/comments?authorId=${userId}`, config),
+                    axios.get(`http://localhost:5000/api/users/likes?userId=${userId}`, config)
+                ]);
+                setActivities({
+                    posts: posts.data || [],
+                    comments: comments.data || [],
+                    likes: likes.data || []
+                });
+            } catch (err) {
+                console.error("Error fetching activities:", err);
+                setError("Không thể tải hoạt động. Vui lòng thử lại sau.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        if (userId) fetchActivities();
+    }, [userId]);
+
+    const sortedActivities = useMemo(() => {
+        const sortable = (items) => [...items].sort((a, b) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            return sortBy === 'newest' ? dateB - dateA : dateA - dateB;
+        });
+
+        return {
+            posts: sortable(activities.posts),
+            comments: sortable(activities.comments),
+            likes: sortable(activities.likes),
+        };
+    }, [activities, sortBy]);
+
+    const renderContent = () => {
+        if (loading) {
+            return <Box display="flex" justifyContent="center" p={5}><CircularProgress /></Box>;
+        }
+        if (error) {
+            return <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>;
+        }
+
+        let items, CardComponent, emptyIcon, emptyMessage;
+        switch (activeTab) {
+            case 0:
+                items = sortedActivities.posts;
+                CardComponent = PostActivityCard;
+                emptyIcon = <ArticleIcon sx={{ fontSize: 60 }} />;
+                emptyMessage = "Người dùng này chưa có bài viết nào.";
+                break;
+            case 1:
+                items = sortedActivities.comments;
+                CardComponent = CommentActivityCard;
+                emptyIcon = <CommentIcon sx={{ fontSize: 60 }} />;
+                emptyMessage = "Chưa tìm thấy bình luận nào.";
+                break;
+            case 2:
+                items = sortedActivities.likes;
+                CardComponent = LikeActivityCard;
+                emptyIcon = <FavoriteIcon sx={{ fontSize: 60 }} />;
+                emptyMessage = "Chưa có lượt thích nào được ghi nhận.";
+                break;
+            default:
+                return null;
+        }
+
+        if (items.length === 0) {
+            return <EmptyState icon={emptyIcon} message={emptyMessage} />;
+        }
+
+        return (
+            <Grid container spacing={3} sx={{ pt: 3 }} justifyContent="center">
+                {items.map(item => (
+                    <Grid item xs={12} md={9} lg={8} key={item._id}>
+                        <CardComponent {...{ [CardComponent.name.replace('ActivityCard', '').toLowerCase()]: item }} />
+                    </Grid>
+                ))}
+            </Grid>
+        );
+    };
+
+    return (
+        <Box sx={{ width: '100%', mt: 3 }}>
+            <Paper elevation={1} sx={{ p: 1, mb: 3, borderRadius: 2 }}>
+                <Stack
+                    direction={isMobile ? 'column' : 'row'}
+                    justifyContent="space-between"
+                    alignItems="center"
+                    spacing={isMobile ? 2 : 0}
+                >
+                    <Tabs
+                        value={activeTab}
+                        onChange={(_, newValue) => setActiveTab(newValue)}
+                        variant={isMobile ? "fullWidth" : "standard"}
+                        sx={{
+                            '& .MuiTab-root': {
+                                minHeight: 'auto',
+                                py: 1.5,
+                                px: 3,
+                                display: 'flex',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 1,
+                            },
+                            '& .Mui-selected': {
+                                color: 'primary.main',
+                                fontWeight: 'bold',
+                            },
+                            '& .MuiTabs-indicator': {
+                                height: 3,
+                                borderRadius: '3px 3px 0 0',
+                            }
+                        }}
+                    >
+                        <Tab icon={<PostAddIcon />} label={`Bài viết (${activities.posts.length})`} />
+                        <Tab icon={<ChatBubbleOutlineIcon />} label={`Bình luận (${activities.comments.length})`} />
+                        <Tab icon={<ThumbUpIcon />} label={`Lượt thích (${activities.likes.length})`} />
+                    </Tabs>
+
+                    <FormControl sx={{ minWidth: 150, pr: isMobile ? 0 : 1 }} size="small">
+                        <Select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            startAdornment={<SortIcon sx={{ mr: 1, color: 'action.active' }} />}
+                            sx={{ borderRadius: 2 }}
+                        >
+                            <MenuItem value="newest">Mới nhất</MenuItem>
+                            <MenuItem value="oldest">Cũ nhất</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Stack>
+            </Paper>
+
+            {renderContent()}
         </Box>
     );
 };

@@ -20,11 +20,13 @@ import {
     Forum as ForumIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
+import { Link } from 'react-router-dom';
 
 // Dữ liệu giả định cho các bài viết
 const dummyPosts = [
     {
         id: 1,
+        authorId: 101,
         title: 'Cách tối ưu hiệu suất ứng dụng React Hooks',
         author: 'Nguyễn Văn A',
         avatar: 'https://via.placeholder.com/40/FF5733/FFFFFF?text=A',
@@ -35,6 +37,7 @@ const dummyPosts = [
     },
     {
         id: 2,
+        authorId: 102,
         title: 'Hướng dẫn sử dụng Redux Toolkit cho dự án lớn',
         author: 'Trần Thị B',
         avatar: 'https://via.placeholder.com/40/33A1FF/FFFFFF?text=B',
@@ -45,6 +48,7 @@ const dummyPosts = [
     },
     {
         id: 3,
+        authorId: 103,
         title: 'Xây dựng RESTful API với Node.js và Express',
         author: 'Phạm Minh C',
         avatar: 'https://via.placeholder.com/40/33FF57/FFFFFF?text=C',
@@ -55,6 +59,7 @@ const dummyPosts = [
     },
     {
         id: 4,
+        authorId: 104,
         title: 'Component Design Patterns trong React',
         author: 'Lê Thị D',
         avatar: 'https://via.placeholder.com/40/FF33E0/FFFFFF?text=D',
@@ -65,6 +70,7 @@ const dummyPosts = [
     },
     {
         id: 5,
+        authorId: 105,
         title: 'Deploy ứng dụng React lên Vercel và Netlify',
         author: 'Hoàng Văn E',
         avatar: 'https://via.placeholder.com/40/E0FF33/FFFFFF?text=E',
@@ -75,6 +81,7 @@ const dummyPosts = [
     },
     {
         id: 6,
+        authorId: 101, // Same author as post 1
         title: 'Tìm hiểu về Next.js cho Server-Side Rendering',
         author: 'Nguyễn Văn A',
         avatar: 'https://via.placeholder.com/40/FF5733/FFFFFF?text=A',
@@ -166,10 +173,12 @@ function PostList() {
                                             {post.title}
                                         </Typography>
                                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                            <Avatar src={post.avatar} alt={post.author} sx={{ width: 24, height: 24, mr: 1 }} />
-                                            <Typography variant="body2" color="text.secondary">
-                                                {post.author}
-                                            </Typography>
+                                            <Link to={`/profile/${post.authorId}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                                                <Avatar src={post.avatar} alt={post.author} sx={{ width: 24, height: 24, mr: 1 }} />
+                                                <Typography variant="body2" color="text.secondary" sx={{ '&:hover': { textDecoration: 'underline' } }}>
+                                                    {post.author}
+                                                </Typography>
+                                            </Link>
                                             <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary', ml: 2, mr: 0.5 }} />
                                             <Typography variant="body2" color="text.secondary">
                                                 {post.date}

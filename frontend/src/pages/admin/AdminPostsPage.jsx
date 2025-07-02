@@ -8,11 +8,12 @@ import {
     FormControl, InputLabel, Select, Snackbar, Alert, Grid,
     TablePagination
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, MoreVert as MoreVertIcon, Add as AddIcon, Refresh as RefreshIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, MoreVert as MoreVertIcon, Add as AddIcon, Refresh as RefreshIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import PostForm from '../../components/admin/PostForm';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
+import PostPreviewDialog from '../../components/admin/PostPreviewDialog';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
 
@@ -47,6 +48,9 @@ const AdminPostsPage = () => {
 
     const [anchorEl, setAnchorEl] = useState(null);
     const [currentPostStatusMenu, setCurrentPostStatusMenu] = useState(null);
+
+    const [previewPostId, setPreviewPostId] = useState(null);
+    const [openPreview, setOpenPreview] = useState(false);
 
     // Setup Socket.IO listeners for admin post events
     useEffect(() => {
@@ -268,6 +272,11 @@ const AdminPostsPage = () => {
         showSnackbar('Bạn đã đăng xuất thành công!', 'info');
     };
 
+    const handlePreviewPost = (postId) => {
+        setPreviewPostId(postId);
+        setOpenPreview(true);
+    };
+
     return (
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -441,6 +450,9 @@ const AdminPostsPage = () => {
                                         }
                                     </TableCell>
                                     <TableCell align="right">
+                                        <IconButton color="info" onClick={() => handlePreviewPost(post._id)}>
+                                            <VisibilityIcon />
+                                        </IconButton>
                                         <IconButton color="primary" onClick={() => handleEditPost(post)}>
                                             <EditIcon />
                                         </IconButton>
@@ -487,6 +499,12 @@ const AdminPostsPage = () => {
                 onConfirm={confirmDeletePost}
                 title="Xác nhận xóa bài viết"
                 message="Bạn có chắc chắn muốn xóa bài viết này không? Hành động này không thể hoàn tác và sẽ xóa tất cả bình luận, lượt thích, đánh giá liên quan."
+            />
+
+            <PostPreviewDialog
+                postId={previewPostId}
+                open={openPreview}
+                onClose={() => setOpenPreview(false)}
             />
 
             <Snackbar

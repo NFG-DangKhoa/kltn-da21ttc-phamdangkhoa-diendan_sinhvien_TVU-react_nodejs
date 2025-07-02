@@ -5,7 +5,7 @@ import {
     IconButton, Divider, useTheme, Card, CardContent, CardMedia,
     Menu, MenuItem, CircularProgress, Rating, Container,
     Paper, Chip, Avatar, Stack, Fab, Tooltip,
-    Skeleton, Badge, LinearProgress
+    Skeleton, Badge, LinearProgress, Select, FormControl, InputLabel
 } from '@mui/material';
 import BreadcrumbNavigation from '../../components/BreadcrumbNavigation';
 import CloseIcon from '@mui/icons-material/Close';
@@ -30,6 +30,10 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import RecommendIcon from '@mui/icons-material/Recommend';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import axios from 'axios';
+import parse, { domToReact, attributesToProps } from 'html-react-parser';
+import slugify from 'slugify';
+import TableOfContents from '../../components/TableOfContents';
+
 
 import CommentDialog from './CenterColumn/CommentDialog';
 import LikeDialog from './CenterColumn/LikeDialog';
@@ -39,6 +43,22 @@ import PostDetailSkeleton from '../../components/PostDetailSkeleton';
 import { ThemeContext } from '../../context/ThemeContext';
 import usePostDetail from './usePostDetail';
 import { AuthContext } from '../../context/AuthContext';
+
+// Helper function to recursively extract text content from nodes for slug generation
+const getTextContent = (nodes) => {
+    let text = '';
+    if (nodes) {
+        for (const node of nodes) {
+            if (node.type === 'text') {
+                text += node.data;
+            } else if (node.type === 'tag' && node.children) {
+                text += getTextContent(node.children);
+            }
+        }
+    }
+    return text;
+};
+
 
 // Related posts will be fetched from API
 
@@ -69,6 +89,7 @@ const PostDetail = () => {
     const [estimatedReadTime, setEstimatedReadTime] = useState(0);
     const [topicInfo, setTopicInfo] = useState(null);
     const [authorInfo, setAuthorInfo] = useState(null);
+    const [sortOrder, setSortOrder] = useState('latest');
 
     const {
         postDetail,
@@ -97,6 +118,26 @@ const PostDetail = () => {
     const [modalImageSrc, setModalImageSrc] = useState('');
 
     const contentRef = useRef(null);
+
+    const parseOptions = {
+        replace: domNode => {
+            if (domNode.type === 'tag' && /h[1-6]/.test(domNode.name)) {
+                const textContent = getTextContent(domNode.children);
+                if (textContent) {
+                    const slug = slugify(textContent, { lower: true, strict: true });
+                    const props = attributesToProps(domNode.attribs);
+                    props.id = slug;
+
+                    return React.createElement(
+                        domNode.name,
+                        props,
+                        domToReact(domNode.children, parseOptions)
+                    );
+                }
+            }
+            return undefined;
+        }
+    };
 
     const [showReplies, setShowReplies] = useState({});
 
@@ -224,55 +265,67 @@ const PostDetail = () => {
         }
     }, [postDetail, comments, theme.palette.primary.main]);
 
-    // Fetch related posts from same topic
+    // Fetch and sort related posts
     useEffect(() => {
-        const fetchRelatedPosts = async () => {
+        const fetchAndSortRelatedPosts = async () => {
             if (!topicId || !postId) return;
 
             try {
                 const response = await axios.get(`http://localhost:5000/api/posts/topic-details/${topicId}`);
                 const allPosts = response.data || [];
 
-                // Filter out current post and get other posts from same topic
-                const otherPosts = allPosts
-                    .filter(post => post._id !== postId)
-                    .slice(0, 8) // Limit to 8 related posts
-                    .map(post => {
-                        // Extract thumbnail from content (first image)
-                        let thumbnail = null;
-                        if (post.content) {
-                            const imgMatch = post.content.match(/<img[^>]+src=["']([^"']+)["']/);
-                            thumbnail = imgMatch ? imgMatch[1] : null;
-                        }
+                // Filter out the current post
+                const otherPosts = allPosts.filter(post => post._id !== postId);
 
-                        return {
-                            id: post._id,
-                            title: post.title,
-                            excerpt: post.content ? post.content.replace(/<[^>]*>/g, '').substring(0, 100) + '...' : '',
-                            author: post.authorId?.fullName || 'Ẩn danh',
-                            publishDate: new Date(post.createdAt).toLocaleDateString('vi-VN'),
-                            likes: post.likeCount || 0,
-                            comments: post.commentCount || 0,
-                            views: post.views || 0,
-                            thumbnail: thumbnail, // Add thumbnail from content
-                            link: `/posts/detail?topicId=${topicId}&postId=${post._id}`
-                        };
-                    });
+                // Sort the posts based on the selected order
+                const sortedPosts = otherPosts.sort((a, b) => {
+                    switch (sortOrder) {
+                        case 'popular':
+                            // Simple popularity: likes + views
+                            return (b.likeCount + b.views) - (a.likeCount + a.views);
+                        case 'oldest':
+                            return new Date(a.createdAt) - new Date(b.createdAt);
+                        case 'latest':
+                        default:
+                            return new Date(b.createdAt) - new Date(a.createdAt);
+                    }
+                });
 
-                setRelatedPosts(otherPosts);
+                // Map sorted posts to the required format
+                const formattedPosts = sortedPosts.slice(0, 8).map(post => {
+                    let thumbnail = null;
+                    if (post.content) {
+                        const imgMatch = post.content.match(/<img[^>]+src=["']([^"']+)["']/);
+                        thumbnail = imgMatch ? imgMatch[1] : null;
+                    }
+                    return {
+                        id: post._id,
+                        title: post.title,
+                        excerpt: post.content ? post.content.replace(/<[^>]*>/g, '').substring(0, 100) + '...' : '',
+                        author: post.authorId?.fullName || 'Ẩn danh',
+                        publishDate: new Date(post.createdAt).toLocaleDateString('vi-VN'),
+                        likes: post.likeCount || 0,
+                        comments: post.commentCount || 0,
+                        views: post.views || 0,
+                        thumbnail: thumbnail,
+                        link: `/posts/detail?topicId=${topicId}&postId=${post._id}`
+                    };
+                });
 
-                // Find current post index in the list for navigation
+                setRelatedPosts(formattedPosts);
+
+                // Find current post index for navigation (optional, might need adjustment)
                 const currentIndex = allPosts.findIndex(post => post._id === postId);
                 setCurrentPostIndex(currentIndex >= 0 ? currentIndex : 0);
 
             } catch (error) {
-                console.error('Error fetching related posts:', error);
-                setRelatedPosts([]); // Set empty array on error
+                console.error('Error fetching or sorting related posts:', error);
+                setRelatedPosts([]);
             }
         };
 
-        fetchRelatedPosts();
-    }, [topicId, postId]);
+        fetchAndSortRelatedPosts();
+    }, [topicId, postId, sortOrder]);
 
     // useEffect to apply styles to post content and images
     useEffect(() => {
@@ -299,7 +352,6 @@ const PostDetail = () => {
                 marginRight: 'auto',
                 objectFit: 'contain',
                 imageRendering: 'auto',
-                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
                 boxShadow: mode === 'dark' ? '0 4px 12px rgba(255, 255, 255, 0.1)' : '0 4px 12px rgba(0, 0, 0, 0.1)',
                 cursor: 'pointer',
             });
@@ -307,14 +359,6 @@ const PostDetail = () => {
             img.onclick = () => {
                 setModalImageSrc(img.src);
                 setOpenImageModal(true);
-            };
-            img.onmouseenter = () => {
-                img.style.transform = 'scale(1.015)';
-                img.style.boxShadow = mode === 'dark' ? '0 4px 16px rgba(255,255,255,0.2)' : '0 4px 16px rgba(0,0,0,0.2)';
-            };
-            img.onmouseleave = () => {
-                img.style.transform = 'scale(1)';
-                img.style.boxShadow = mode === 'dark' ? '0 2px 8px rgba(255, 255, 255, 0.1)' : '0 2px 8px rgba(0, 0, 0, 0.1)';
             };
         });
 
@@ -569,27 +613,39 @@ const PostDetail = () => {
                                         {/* Article Meta - Enhanced */}
                                         <Box display="flex" alignItems="center" justifyContent="space-between" mb={4}>
                                             <Box display="flex" alignItems="center" gap={3}>
-                                                <Avatar
-                                                    src={postDetail.authorId?.avatarUrl || postDetail.authorId?.avatar}
-                                                    sx={{
-                                                        width: 64,
-                                                        height: 64,
-                                                        border: `3px solid ${theme.palette.primary.main}`,
-                                                        boxShadow: darkMode
-                                                            ? '0 4px 12px rgba(0,0,0,0.3)'
-                                                            : '0 4px 12px rgba(0,0,0,0.1)'
-                                                    }}
-                                                >
-                                                    {postDetail.authorId?.fullName?.[0] || 'U'}
-                                                </Avatar>
+                                                <Tooltip title="Xem trang cá nhân">
+                                                    <Box
+                                                        onClick={() => navigate(`/profile/${postDetail.authorId?._id}`)}
+                                                        sx={{ cursor: 'pointer' }}
+                                                    >
+                                                        <Avatar
+                                                            src={postDetail.authorId?.avatarUrl || postDetail.authorId?.avatar}
+                                                            sx={{
+                                                                width: 64,
+                                                                height: 64,
+                                                                border: `3px solid ${theme.palette.primary.main}`,
+                                                                boxShadow: darkMode
+                                                                    ? '0 4px 12px rgba(0,0,0,0.3)'
+                                                                    : '0 4px 12px rgba(0,0,0,0.1)'
+                                                            }}
+                                                        >
+                                                            {postDetail.authorId?.fullName?.[0] || 'U'}
+                                                        </Avatar>
+                                                    </Box>
+                                                </Tooltip>
                                                 <Box>
                                                     <Typography
                                                         variant="h6"
                                                         fontWeight="bold"
                                                         sx={{
                                                             color: darkMode ? '#e4e6eb' : '#1c1e21',
-                                                            mb: 0.5
+                                                            mb: 0.5,
+                                                            cursor: 'pointer',
+                                                            '&:hover': {
+                                                                textDecoration: 'underline'
+                                                            }
                                                         }}
+                                                        onClick={() => navigate(`/profile/${postDetail.authorId?._id}`)}
                                                     >
                                                         {postDetail.authorId?.fullName || 'Ẩn danh'}
                                                     </Typography>
@@ -689,6 +745,14 @@ const PostDetail = () => {
 
                                     <Divider sx={{ borderColor: darkMode ? '#3a3b3c' : '#e0e0e0' }} />
 
+                                    {/* Table of Contents */}
+                                    {postDetail.content && (
+                                        <Box sx={{ p: { xs: 3, md: 4 } }}>
+                                            <TableOfContents content={postDetail.content} />
+                                        </Box>
+                                    )}
+
+
                                     {/* Article Content - Enhanced */}
                                     <Box sx={{
                                         p: { xs: 3, md: 5 },
@@ -737,7 +801,8 @@ const PostDetail = () => {
                                                     mb: 2.5,
                                                     fontWeight: 700,
                                                     color: darkMode ? '#e4e6eb' : '#1c1e21',
-                                                    lineHeight: 1.3
+                                                    lineHeight: 1.3,
+                                                    scrollMarginTop: '100px' // Offset for fixed header
                                                 },
                                                 '& h1': { fontSize: '2.5rem' },
                                                 '& h2': { fontSize: '2rem' },
@@ -753,14 +818,7 @@ const PostDetail = () => {
                                                     boxShadow: darkMode
                                                         ? '0 4px 20px rgba(0,0,0,0.3)'
                                                         : '0 4px 20px rgba(0,0,0,0.1)',
-                                                    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
                                                     cursor: 'pointer',
-                                                    '&:hover': {
-                                                        transform: 'scale(1.02)',
-                                                        boxShadow: darkMode
-                                                            ? '0 8px 30px rgba(0,0,0,0.4)'
-                                                            : '0 8px 30px rgba(0,0,0,0.15)'
-                                                    }
                                                 },
                                                 '& blockquote': {
                                                     borderLeft: `5px solid ${theme.palette.primary.main}`,
@@ -825,8 +883,9 @@ const PostDetail = () => {
                                                     }
                                                 }
                                             }}
-                                            dangerouslySetInnerHTML={{ __html: postDetail.content }}
-                                        />
+                                        >
+                                            {postDetail.content && parse(postDetail.content, parseOptions)}
+                                        </Typography>
                                     </Box>
 
                                     {/* Article Interaction Section - Forum Style */}
@@ -1181,12 +1240,26 @@ const PostDetail = () => {
                             <Box sx={{ position: { md: 'sticky' }, top: { md: 24 }, mb: { xs: 3, md: 0 } }}>
                                 <Card sx={{ mb: 3, backgroundColor: darkMode ? '#242526' : '#fff', boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.1)', borderRadius: 2 }}>
                                     <CardContent sx={{ p: 3 }}>
-                                        <Typography variant="h6" fontWeight="bold" sx={{ mb: 3, fontSize: '1.1rem' }}>
-                                            📚 Bài viết liên quan
-                                        </Typography>
+                                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                                            <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1.1rem' }}>
+                                                📚 Bài viết liên quan
+                                            </Typography>
+                                            <FormControl size="small" sx={{ minWidth: 120 }}>
+                                                <InputLabel>Sắp xếp</InputLabel>
+                                                <Select
+                                                    value={sortOrder}
+                                                    label="Sắp xếp"
+                                                    onChange={(e) => setSortOrder(e.target.value)}
+                                                >
+                                                    <MenuItem value="latest">Mới nhất</MenuItem>
+                                                    <MenuItem value="oldest">Cũ nhất</MenuItem>
+                                                    <MenuItem value="popular">Phổ biến</MenuItem>
+                                                </Select>
+                                            </FormControl>
+                                        </Box>
                                         <Stack spacing={3}>
                                             {relatedPosts.length > 0 ? (
-                                                relatedPosts.slice(0, 8).map((relatedPost) => (
+                                                relatedPosts.map((relatedPost) => (
                                                     <Box
                                                         key={relatedPost.id}
                                                         sx={{

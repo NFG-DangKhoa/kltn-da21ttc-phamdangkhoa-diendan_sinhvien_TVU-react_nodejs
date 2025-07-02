@@ -11,12 +11,16 @@ import {
     IconButton,
     Stack,
     useTheme,
-    alpha
+    alpha,
+    Grid
 } from '@mui/material';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import axios from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; // Đảm bảo import này là chính xác
+import TableOfContents from '../components/TableOfContents';
+import parse, { domToReact } from 'html-react-parser';
+import slugify from 'slugify';
 
 const PostDetail = () => {
     const { id } = useParams();
@@ -30,6 +34,19 @@ const PostDetail = () => {
     const [userRating, setUserRating] = useState(0);
     const [likes, setLikes] = useState(0);
     const [isLiked, setIsLiked] = useState(false);
+
+    const parseOptions = {
+        replace: domNode => {
+            if (domNode.type === 'tag' && /h[1-6]/.test(domNode.name)) {
+                const slug = slugify(domNode.children[0].data, { lower: true, strict: true });
+                return React.createElement(
+                    domNode.name,
+                    { id: slug },
+                    domToReact(domNode.children, parseOptions)
+                );
+            }
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -114,171 +131,182 @@ const PostDetail = () => {
     return (
         <Box
             sx={{
-                maxWidth: 800,
+                maxWidth: 1200,
                 mx: 'auto',
-                mt: 25,
+                mt: 15,
                 p: 2,
                 backgroundColor: theme.palette.background.default,
                 color: theme.palette.text.primary,
-                minHeight: 'calc(100vh - 64px)', // Giả sử chiều cao header là 64px
+                minHeight: 'calc(100vh - 64px)',
                 transition: 'background-color 0.4s ease, color 0.4s ease',
             }}
         >
-            <Paper
-                sx={{
-                    p: 3,
-                    backgroundColor: theme.palette.background.paper,
-                    color: theme.palette.text.primary,
-                    boxShadow: theme.shadows[3],
-                    transition: 'background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease',
-                }}
-            >
-                <Typography variant="h4" gutterBottom
-                    sx={{ color: theme.palette.text.primary }}>
-                    {post.title}
-                </Typography>
-                <Typography variant="body1" sx={{
-                    whiteSpace: 'pre-wrap',
-                    color: theme.palette.text.secondary,
-                    mb: 6, // Tăng margin-bottom để tránh bị che khuất
-                    lineHeight: 1.7,
-                    fontSize: '1.1rem'
-                }}>
-                    {post.content}
-                </Typography>
-                <Divider sx={{ my: 4, borderColor: theme.palette.divider }} />
-
-                {/* Action buttons section với spacing tốt hơn */}
-                <Box sx={{
-                    position: 'relative',
-                    py: 2,
-                    mb: 4,
-                    borderRadius: 2,
-                    backgroundColor: alpha(theme.palette.background.default, 0.5)
-                }}>
-                    <Stack direction="row" spacing={3} alignItems="center" justifyContent="center"
+            <Grid container spacing={3}>
+                <Grid item xs={12} md={3}>
+                    {post.content && <TableOfContents content={post.content} />}
+                </Grid>
+                <Grid item xs={12} md={9}>
+                    <Paper
                         sx={{
-                            flexWrap: 'wrap',
-                            gap: 2
+                            p: 3,
+                            backgroundColor: theme.palette.background.paper,
+                            color: theme.palette.text.primary,
+                            boxShadow: theme.shadows[3],
+                            transition: 'background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease',
+                        }}
+                    >
+                        <Typography variant="h4" gutterBottom sx={{ color: theme.palette.text.primary }}>
+                            {post.title}
+                        </Typography>
+                        <Box sx={{
+                            whiteSpace: 'pre-wrap',
+                            color: theme.palette.text.secondary,
+                            mb: 6,
+                            lineHeight: 1.7,
+                            fontSize: '1.1rem',
+                            '& h1, & h2, & h3, & h4, & h5, & h6': {
+                                marginTop: '24px',
+                                marginBottom: '16px',
+                                fontWeight: 'bold',
+                            }
                         }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <IconButton
-                                onClick={handleLike}
-                                disabled={!user}
+                            {post.content && parse(post.content, parseOptions)}
+                        </Box>
+                        <Divider sx={{ my: 4, borderColor: theme.palette.divider }} />
+
+                        {/* Action buttons section với spacing tốt hơn */}
+                        <Box sx={{
+                            position: 'relative',
+                            py: 2,
+                            mb: 4,
+                            borderRadius: 2,
+                            backgroundColor: alpha(theme.palette.background.default, 0.5)
+                        }}>
+                            <Stack direction="row" spacing={3} alignItems="center" justifyContent="center"
                                 sx={{
-                                    color: isLiked ? theme.palette.primary.main : theme.palette.action.active,
-                                    '&:hover': {
-                                        backgroundColor: alpha(theme.palette.primary.main, 0.1)
-                                    }
-                                }}
-                            >
-                                <ThumbUpIcon />
-                            </IconButton>
-                            <Typography sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
-                                {likes} lượt thích
-                            </Typography>
+                                    flexWrap: 'wrap',
+                                    gap: 2
+                                }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <IconButton
+                                        onClick={handleLike}
+                                        disabled={!user}
+                                        sx={{
+                                            color: isLiked ? theme.palette.primary.main : theme.palette.action.active,
+                                            '&:hover': {
+                                                backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                                            }
+                                        }}
+                                    >
+                                        <ThumbUpIcon />
+                                    </IconButton>
+                                    <Typography sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
+                                        {likes} lượt thích
+                                    </Typography>
+                                </Box>
+
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
+                                        Đánh giá:
+                                    </Typography>
+                                    <Rating
+                                        name="post-rating"
+                                        value={userRating}
+                                        onChange={(_, newVal) => handleRate(newVal)}
+                                        precision={1}
+                                        sx={{ color: theme.palette.secondary.main }}
+                                        disabled={!user}
+                                    />
+                                </Box>
+                            </Stack>
                         </Box>
 
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
-                                Đánh giá:
+                        <Divider sx={{ my: 3, borderColor: theme.palette.divider }} />
+                        <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
+                            Bình luận
+                        </Typography>
+                        {comments.length > 0 ? (
+                            comments.map(c => (
+                                <Box
+                                    key={c._id}
+                                    sx={{
+                                        mt: 2,
+                                        p: 2,
+                                        background: theme.palette.background.default, // Hoặc theme.palette.grey[100] / [900] tùy chế độ
+                                        borderRadius: 1,
+                                        transition: 'background-color 0.4s ease',
+                                    }}
+                                >
+                                    <Typography variant="subtitle2" sx={{ color: theme.palette.primary.light }}>
+                                        {c.authorName}
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+                                        {c.content}
+                                    </Typography>
+                                </Box>
+                            ))
+                        ) : (
+                            <Typography variant="body2" sx={{ mt: 2, color: theme.palette.text.secondary }}>
+                                Chưa có bình luận nào.
                             </Typography>
-                            <Rating
-                                name="post-rating"
-                                value={userRating}
-                                onChange={(_, newVal) => handleRate(newVal)}
-                                precision={1}
-                                sx={{ color: theme.palette.secondary.main }}
-                                disabled={!user}
-                            />
-                        </Box>
-                    </Stack>
-                </Box>
+                        )}
 
-                <Divider sx={{ my: 3, borderColor: theme.palette.divider }} />
-                <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
-                    Bình luận
-                </Typography>
-                {comments.length > 0 ? (
-                    comments.map(c => (
-                        <Box
-                            key={c._id}
-                            sx={{
-                                mt: 2,
-                                p: 2,
-                                background: theme.palette.background.default, // Hoặc theme.palette.grey[100] / [900] tùy chế độ
-                                borderRadius: 1,
-                                transition: 'background-color 0.4s ease',
-                            }}
-                        >
-                            <Typography variant="subtitle2" sx={{ color: theme.palette.primary.light }}>
-                                {c.authorName}
+                        {user ? ( // Chỉ hiển thị phần bình luận nếu người dùng đã đăng nhập
+                            <Box sx={{ mt: 3 }}>
+                                <TextField
+                                    fullWidth
+                                    multiline
+                                    rows={3}
+                                    label="Thêm bình luận"
+                                    value={newComment}
+                                    onChange={(e) => setNewComment(e.target.value)}
+                                    variant="outlined"
+                                    sx={{
+                                        '& .MuiInputBase-root': {
+                                            backgroundColor: theme.palette.background.paper,
+                                            color: theme.palette.text.primary,
+                                        },
+                                        '& .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: theme.palette.divider,
+                                        },
+                                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: theme.palette.primary.light,
+                                        },
+                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: theme.palette.primary.main,
+                                            borderWidth: '2px',
+                                        },
+                                        '& .MuiInputLabel-root': {
+                                            color: theme.palette.text.secondary,
+                                        },
+                                        '& .MuiInputLabel-root.Mui-focused': {
+                                            color: theme.palette.primary.main,
+                                        },
+                                    }}
+                                />
+                                <Button
+                                    variant="contained"
+                                    sx={{
+                                        mt: 1,
+                                        backgroundColor: theme.palette.primary.main,
+                                        '&:hover': {
+                                            backgroundColor: theme.palette.primary.dark,
+                                        },
+                                        color: theme.palette.primary.contrastText,
+                                    }}
+                                    onClick={handleAddComment}
+                                >
+                                    Gửi
+                                </Button>
+                            </Box>
+                        ) : (
+                            <Typography variant="body2" sx={{ mt: 3, color: theme.palette.text.secondary }}>
+                                Vui lòng đăng nhập để bình luận, thích hoặc đánh giá bài viết.
                             </Typography>
-                            <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
-                                {c.content}
-                            </Typography>
-                        </Box>
-                    ))
-                ) : (
-                    <Typography variant="body2" sx={{ mt: 2, color: theme.palette.text.secondary }}>
-                        Chưa có bình luận nào.
-                    </Typography>
-                )}
-
-                {user ? ( // Chỉ hiển thị phần bình luận nếu người dùng đã đăng nhập
-                    <Box sx={{ mt: 3 }}>
-                        <TextField
-                            fullWidth
-                            multiline
-                            rows={3}
-                            label="Thêm bình luận"
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            variant="outlined"
-                            sx={{
-                                '& .MuiInputBase-root': {
-                                    backgroundColor: theme.palette.background.paper,
-                                    color: theme.palette.text.primary,
-                                },
-                                '& .MuiOutlinedInput-notchedOutline': {
-                                    borderColor: theme.palette.divider,
-                                },
-                                '&:hover .MuiOutlinedInput-notchedOutline': {
-                                    borderColor: theme.palette.primary.light,
-                                },
-                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                    borderColor: theme.palette.primary.main,
-                                    borderWidth: '2px',
-                                },
-                                '& .MuiInputLabel-root': {
-                                    color: theme.palette.text.secondary,
-                                },
-                                '& .MuiInputLabel-root.Mui-focused': {
-                                    color: theme.palette.primary.main,
-                                },
-                            }}
-                        />
-                        <Button
-                            variant="contained"
-                            sx={{
-                                mt: 1,
-                                backgroundColor: theme.palette.primary.main,
-                                '&:hover': {
-                                    backgroundColor: theme.palette.primary.dark,
-                                },
-                                color: theme.palette.primary.contrastText,
-                            }}
-                            onClick={handleAddComment}
-                        >
-                            Gửi
-                        </Button>
-                    </Box>
-                ) : (
-                    <Typography variant="body2" sx={{ mt: 3, color: theme.palette.text.secondary }}>
-                        Vui lòng đăng nhập để bình luận, thích hoặc đánh giá bài viết.
-                    </Typography>
-                )}
-            </Paper>
+                        )}
+                    </Paper>
+                </Grid>
+            </Grid>
         </Box>
     );
 };

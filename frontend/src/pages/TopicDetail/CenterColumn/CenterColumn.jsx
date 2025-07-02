@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
     Box, Typography, Button, Divider,
     Dialog, DialogTitle, DialogContent, IconButton,
+    FormControl, InputLabel, Select, MenuItem, TextField,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
@@ -17,7 +18,9 @@ const CenterColumn = ({
     user, topic, topicId,
     newPost, setNewPost,
     handlePostSubmit, detailedPosts,
-    setDetailedPosts
+    setDetailedPosts,
+    sortBy, setSortBy,
+    searchTerm, setSearchTerm, filteredPosts
 }) => {
     const { mode } = useContext(ThemeContext);
     const darkMode = mode === 'dark';
@@ -103,6 +106,32 @@ const CenterColumn = ({
                 />
             )}
 
+            <TextField
+                label="Tìm kiếm bài viết"
+                variant="outlined"
+                fullWidth
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                sx={{
+                    mb: 3,
+                    '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                            borderColor: darkMode ? '#3a3b3c' : '#ccc',
+                        },
+                        '&:hover fieldset': {
+                            borderColor: darkMode ? '#555' : '#999',
+                        },
+                        '&.Mui-focused fieldset': {
+                            borderColor: darkMode ? '#90caf9' : 'primary.main',
+                        },
+                        color: darkMode ? '#e4e6eb' : '#1c1e21',
+                    },
+                    '& .MuiInputLabel-root': {
+                        color: darkMode ? '#b0b3b8' : '#65676b',
+                    },
+                }}
+            />
+
             {!isEditingPost && !user && (
                 <Box
                     sx={{
@@ -179,17 +208,58 @@ const CenterColumn = ({
                 </Dialog>
             )}
 
-            <Typography variant="h6" gutterBottom
-                sx={{
-                    fontSize: '1.2rem',
-                    color: darkMode ? '#e4e6eb' : '#1c1e21',
-                    mt: 2,
-                    mb: 3,
-                    fontWeight: 'bold'
-                }}
-            >
-                Bài viết gần đây
-            </Typography>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                <Typography variant="h6" gutterBottom
+                    sx={{
+                        fontSize: '1.2rem',
+                        color: darkMode ? '#e4e6eb' : '#1c1e21',
+                        fontWeight: 'bold',
+                        mt: 2,
+                        mb: 0, // Đặt mb về 0 vì Box cha đã có mb
+                    }}
+                >
+                    Bài viết
+                </Typography>
+                <FormControl variant="outlined" size="small" sx={{ minWidth: 120, mt: 2 }}>
+                    <InputLabel id="sort-by-label" sx={{ color: darkMode ? '#b0b3b8' : '#65676b' }}>Sắp xếp theo</InputLabel>
+                    <Select
+                        labelId="sort-by-label"
+                        id="sort-by-select"
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        label="Sắp xếp theo"
+                        sx={{
+                            color: darkMode ? '#e4e6eb' : '#1c1e21',
+                            '.MuiOutlinedInput-notchedOutline': {
+                                borderColor: darkMode ? '#3a3b3c' : '#ccc',
+                            },
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: darkMode ? '#555' : '#999',
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                borderColor: darkMode ? '#90caf9' : 'primary.main',
+                            },
+                            '.MuiSvgIcon-root': {
+                                color: darkMode ? '#e4e6eb' : '#1c1e21',
+                            },
+                        }}
+                        MenuProps={{
+                            PaperProps: {
+                                sx: {
+                                    backgroundColor: darkMode ? '#3a3b3c' : '#ffffff',
+                                    color: darkMode ? '#e4e6eb' : '#1c1e21',
+                                },
+                            },
+                        }}
+                    >
+                        <MenuItem value="newest">Mới nhất</MenuItem>
+                        <MenuItem value="oldest">Cũ nhất</MenuItem>
+                        <MenuItem value="most_liked">Nhiều lượt thích nhất</MenuItem>
+                        <MenuItem value="most_commented">Nhiều bình luận nhất</MenuItem>
+                        <MenuItem value="highest_rating">Đánh giá cao nhất</MenuItem>
+                    </Select>
+                </FormControl>
+            </Box>
             <Box sx={{
                 width: '100%',
                 flex: 1,
@@ -197,8 +267,8 @@ const CenterColumn = ({
                 flexDirection: 'column',
                 gap: 2
             }}>
-                {detailedPosts.length > 0 ? (
-                    detailedPosts.map((post) => (
+                {filteredPosts.length > 0 ? (
+                    filteredPosts.map((post) => (
                         <PostCard
                             key={post._id}
                             post={post}

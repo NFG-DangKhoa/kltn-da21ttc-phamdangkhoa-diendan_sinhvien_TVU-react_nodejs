@@ -58,10 +58,34 @@ exports.updateMe = async (req, res) => {
     }
 };
 
+// Get user by ID
+exports.getUserById = async (req, res) => {
+    try {
+        // Add validation for userId
+        if (!mongoose.Types.ObjectId.isValid(req.params.userId)) {
+            return res.status(400).json({ message: 'ID người dùng không hợp lệ.' });
+        }
+
+        const user = await User.findById(req.params.userId).select('-password').lean();
+        if (!user) {
+            return res.status(404).json({ message: 'Không tìm thấy người dùng.' });
+        }
+
+        // Check if user is online (last seen within 5 minutes)
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        user.isOnline = user.lastSeen > fiveMinutesAgo;
+
+        res.json(user);
+    } catch (err) {
+        console.error('Error getting user by ID:', err);
+        res.status(500).json({ message: 'Lỗi server.' });
+    }
+};
+
 // Get all members for members list page
 exports.getAllMembers = async (req, res) => {
     try {
-        const { page = 1, limit = 12, search = '' } = req.query;
+        const { page = 1, limit = 12, search = '', sortBy = 'latest', role } = req.query;
         const pageNum = parseInt(page);
         const limitNum = parseInt(limit);
         const skip = (pageNum - 1) * limitNum;
@@ -69,13 +93,38 @@ exports.getAllMembers = async (req, res) => {
         // Build search query
         let searchQuery = {};
         if (search) {
-            searchQuery = {
-                $or: [
-                    { fullName: { $regex: search, $options: 'i' } },
-                    { username: { $regex: search, $options: 'i' } },
-                    { email: { $regex: search, $options: 'i' } }
-                ]
-            };
+            searchQuery.$or = [
+                { fullName: { $regex: search, $options: 'i' } },
+                { username: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } }
+            ];
+        }
+        if (role) {
+            searchQuery.role = role;
+        }
+
+        // Build sort option
+        let sortOption = {};
+        switch (sortBy) {
+            case 'oldest':
+                sortOption = { createdAt: 1 };
+                break;
+            case 'posts_desc':
+                sortOption = { postsCount: -1, createdAt: -1 };
+                break;
+            case 'posts_asc':
+                sortOption = { postsCount: 1, createdAt: -1 };
+                break;
+            case 'name_asc':
+                sortOption = { fullName: 1 };
+                break;
+            case 'name_desc':
+                sortOption = { fullName: -1 };
+                break;
+            case 'latest':
+            default:
+                sortOption = { createdAt: -1 };
+                break;
         }
 
         // Get members with post count
@@ -101,7 +150,7 @@ exports.getAllMembers = async (req, res) => {
                     __v: 0
                 }
             },
-            { $sort: { createdAt: -1 } },
+            { $sort: sortOption },
             { $skip: skip },
             { $limit: limitNum }
         ]);
@@ -158,7 +207,9 @@ exports.getUserStats = async (req, res) => {
 exports.getUserPosts = async (req, res) => {
     try {
         const { authorId } = req.query;
+        console.log(`[getUserPosts] Received authorId: ${authorId}`);
         if (!mongoose.Types.ObjectId.isValid(authorId)) {
+            console.log(`[getUserPosts] Invalid authorId: ${authorId}`);
             return res.status(400).json({ message: 'ID người dùng không hợp lệ.' });
         }
 
@@ -167,6 +218,8 @@ exports.getUserPosts = async (req, res) => {
             .populate('authorId', 'fullName username avatarUrl')
             .populate('topicId', 'name')
             .lean();
+
+        console.log(`[getUserPosts] Fetched posts (before counts):`, posts.map(p => ({ _id: p._id, authorId: p.authorId?._id, topicId: p.topicId?._id })));
 
         const postsWithCounts = await Promise.all(posts.map(async post => {
             const [likeCount, commentCount] = await Promise.all([
@@ -187,7 +240,9 @@ exports.getUserPosts = async (req, res) => {
 exports.getUserComments = async (req, res) => {
     try {
         const { authorId } = req.query;
+        console.log(`[getUserComments] Received authorId: ${authorId}`);
         if (!mongoose.Types.ObjectId.isValid(authorId)) {
+            console.log(`[getUserComments] Invalid authorId: ${authorId}`);
             return res.status(400).json({ message: 'ID người dùng không hợp lệ.' });
         }
 
@@ -196,6 +251,8 @@ exports.getUserComments = async (req, res) => {
             .populate('authorId', 'fullName username avatarUrl')
             .populate('postId', 'title')
             .lean();
+
+        console.log(`[getUserComments] Fetched comments (before likes):`, comments.map(c => ({ _id: c._id, authorId: c.authorId?._id, postId: c.postId?._id })));
 
         const commentsWithLikes = await Promise.all(comments.map(async comment => {
             const likeCount = await Like.countDocuments({ commentId: comment._id });
@@ -217,7 +274,9 @@ exports.getUserComments = async (req, res) => {
 exports.getUserLikes = async (req, res) => {
     try {
         const { userId } = req.query;
+        console.log(`[getUserLikes] Received userId: ${userId}`);
         if (!mongoose.Types.ObjectId.isValid(userId)) {
+            console.log(`[getUserLikes] Invalid userId: ${userId}`);
             return res.status(400).json({ message: 'ID người dùng không hợp lệ.' });
         }
 
@@ -232,6 +291,15 @@ exports.getUserLikes = async (req, res) => {
                 }
             })
             .lean();
+
+        console.log(`[getUserLikes] Fetched likes:`, likes.map(l => ({
+            _id: l._id,
+            userId: l.userId,
+            postId: l.postId?._id,
+            commentId: l.commentId?._id,
+            commentAuthorId: l.commentId?.authorId?._id,
+            commentPostId: l.commentId?.postId?._id
+        })));
 
         const formattedLikes = likes.map(like => ({
             ...like,

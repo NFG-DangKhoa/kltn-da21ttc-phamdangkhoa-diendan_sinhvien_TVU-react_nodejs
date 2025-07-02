@@ -34,6 +34,7 @@ import CreatePostPage from './pages/CreatePostPage';
 import ProfilePage from './pages/profile/ProfilePage';
 import ChatPage from './pages/ChatPage';
 import AllPosts from './pages/AllPosts';
+import TopicsPage from './pages/TopicsPage';
 
 // Topic/Post Related Pages
 import TopicDetail from './pages/TopicDetail/TopicDetail';
@@ -144,6 +145,7 @@ const AppContent = () => {
         <Route path="/profile/:userId" element={<ProfilePage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/all-posts" element={<AllPosts />} />
+        <Route path="/topics" element={<TopicsPage />} />
 
         {/* Topic and Post Routes */}
         <Route path="/topic/:topicId" element={<TopicDetail />} />

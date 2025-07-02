@@ -1,13 +1,15 @@
-import React, { useEffect, useState, useContext } from 'react'; // Import useContext
-import { Box, Typography, Divider, List, ListItem, ListItemIcon, ListItemText, Paper, Avatar, Chip, CircularProgress, ListItemAvatar } from '@mui/material';
-import { Science, Rocket, Language, AccountBalance, Apps, Person, Email, Star, TrendingUp } from '@mui/icons-material';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState, useContext } from 'react';
+import { Box, Typography, List, ListItem, ListItemIcon, ListItemText, Paper, Avatar, Chip, CircularProgress, useTheme, alpha } from '@mui/material';
+import { Science, Rocket, Language, AccountBalance, Apps, Person, Email, Star } from '@mui/icons-material';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ThemeContext } from '../../context/ThemeContext'; // Import ThemeContext
+import { ThemeContext } from '../../context/ThemeContext';
 
-const LeftColumn = ({ user }) => { // Remove darkMode from props
-    const { mode } = useContext(ThemeContext); // Use useContext to get the current theme mode
-    const darkMode = mode === 'dark'; // Determine darkMode based on the context mode
+const LeftColumn = ({ user }) => {
+    const { mode } = useContext(ThemeContext);
+    const darkMode = mode === 'dark';
+    const theme = useTheme();
+    const navigate = useNavigate();
 
     const [topics, setTopics] = useState([]);
     const [featuredPosts, setFeaturedPosts] = useState([]);
@@ -21,29 +23,51 @@ const LeftColumn = ({ user }) => { // Remove darkMode from props
         <Apps />,
     ];
 
+    const handlePostClick = (post) => {
+        const topicId = post.topicInfo?._id || post.topic?._id || post.topicId;
+        const postId = post._id;
+        if (topicId && postId) {
+            navigate(`/post-detail?topicId=${topicId}&postId=${postId}`);
+        } else {
+            console.error('Missing topicId or postId for navigation', { post });
+        }
+    };
+
+    const formatTimeAgo = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffTime = Math.abs(now - date);
+        const diffMinutes = Math.floor(diffTime / (1000 * 60));
+        if (diffMinutes < 1) return 'vừa xong';
+        if (diffMinutes < 60) return `${diffMinutes} phút trước`;
+        const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+        if (diffHours < 24) return `${diffHours} giờ trước`;
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        return `${diffDays} ngày trước`;
+    };
+
     useEffect(() => {
         const fetchTopics = async () => {
             try {
                 const res = await axios.get('http://localhost:5000/api/topics/all');
-                setTopics(res.data.slice(0, 10000));
+                setTopics(res.data.slice(0, 5));
             } catch (error) {
                 console.error('Lỗi khi lấy chủ đề nổi bật:', error);
             }
         };
 
         const fetchFeaturedPosts = async () => {
+            setLoadingPosts(true);
             try {
-                // Sử dụng cùng API như Home page
                 const response = await axios.get(`http://localhost:5000/api/home/featured-posts?limit=4&t=${Date.now()}`);
                 if (response.data.success) {
-                    console.log('LeftColumn: Featured posts loaded:', response.data.data.length);
-                    setFeaturedPosts(response.data.data); // Lấy 4 bài viết nổi bật
+                    setFeaturedPosts(response.data.data);
                 } else {
-                    console.log('LeftColumn: Featured posts API failed');
                     setFeaturedPosts([]);
                 }
             } catch (error) {
-                console.error('LeftColumn: Error fetching featured posts:', error);
+                console.error('Error fetching featured posts:', error);
                 setFeaturedPosts([]);
             } finally {
                 setLoadingPosts(false);
@@ -56,217 +80,146 @@ const LeftColumn = ({ user }) => { // Remove darkMode from props
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            {/* User Info Card - Compact */}
+            {/* User Info Card */}
             <Paper
                 elevation={0}
                 sx={{
                     p: 2.5,
-                    background: '#ffffff',
+                    background: darkMode ? '#1e293b' : '#ffffff',
                     borderRadius: 2.5,
-                    border: '1px solid rgba(226, 232, 240, 0.8)',
-                    boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                    border: `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(226, 232, 240, 0.8)'}`,
                 }}
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Avatar
-                        sx={{
-                            width: 40,
-                            height: 40,
-                            mr: 1.5,
-                            background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                            fontSize: '1rem'
-                        }}
-                    >
+                    <Avatar sx={{ width: 40, height: 40, mr: 1.5, background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)' }}>
                         {user?.fullName?.charAt(0) || <Person />}
                     </Avatar>
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography variant="subtitle2" sx={{
-                            color: '#1e293b',
-                            fontWeight: 600,
-                            mb: 0.5,
-                            fontSize: '0.875rem',
-                            lineHeight: 1.2
-                        }}>
+                    <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                             {user?.fullName || 'Khách'}
                         </Typography>
-                        <Chip
-                            size="small"
-                            label={user?.role === 'admin' ? 'Admin' : user?.role || 'Khách'}
-                            color={user?.role === 'admin' ? 'error' : 'primary'}
-                            sx={{
-                                fontSize: '0.65rem',
-                                height: 18
-                            }}
-                        />
+                        <Chip size="small" label={user?.role || 'Member'} color={user?.role === 'admin' ? 'error' : 'primary'} />
                     </Box>
                 </Box>
-
                 {user?.email && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', color: '#64748b' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
                         <Email sx={{ fontSize: 14, mr: 1 }} />
-                        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                            {user.email.length > 20 ? `${user.email.slice(0, 17)}...` : user.email}
-                        </Typography>
+                        <Typography variant="caption">{user.email}</Typography>
                     </Box>
                 )}
             </Paper>
 
-            {/* Topics Card - Compact */}
+            {/* Topics Card */}
             <Paper
                 elevation={0}
                 sx={{
-                    background: '#ffffff',
+                    background: darkMode ? '#1e293b' : '#ffffff',
                     borderRadius: 2.5,
-                    border: '1px solid rgba(226, 232, 240, 0.8)',
-                    boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(226, 232, 240, 0.8)'}`,
                     overflow: 'hidden'
                 }}
             >
                 <Box sx={{ p: 2.5, pb: 1 }}>
-                    <Typography variant="subtitle1" sx={{
-                        color: '#1e293b',
-                        fontWeight: 600,
-                        mb: 1.5,
-                        display: 'flex',
-                        alignItems: 'center',
-                        fontSize: '0.9rem'
-                    }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
                         🔥 Chủ đề nổi bật
                     </Typography>
                 </Box>
-
                 <List sx={{ pt: 0, pb: 1 }}>
-                    {topics.slice(0, 6).map((topic, index) => (
+                    {topics.map((topic, index) => (
                         <ListItem
                             key={topic._id}
                             component={Link}
                             to={`/topic/${topic._id}`}
                             sx={{
-                                px: 2.5,
-                                py: 1,
-                                textDecoration: 'none',
-                                borderBottom: index < 5 ? '1px solid #f1f5f9' : 'none',
-                                '&:hover': {
-                                    backgroundColor: '#f8fafc',
-                                    '& .topic-icon': {
-                                        transform: 'scale(1.05)',
-                                        color: '#3b82f6'
-                                    },
-                                    '& .topic-name': {
-                                        color: '#3b82f6'
-                                    }
-                                },
-                                transition: 'all 0.2s ease',
+                                px: 2.5, py: 1, textDecoration: 'none',
+                                '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.05) }
                             }}
                         >
-                            <ListItemIcon
-                                className="topic-icon"
-                                sx={{
-                                    color: '#64748b',
-                                    minWidth: 28,
-                                    transition: 'all 0.2s ease',
-                                    '& svg': {
-                                        fontSize: '1.1rem'
-                                    }
-                                }}
-                            >
-                                {icons[index % icons.length]}
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={topic.name}
-                                primaryTypographyProps={{
-                                    className: 'topic-name',
-                                    color: '#374151',
-                                    fontSize: '0.8rem',
-                                    fontWeight: 500,
-                                    transition: 'color 0.2s ease',
-                                    lineHeight: 1.3,
-                                    noWrap: true
-                                }}
-                            />
+                            <ListItemIcon sx={{ minWidth: 32, color: 'primary.main' }}>{icons[index % icons.length]}</ListItemIcon>
+                            <ListItemText primary={topic.name} primaryTypographyProps={{ fontSize: '0.875rem', noWrap: true }} />
                         </ListItem>
                     ))}
                 </List>
             </Paper>
 
-            {/* Featured Posts Card - Compact */}
+            {/* Featured Posts Card - New Vertical Layout */}
             <Paper
                 elevation={0}
                 sx={{
-                    background: '#ffffff',
+                    background: darkMode ? '#1e293b' : '#ffffff',
                     borderRadius: 2.5,
-                    border: '1px solid rgba(226, 232, 240, 0.8)',
-                    boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(226, 232, 240, 0.8)'}`,
                     overflow: 'hidden'
                 }}
             >
                 <Box sx={{ p: 2.5, pb: 1 }}>
-                    <Typography variant="subtitle1" sx={{
-                        color: '#1e293b',
-                        fontWeight: 600,
-                        mb: 1.5,
-                        display: 'flex',
-                        alignItems: 'center',
-                        fontSize: '0.9rem'
-                    }}>
-                        <Star sx={{ mr: 1, color: '#f59e0b', fontSize: '1.1rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5, display: 'flex', alignItems: 'center' }}>
+                        <Star sx={{ mr: 1, color: '#f59e0b' }} />
                         Bài viết nổi bật
                     </Typography>
                 </Box>
 
                 {loadingPosts ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
                         <CircularProgress size={24} />
                     </Box>
                 ) : (
-                    <List sx={{ pt: 0, pb: 1 }}>
+                    <List sx={{ p: 0 }}>
                         {featuredPosts.map((post, index) => (
                             <ListItem
                                 key={post._id}
-                                component={Link}
-                                to={`/posts/detail?topicId=${post.topicId}&postId=${post._id}`}
+                                alignItems="flex-start"
+                                button
+                                onClick={() => handlePostClick(post)}
                                 sx={{
-                                    px: 2.5,
                                     py: 1.5,
-                                    textDecoration: 'none',
-                                    borderBottom: index < featuredPosts.length - 1 ? '1px solid #f1f5f9' : 'none',
+                                    px: 2.5,
+                                    borderTop: index > 0 ? `1px solid ${theme.palette.divider}` : 'none',
                                     '&:hover': {
-                                        backgroundColor: '#f8fafc',
-                                        '& .post-title': {
-                                            color: '#3b82f6'
-                                        }
-                                    },
-                                    transition: 'all 0.2s ease',
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                                    }
                                 }}
                             >
-                                <ListItemAvatar sx={{ minWidth: 36 }}>
-                                    <Avatar
-                                        src={post.authorInfo?.[0]?.avatarUrl}
-                                        sx={{
-                                            width: 24,
-                                            height: 24,
-                                            fontSize: '0.7rem',
-                                            background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                                        }}
-                                    >
-                                        {!post.authorInfo?.[0]?.avatarUrl && post.authorInfo?.[0]?.fullName?.charAt(0)?.toUpperCase()}
-                                    </Avatar>
-                                </ListItemAvatar>
+                                <Avatar
+                                    variant="rounded"
+                                    src={post.thumbnailImage || post.images?.[0]}
+                                    alt={post.title}
+                                    sx={{ width: 64, height: 64, mr: 2, backgroundColor: 'grey.200' }}
+                                >
+                                    {!post.thumbnailImage && !post.images?.[0] && <Typography variant="caption">No Img</Typography>}
+                                </Avatar>
                                 <ListItemText
                                     primary={post.title}
                                     secondary={
-                                        <Typography variant="caption" color="text.secondary">
-                                            {post.authorInfo?.[0]?.fullName} • {new Date(post.createdAt).toLocaleDateString('vi-VN')}
-                                        </Typography>
+                                        <React.Fragment>
+                                            <Typography
+                                                sx={{ display: 'block' }}
+                                                component="span"
+                                                variant="caption"
+                                                color="text.secondary"
+                                            >
+                                                {post.authorInfo?.fullName || 'Anonymous'}
+                                            </Typography>
+                                            <Typography
+                                                sx={{ display: 'block' }}
+                                                component="span"
+                                                variant="caption"
+                                                color="text.secondary"
+                                            >
+                                                {formatTimeAgo(post.createdAt)}
+                                            </Typography>
+                                        </React.Fragment>
                                     }
                                     primaryTypographyProps={{
-                                        className: 'post-title',
-                                        color: '#374151',
-                                        fontSize: '0.75rem',
-                                        fontWeight: 500,
-                                        transition: 'color 0.2s ease',
-                                        lineHeight: 1.3,
-                                        noWrap: true
+                                        fontWeight: '600',
+                                        fontSize: '0.875rem',
+                                        mb: 0.5,
+                                        sx: {
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: 'vertical',
+                                            overflow: 'hidden',
+                                        }
                                     }}
                                 />
                             </ListItem>

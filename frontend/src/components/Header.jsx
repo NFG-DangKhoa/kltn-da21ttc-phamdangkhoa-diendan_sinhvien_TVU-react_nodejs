@@ -291,7 +291,7 @@ const Header = () => {
                         </Button>
                         <Button
                             color="inherit"
-                            onClick={() => navigate('/categories')} // Thay bằng đường dẫn trang danh mục của bạn
+                            onClick={() => navigate('/topics')} // Thay bằng đường dẫn trang danh mục của bạn
                             sx={{
                                 color: 'white',
                                 fontWeight: 'bold',

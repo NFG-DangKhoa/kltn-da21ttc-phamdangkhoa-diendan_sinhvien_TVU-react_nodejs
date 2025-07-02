@@ -7,6 +7,7 @@ const Image = require('../models/Image');
 const fs = require('fs'); // Để tương tác với hệ thống tệp
 const path = require('path'); // Để xử lý đường dẫn tệp
 const { getPostThumbnail } = require('../utils/imageExtractor');
+const updateUserPostCount = require('../middlewares/updateUserPostCount');
 
 // Thêm biến io để sử dụng Socket.IO
 let io;
@@ -109,16 +110,44 @@ exports.getRecentPosts = async (req, res) => {
 exports.getPostsByTopicWithDetails = async (req, res) => {
     try {
         const { topicId } = req.params;
+        const { sortBy } = req.query; // Lấy tham số sortBy từ query
 
         console.log(`🔍 DEBUG: Fetching posts for topicId: ${topicId}`);
         console.log(`🔍 DEBUG: topicId type: ${typeof topicId}`);
+        console.log(`🔍 DEBUG: SortBy parameter: ${sortBy}`);
+
+        let sortOptions = { createdAt: -1 }; // Mặc định sắp xếp theo mới nhất
+
+        switch (sortBy) {
+            case 'oldest':
+                sortOptions = { createdAt: 1 };
+                break;
+            case 'most_liked':
+                sortOptions = { likeCount: -1 };
+                break;
+            case 'most_commented':
+                sortOptions = { commentCount: -1 };
+                break;
+            case 'highest_rating':
+                // Để sắp xếp theo đánh giá cao nhất, chúng ta cần tính toán averageRating
+                // hoặc dựa vào ratingCount nếu averageRating không được lưu trực tiếp.
+                // Hiện tại, Post model có ratingCount, nên sẽ dùng nó.
+                sortOptions = { ratingCount: -1 };
+                break;
+            case 'recent': // Alias for newest
+            case 'newest':
+            default:
+                sortOptions = { createdAt: -1 };
+                break;
+        }
 
         // Lấy bài viết và populate thông tin tác giả, chủ đề
         // Bao gồm luôn commentCount, likeCount, ratingCount từ Post model
         const posts = await Post.find({ topicId })
-            .populate('authorId', 'fullName avatarUrl role') // Thêm avatarUrl và role
+            .populate('authorId', 'fullName avatarUrl role lastSeen') // Thêm avatarUrl, role và lastSeen
             .populate('topicId', 'name')
             .select('title content commentCount likeCount ratingCount createdAt images') // Thêm createdAt và images
+            .sort(sortOptions) // Áp dụng sắp xếp
             .lean(); // Sử dụng .lean() để nhận về plain JavaScript objects
 
         console.log(`🔍 DEBUG: Found ${posts.length} posts for topicId ${topicId}`);
@@ -172,6 +201,12 @@ exports.getPostsByTopicWithDetails = async (req, res) => {
             // Lấy lượt thích bài viết
             const likes = await Like.find({ postId: post._id, targetType: 'post' }).populate('userId', 'fullName avatar').lean();
             const likedUsers = likes.map(like => like.userId);
+
+            // Check if author is online
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+            if (post.authorId) {
+                post.authorId.isOnline = post.authorId.lastSeen > fiveMinutesAgo;
+            }
 
             // Trả về một đối tượng mới với tất cả các thông tin đã lấy
             return {
@@ -472,15 +507,10 @@ exports.createPost = async (req, res) => {
         }
 
         // 2. Tạo bài viết với content đã được process
-        const newPost = new Post({
-            authorId,
-            title,
-            content: finalContent,
-            topicId,
-            tags,
-        });
-
         const savedPost = await newPost.save();
+
+        // Update user's post count
+        await updateUserPostCount(authorId);
 
         // 3. Tìm tất cả URL ảnh trong nội dung (sau khi process)
         const imageUrls = extractImageUrls(finalContent);
@@ -810,6 +840,9 @@ exports.deletePost = async (req, res) => {
         // 2. Xóa bài viết khỏi cơ sở dữ liệu
         const deletePostResult = await Post.deleteOne({ _id: postId });
         console.log(`✅ Kết quả xóa bài viết từ DB:`, deletePostResult);
+
+        // Update user's post count
+        await updateUserPostCount(post.authorId);
 
         // 3. Xóa tất cả các bản ghi ảnh liên kết với bài viết này khỏi DB
         const deleteImageResult = await Image.deleteMany({ refType: 'post', refId: postId });

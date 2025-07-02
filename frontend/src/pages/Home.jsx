@@ -487,9 +487,7 @@ const Home = () => {
                                                         image={post.thumbnailImage || post.images?.[0] || post.image}
                                                         alt={post.title}
                                                         sx={{
-                                                            objectFit: 'cover',
-                                                            transition: 'transform 0.3s ease',
-                                                            '&:hover': { transform: 'scale(1.05)' }
+                                                            objectFit: 'cover'
                                                         }}
                                                     />
                                                 ) : (

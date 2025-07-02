@@ -12,12 +12,15 @@ const TopicDetail = () => {
     const { topicId } = useParams();
     const [detailedPosts, setDetailedPosts] = useState([]);
     const [newPost, setNewPost] = useState({ title: '', content: '', tags: '' });
+    const [sortBy, setSortBy] = useState('newest'); // State for sorting option
     const [topic, setTopic] = useState(null);
     const [loadingTopic, setLoadingTopic] = useState(true);
     const [loadingPosts, setLoadingPosts] = useState(true);
     const [error, setError] = useState(null);
     const [showReplies, setShowReplies] = useState({});
     const [showComments, setShowComments] = useState({});
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filteredPosts, setFilteredPosts] = useState([]);
 
     const { user, loadingAuth, getToken } = useContext(AuthContext);
 
@@ -47,8 +50,8 @@ const TopicDetail = () => {
             const fetchPosts = async () => {
                 try {
                     setLoadingPosts(true);
-                    console.log(`Fetching posts for topic: ${topicId}`);
-                    const postsRes = await axios.get(`http://localhost:5000/api/posts/topic-details/${topicId}`);
+                    console.log(`Fetching posts for topic: ${topicId} with sort by: ${sortBy}`);
+                    const postsRes = await axios.get(`http://localhost:5000/api/posts/topic-details/${topicId}?sortBy=${sortBy}`);
                     console.log(`Posts response:`, postsRes.data);
                     setDetailedPosts(postsRes.data);
                     setError(null);
@@ -61,7 +64,15 @@ const TopicDetail = () => {
             };
             fetchPosts();
         }
-    }, [topicId]);
+    }, [topicId, sortBy]);
+
+    useEffect(() => {
+        const filtered = detailedPosts.filter(post =>
+            post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            post.content.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        setFilteredPosts(filtered);
+    }, [searchTerm, detailedPosts]);
 
     const handlePostSubmit = async (postWithUserId) => {
         try {
@@ -258,6 +269,11 @@ const TopicDetail = () => {
                                     toggleComments={toggleComments}
                                     showReplies={showReplies}
                                     toggleReplies={toggleReplies}
+                                    sortBy={sortBy}
+                                    setSortBy={setSortBy}
+                                    searchTerm={searchTerm}
+                                    setSearchTerm={setSearchTerm}
+                                    filteredPosts={filteredPosts}
                                 />
                             </Box>
                         </Box>

@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useContext, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
     Box, Typography, Button, Divider,
     Card, CardContent,
@@ -82,20 +83,11 @@ const PostCard = ({
                     display: 'block',
                     objectFit: 'cover',
                     imageRendering: 'auto',
-                    transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
                     boxShadow: darkMode ? '0 2px 8px rgba(255, 255, 255, 0.1)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
                     cursor: 'pointer',
                 });
                 img.setAttribute('loading', 'lazy');
                 img.onclick = () => goToDetail(post._id);
-                img.onmouseenter = () => {
-                    img.style.transform = 'scale(1.015)';
-                    img.style.boxShadow = darkMode ? '0 4px 16px rgba(255,255,255,0.2)' : '0 4px 16px rgba(0,0,0,0.2)';
-                };
-                img.onmouseleave = () => {
-                    img.style.transform = 'scale(1)';
-                    img.style.boxShadow = darkMode ? '0 2px 8px rgba(255, 255, 255, 0.1)' : '0 2px 8px rgba(0, 0, 0, 0.1)';
-                };
             });
 
             const updateContentStyles = () => {
@@ -205,26 +197,51 @@ const PostCard = ({
         >
             <CardContent sx={{ p: 1 }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Box display="flex" alignItems="center" gap={1}>
-                        <Avatar
-                            src={post.authorId?.avatarUrl}
-                            sx={{
-                                width: 24,
-                                height: 24,
-                                fontSize: '0.75rem',
-                                background: post.authorId?.role === 'admin'
-                                    ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
-                                    : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                            }}
-                        >
-                            {!post.authorId?.avatarUrl && post.authorId?.fullName?.charAt(0)?.toUpperCase()}
-                        </Avatar>
-                        <Typography variant="body2"
-                            sx={{ fontSize: '0.8rem', color: darkMode ? '#b0b3b8' : '#65676b' }}
-                        >
-                            {post.authorId?.fullName}
-                        </Typography>
-                    </Box>
+                    <Link to={`/profile/${post.authorId._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                        <Box display="flex" alignItems="center" gap={1}>
+                            <Box sx={{ position: 'relative' }}>
+                                <Avatar
+                                    src={post.authorId.avatarUrl}
+                                    sx={{
+                                        width: 24,
+                                        height: 24,
+                                        fontSize: '0.75rem',
+                                        background: post.authorId?.role === 'admin'
+                                            ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                                            : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                                    }}
+                                >
+                                    {!post.authorId.avatarUrl && post.authorId.fullName?.charAt(0)?.toUpperCase()}
+                                </Avatar>
+                                {post.authorId.isOnline && (
+                                    <Box
+                                        sx={{
+                                            position: 'absolute',
+                                            bottom: 0,
+                                            right: 0,
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: '50%',
+                                            backgroundColor: '#4CAF50',
+                                            border: `2px solid ${darkMode ? '#242526' : '#ffffff'}`,
+                                            zIndex: 1,
+                                        }}
+                                    />
+                                )}
+                            </Box>
+                            <Typography variant="body2"
+                                sx={{
+                                    fontSize: '0.8rem',
+                                    color: darkMode ? '#b0b3b8' : '#65676b',
+                                    '&:hover': {
+                                        textDecoration: 'underline'
+                                    }
+                                }}
+                            >
+                                {post.authorId.fullName}
+                            </Typography>
+                        </Box>
+                    </Link>
                     {user && user._id === post.authorId?._id && (
                         <>
                             <IconButton

@@ -13,12 +13,16 @@ router.get('/members', userController.getAllMembers);
 router.get('/me', authMiddleware, userController.getMe);
 router.put('/me', authMiddleware, userController.updateMe);
 
-// User statistics
-router.get('/stats/:userId', authMiddleware, userController.getUserStats);
-
 // User activities
 router.get('/posts', authMiddleware, userController.getUserPosts);
 router.get('/comments', authMiddleware, userController.getUserComments);
 router.get('/likes', authMiddleware, userController.getUserLikes);
+
+// User statistics
+router.get('/stats/:userId', authMiddleware, userController.getUserStats);
+
+// Add this route to get a user by their ID
+// IMPORTANT: This must be AFTER specific string routes like /posts, /likes, etc.
+router.get('/:userId', authMiddleware, userController.getUserById);
 
 module.exports = router;

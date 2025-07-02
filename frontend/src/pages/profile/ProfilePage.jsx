@@ -1,6 +1,9 @@
 // src/pages/profile/ProfilePage.jsx
-import React, { useEffect, useState } from "react";
+// src/pages/profile/ProfilePage.jsx
+import React, { useEffect, useState, useContext } from "react";
 import axios from "axios";
+import { useParams } from "react-router-dom";
+import { AuthContext } from "../../context/AuthContext";
 import {
     Box,
     CircularProgress,
@@ -23,6 +26,9 @@ import ProfileInfo from "./ProfileInfo";
 import UserActivity from "./UserActivity";
 
 const ProfilePage = () => {
+    const { userId } = useParams(); // Lấy userId từ URL
+    const { user: currentUser } = useContext(AuthContext); // Lấy người dùng đang đăng nhập từ context
+
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -30,42 +36,51 @@ const ProfilePage = () => {
     const [isCurrentUser, setIsCurrentUser] = useState(false);
 
     useEffect(() => {
-        setLoading(true);
+        const fetchUserData = async () => {
+            setLoading(true);
+            setError(null);
 
-        // Get user from localStorage first for immediate display
-        const localUser = JSON.parse(localStorage.getItem("user") || "{}");
-        if (localUser.fullName) {
-            setUserData(localUser);
-            setIsCurrentUser(true);
-        }
+            // Kiểm tra xem profile đang xem có phải của người dùng hiện tại không
+            const viewingOwnProfile = currentUser && currentUser._id === userId;
+            setIsCurrentUser(viewingOwnProfile);
 
-        // Then fetch from API for updated data
-        const token = localStorage.getItem("token");
-        if (token) {
-            axios.get("http://localhost:5000/api/users/me", {
-                headers: { Authorization: `Bearer ${token}` }
-            })
-                .then(res => {
-                    setUserData(res.data);
-                    setIsCurrentUser(true);
-                    setLoading(false);
-                })
-                .catch(err => {
-                    console.error("Profile fetch error:", err);
-                    setError("Không thể tải thông tin người dùng.");
-                    setLoading(false);
+            try {
+                const token = localStorage.getItem("token");
+                const response = await axios.get(`http://localhost:5000/api/users/${userId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
                 });
+                setUserData(response.data);
+            } catch (err) {
+                console.error("Profile fetch error:", err);
+                setError("Không thể tải thông tin người dùng. Người dùng có thể không tồn tại.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (userId) {
+            fetchUserData();
         } else {
-            setError("Vui lòng đăng nhập để xem trang cá nhân.");
-            setLoading(false);
+            // Nếu không có userId trên URL, có thể là trang của người dùng hiện tại
+            // Hoặc chuyển hướng về trang chủ/đăng nhập
+            if (currentUser) {
+                // Chuyển hướng đến trang cá nhân của người dùng hiện tại
+                window.location.href = `/profile/${currentUser._id}`;
+            } else {
+                setError("Không tìm thấy ID người dùng.");
+                setLoading(false);
+            }
         }
-    }, []);
+    }, [userId, currentUser]); // Chạy lại effect khi userId hoặc currentUser thay đổi
 
     const handleProfileUpdate = (newData) => {
         setUserData(prev => ({ ...prev, ...newData }));
-        // Update localStorage as well
-        const updatedUser = { ...userData, ...newData };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+        // Nếu là người dùng hiện tại, cập nhật cả localStorage
+        if (isCurrentUser) {
+            const localUser = JSON.parse(localStorage.getItem("user") || "{}");
+            const updatedUser = { ...localUser, ...newData };
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
     };
 
     const handleTabChange = (event, newValue) => {

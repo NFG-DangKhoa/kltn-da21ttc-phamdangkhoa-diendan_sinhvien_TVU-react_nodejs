@@ -17,10 +17,10 @@ import { Close as CloseIcon } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
 
-const ForumRulesDialog = ({ 
-    open, 
-    onClose, 
-    onAgree, 
+const ForumRulesDialog = ({
+    open,
+    onClose,
+    onAgree,
     rules = null,
     showCloseButton = false,
     title = "Quy định diễn đàn"
@@ -61,7 +61,7 @@ const ForumRulesDialog = ({
         try {
             setLoading(true);
             setError('');
-            
+
             const token = localStorage.getItem('token');
             if (token) {
                 await axios.post('http://localhost:5000/api/forum-rules/agree', {}, {
@@ -70,11 +70,11 @@ const ForumRulesDialog = ({
                     }
                 });
             }
-            
-            if (onAgree) {
-                onAgree();
-            }
-            
+
+            // The user wants to just close the dialog without triggering another action.
+            // The onAgree() prop is what causes the create post dialog to open.
+            // By removing it, we fulfill the user's request.
+
             handleClose();
         } catch (error) {
             console.error('Error agreeing to rules:', error);
@@ -137,12 +137,12 @@ const ForumRulesDialog = ({
                 ) : rulesData ? (
                     <Box>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Phiên bản: {rulesData.version} | 
+                            Phiên bản: {rulesData.version} |
                             Cập nhật: {new Date(rulesData.updatedAt).toLocaleDateString('vi-VN')}
                         </Typography>
-                        
+
                         <Divider sx={{ mb: 3 }} />
-                        
+
                         <Box
                             sx={{
                                 '& h1': { fontSize: '1.5rem', fontWeight: 'bold', mb: 2, mt: 3 },
@@ -188,7 +188,7 @@ const ForumRulesDialog = ({
                         }
                         sx={{ mb: 2 }}
                     />
-                    
+
                     <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
                         {showCloseButton && (
                             <Button
