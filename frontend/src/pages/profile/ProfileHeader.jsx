@@ -1,20 +1,36 @@
 // filepath: d:\HỌC CNTT\HK2 2024-2025\KHÓA LUẬN TỐT NGHIỆP\DU AN\hilu-auau\frontend\src\pages\profile\ProfileHeader.jsx
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, Avatar, Button, useTheme, Dialog, DialogTitle, DialogContent, DialogActions, TextField, CircularProgress } from '@mui/material';
+import React, { useState, useEffect, useRef, useContext } from 'react';
+import { Box, Typography, Avatar, Button, useTheme, Dialog, DialogTitle, DialogContent, DialogActions, TextField, CircularProgress, Switch, FormControlLabel, IconButton } from '@mui/material';
 import CakeIcon from '@mui/icons-material/Cake';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import EditIcon from '@mui/icons-material/Edit';
+import ChatIcon from '@mui/icons-material/Chat';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import axios from 'axios';
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../context/AuthContext";
+import ImageCropper from '../../components/ImageCropper';
+
+const constructUrl = (url) => {
+    if (url && url.startsWith('/upload')) {
+        return `http://localhost:5000${url}`;
+    }
+    return url;
+};
 
 const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
     const theme = useTheme();
+    const navigate = useNavigate();
+    const { user: currentUser } = useContext(AuthContext);
     const [openEdit, setOpenEdit] = useState(false);
     const [form, setForm] = useState({
         fullName: userData.fullName || '',
+        email: userData.email || '',
+        phoneNumber: userData.phoneNumber || '',
+        isPhoneNumberHidden: userData.isPhoneNumberHidden || false,
         bio: userData.bio || '',
-        avatarUrl: userData.avatarUrl || ''
     });
     const [loading, setLoading] = useState(false);
     const [stats, setStats] = useState({
@@ -23,11 +39,35 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
         likeCount: 0
     });
 
+    // Image Cropper states
+    const [imageToCrop, setImageToCrop] = useState(null);
+    const [showCropper, setShowCropper] = useState(false);
+    const [imageTypeToCrop, setImageTypeToCrop] = useState(null); // 'avatar' or 'cover'
+    const [croppedAvatarBase64, setCroppedAvatarBase64] = useState(null);
+    const [croppedCoverBase64, setCroppedCoverBase64] = useState(null);
+    const [isCropperForDirectUpdate, setIsCropperForDirectUpdate] = useState(false); // New state to differentiate cropper usage
+
+    const avatarInputRef = useRef(null);
+    const coverInputRef = useRef(null);
+
+    useEffect(() => {
+        setForm({
+            fullName: userData.fullName || '',
+            email: userData.email || '',
+            phoneNumber: userData.phoneNumber || '',
+            isPhoneNumberHidden: userData.isPhoneNumberHidden || false,
+            bio: userData.bio || '',
+            avatarUrl: userData.avatarUrl || '',
+            coverPhotoUrl: userData.coverPhotoUrl || ''
+        });
+    }, [userData]);
+
     const joinedDate = new Date(userData.createdAt).toLocaleDateString('vi-VN', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-    }); useEffect(() => {
+    });
+    useEffect(() => {
         const fetchCounts = async () => {
             try {
                 const token = localStorage.getItem('token');
@@ -59,7 +99,18 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
         }
     }, [userData]);
 
-    const handleOpenEdit = () => setOpenEdit(true);
+    const handleOpenEdit = () => {
+        setForm({
+            fullName: userData.fullName || '',
+            email: userData.email || '',
+            phoneNumber: userData.phoneNumber || '',
+            isPhoneNumberHidden: userData.isPhoneNumberHidden || false,
+            bio: userData.bio || '',
+            avatarUrl: userData.avatarUrl || '',
+            coverPhotoUrl: userData.coverPhotoUrl || ''
+        });
+        setOpenEdit(true);
+    };
     const handleCloseEdit = () => setOpenEdit(false);
 
     const handleChange = (e) => {
@@ -68,16 +119,135 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
 
     const handleSave = async () => {
         setLoading(true);
+        const token = localStorage.getItem('token');
+
         try {
-            await axios.put('http://localhost:5000/api/users/me', form, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            let updatedUser = { ...form };
+
+            if (croppedAvatarBase64) {
+                const avatarResponse = await axios.post(
+                    `http://localhost:5000/api/users/upload-image`,
+                    {
+                        image: croppedAvatarBase64,
+                        imageType: 'avatar',
+                        crop: { x: 0, y: 0, width: 1, height: 1 },
+                        zoom: 1,
+                        rotation: 0
+                    },
+                    {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }
+                );
+                updatedUser.avatarUrl = avatarResponse.data.imageUrl;
+            }
+
+            if (croppedCoverBase64) {
+                const coverResponse = await axios.post(
+                    `http://localhost:5000/api/users/upload-image`,
+                    {
+                        image: croppedCoverBase64,
+                        imageType: 'cover',
+                        crop: { x: 0, y: 0, width: 1, height: 1 },
+                        zoom: 1,
+                        rotation: 0
+                    },
+                    {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }
+                );
+                updatedUser.coverPhotoUrl = coverResponse.data.imageUrl;
+            }
+
+            const response = await axios.put('http://localhost:5000/api/users/me', updatedUser, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             });
-            if (onProfileUpdate) onProfileUpdate(form);
+            if (onProfileUpdate) onProfileUpdate(response.data.user);
             setOpenEdit(false);
+            setCroppedAvatarBase64(null);
+            setCroppedCoverBase64(null);
         } catch (err) {
+            console.error("Update error:", err.response ? err.response.data : err);
             alert('Cập nhật thất bại!');
         }
         setLoading(false);
+    };
+
+    const handleFileChange = (event, type) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                setImageToCrop(reader.result);
+                setImageTypeToCrop(type);
+                setShowCropper(true);
+                setIsCropperForDirectUpdate(false); // Opened from edit dialog
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleCropComplete = async (croppedImageBlobUrl) => {
+        try {
+            const responseBlob = await fetch(croppedImageBlobUrl);
+            const blob = await responseBlob.blob();
+
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = async () => {
+                const base64data = reader.result;
+                const token = localStorage.getItem("token");
+
+                if (isCropperForDirectUpdate) {
+                    // Direct update: send to backend immediately
+                    try {
+                        const response = await axios.post(
+                            `http://localhost:5000/api/users/upload-image`,
+                            {
+                                image: base64data,
+                                imageType: imageTypeToCrop,
+                                crop: { x: 0, y: 0, width: 1, height: 1 },
+                                zoom: 1,
+                                rotation: 0
+                            },
+                            {
+                                headers: { Authorization: `Bearer ${token}` }
+                            }
+                        );
+                        onProfileUpdate(response.data.user); // Update parent component's state
+                        setForm(prev => ({ ...prev, [imageTypeToCrop === 'avatar' ? 'avatarUrl' : 'coverPhotoUrl']: response.data.imageUrl }));
+                        setShowCropper(false);
+                        setImageToCrop(null);
+                        setImageTypeToCrop(null);
+                    } catch (error) {
+                        console.error("Error uploading cropped image:", error);
+                        // Handle error (e.g., show a snackbar message)
+                    }
+                } else {
+                    // Update from edit dialog: store temporarily
+                    if (imageTypeToCrop === 'avatar') {
+                        setCroppedAvatarBase64(base64data);
+                        setForm(prev => ({ ...prev, avatarUrl: croppedImageBlobUrl })); // Update form with blob URL for preview
+                    } else if (imageTypeToCrop === 'cover') {
+                        setCroppedCoverBase64(base64data);
+                        setForm(prev => ({ ...prev, coverPhotoUrl: croppedImageBlobUrl })); // Update form with blob URL for preview
+                    }
+                    setShowCropper(false);
+                    setImageToCrop(null);
+                    setImageTypeToCrop(null);
+                }
+            };
+        } catch (error) {
+            console.error("Error processing cropped image blob:", error);
+        }
+    };
+
+    const handleCloseCropper = () => {
+        setShowCropper(false);
+        setImageToCrop(null);
+        setImageTypeToCrop(null);
     };
 
     return (
@@ -97,15 +267,18 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
             <Box
                 sx={{
                     height: { xs: 180, sm: 220, md: 280 },
-                    background: userData.coverPhotoUrl
-                        ? `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.1)), url(${userData.coverPhotoUrl})`
-                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     position: 'relative',
                     display: 'flex',
                     alignItems: 'flex-end',
                     justifyContent: 'center',
+                    overflow: 'hidden',
+                    cursor: 'pointer', // Add cursor pointer
+                    '&:hover': { // Add hover effect
+                        opacity: 0.9,
+                    },
                     '&::before': {
                         content: '""',
                         position: 'absolute',
@@ -117,7 +290,29 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                         pointerEvents: 'none'
                     }
                 }}
+                onClick={() => { // Add onClick handler
+                    setImageToCrop(constructUrl(userData.coverPhotoUrl));
+                    setImageTypeToCrop('cover');
+                    setShowCropper(true);
+                }}
             >
+                {userData.coverPhotoUrl && (
+                    <Box
+                        key={constructUrl(userData.coverPhotoUrl)}
+                        component="img"
+                        src={constructUrl(userData.coverPhotoUrl)}
+                        alt="Cover Photo"
+                        sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            zIndex: 0,
+                        }}
+                    />
+                )}
                 {/* Decorative elements */}
                 <Box
                     sx={{
@@ -132,7 +327,8 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        border: '1px solid rgba(255,255,255,0.2)'
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        zIndex: 1,
                     }}
                 >
                     <Box
@@ -161,8 +357,9 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                 {/* Avatar với hiệu ứng đẹp */}
                 <Box sx={{ position: 'relative' }}>
                     <Avatar
+                        key={constructUrl(userData.avatarUrl)}
                         alt={userData.fullName}
-                        src={userData.avatarUrl || '/admin-avatar.png'}
+                        src={constructUrl(userData.avatarUrl) || '/admin-avatar.png'}
                         sx={{
                             width: { xs: 140, sm: 160, md: 180 },
                             height: { xs: 140, sm: 160, md: 180 },
@@ -170,11 +367,17 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                             boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
                             zIndex: 2,
                             transition: 'all 0.3s ease',
-                            cursor: 'pointer',
-                            '&:hover': {
+                            cursor: 'pointer', // Add cursor pointer
+                            '&:hover': { // Add hover effect
                                 transform: 'scale(1.05)',
                                 boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
                             },
+                        }}
+                        onClick={() => { // Add onClick handler
+                            setImageToCrop(constructUrl(userData.avatarUrl));
+                            setImageTypeToCrop('avatar');
+                            setShowCropper(true);
+                            setIsCropperForDirectUpdate(true); // Opened directly from profile
                         }}
                     />
                     {/* Online status indicator */}
@@ -275,13 +478,39 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                 </Box>
 
                 {/* Nút chỉnh sửa (chỉ hiện nếu là trang của mình) */}
-                {isCurrentUser && (
-                    <Box
-                        sx={{
-                            mt: { xs: 2, md: 0 },
-                            ml: { xs: 0, md: 'auto' },
-                        }}
-                    >
+                <Box
+                    sx={{
+                        mt: { xs: 2, md: 0 },
+                        ml: { xs: 0, md: 'auto' },
+                        display: 'flex',
+                        gap: 2,
+                    }}
+                >
+                    {!isCurrentUser && (
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<ChatIcon />}
+                            onClick={() => navigate(`/chat`, { state: { recipientId: userData._id } })}
+                            sx={{
+                                borderRadius: 5,
+                                px: 3,
+                                py: 1,
+                                fontSize: '1rem',
+                                fontWeight: 600,
+                                textTransform: 'none',
+                                boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                                background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                                '&:hover': {
+                                    background: 'linear-gradient(45deg, #1976D2 30%, #19B3DA 90%)',
+                                    boxShadow: '0 6px 15px rgba(0,0,0,0.2)',
+                                }
+                            }}
+                        >
+                            Chat
+                        </Button>
+                    )}
+                    {isCurrentUser && (
                         <Button
                             variant="contained"
                             color="primary"
@@ -298,14 +527,61 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                         >
                             Chỉnh sửa
                         </Button>
-                    </Box>
-                )}
+                    )}
+                </Box>
             </Box>
 
             {/* Dialog chỉnh sửa */}
             <Dialog open={openEdit} onClose={handleCloseEdit} maxWidth="xs" fullWidth>
                 <DialogTitle>Chỉnh sửa hồ sơ</DialogTitle>
                 <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+                        <IconButton onClick={() => avatarInputRef.current.click()} sx={{ p: 0 }}>
+                            <Avatar
+                                src={constructUrl(form.avatarUrl) || '/default-avatar.png'}
+                                alt="Avatar"
+                                sx={{ width: 120, height: 120, mb: 2, cursor: 'pointer', border: '2px solid', borderColor: 'primary.main' }}
+                            />
+                            <input
+                                type="file"
+                                hidden
+                                ref={avatarInputRef}
+                                onChange={(e) => handleFileChange(e, 'avatar')}
+                                accept="image/*"
+                            />
+                        </IconButton>
+                        <Typography variant="caption" display="block" mt={1}>Cập nhật ảnh đại diện</Typography>
+                    </Box>
+
+                    {/* Cover Photo Upload Section */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2, mt: 2 }}>
+                        <Typography variant="subtitle1" sx={{ mb: 1 }}>Ảnh bìa</Typography>
+                        <IconButton onClick={() => coverInputRef.current.click()} sx={{ p: 0, width: '100%' }}>
+                            <Box
+                                sx={{
+                                    width: '100%', height: 120, bgcolor: 'grey.200', borderRadius: 2,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    overflow: 'hidden',
+                                    border: '2px solid', borderColor: 'secondary.main'
+                                }}
+                            >
+                                {form.coverPhotoUrl ? (
+                                    <img src={constructUrl(form.coverPhotoUrl)} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    <PhotoCameraIcon sx={{ fontSize: 50, color: 'grey.500' }} />
+                                )}
+                            </Box>
+                            <input
+                                type="file"
+                                hidden
+                                ref={coverInputRef}
+                                onChange={(e) => handleFileChange(e, 'cover')}
+                                accept="image/*"
+                            />
+                        </IconButton>
+                        <Typography variant="caption" display="block" mt={1}>Cập nhật ảnh bìa</Typography>
+                    </Box>
+
                     <TextField
                         margin="normal"
                         label="Họ tên"
@@ -313,6 +589,33 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                         value={form.fullName}
                         onChange={handleChange}
                         fullWidth
+                    />
+                    <TextField
+                        margin="normal"
+                        label="Email"
+                        name="email"
+                        type="email"
+                        value={form.email}
+                        onChange={handleChange}
+                        fullWidth
+                    />
+                    <TextField
+                        margin="normal"
+                        label="Số điện thoại"
+                        name="phoneNumber"
+                        value={form.phoneNumber}
+                        onChange={handleChange}
+                        fullWidth
+                    />
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={form.isPhoneNumberHidden}
+                                onChange={(e) => setForm({ ...form, isPhoneNumberHidden: e.target.checked })}
+                                name="isPhoneNumberHidden"
+                            />
+                        }
+                        label="Ẩn số điện thoại"
                     />
                     <TextField
                         margin="normal"
@@ -324,15 +627,6 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                         multiline
                         rows={3}
                     />
-                    <TextField
-                        margin="normal"
-                        label="Link ảnh đại diện"
-                        name="avatarUrl"
-                        value={form.avatarUrl}
-                        onChange={handleChange}
-                        fullWidth
-                        helperText="Dán link ảnh hoặc để trống để dùng mặc định"
-                    />
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleCloseEdit}>Hủy</Button>
@@ -341,8 +635,19 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {showCropper && imageToCrop && (
+                <ImageCropper
+                    image={imageToCrop}
+                    onCropComplete={handleCropComplete}
+                    onClose={handleCloseCropper}
+                    aspect={imageTypeToCrop === 'avatar' ? 1 / 1 : 16 / 9} // Aspect ratio for avatar (square) or cover (widescreen)
+                    cropShape={imageTypeToCrop === 'avatar' ? 'round' : 'rect'}
+                />
+            )}
         </Box>
     );
 };
 
 export default ProfileHeader;
+

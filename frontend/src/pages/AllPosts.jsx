@@ -184,7 +184,7 @@ const AllPosts = () => {
         <Box sx={{
             minHeight: '100vh',
             background: `linear-gradient(135deg, ${alpha('#f5f7fa', 0.8)} 0%, ${alpha('#c3cfe2', 0.8)} 100%)`,
-            py: 4
+            pt: 12
         }}>
             {/* Breadcrumb */}
             <BreadcrumbNavigation

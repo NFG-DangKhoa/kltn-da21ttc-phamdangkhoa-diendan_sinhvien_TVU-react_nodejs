@@ -390,7 +390,7 @@ const Home = () => {
                 darkMode={isDarkMode}
             />
 
-            <Box sx={{ maxWidth: 1200, mx: "auto", pt: 4 }}>
+            <Box sx={{ maxWidth: 1200, mx: "auto", mt: '20px' }}>
                 {/* Hero Section */}
                 <HeroSection visible={visibleSections.hero} />
 

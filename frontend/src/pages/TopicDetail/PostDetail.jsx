@@ -526,18 +526,20 @@ const PostDetail = () => {
             />
 
             {/* Global Breadcrumb Navigation */}
-            <BreadcrumbNavigation
-                topicName={postDetail?.topicId?.name}
-                postTitle={postDetail?.title}
-                darkMode={darkMode}
-                key={`${postDetail?.topicId?.name}-${postDetail?.title}`} // Force re-render when data changes
-            />
+            <Box>
+                <BreadcrumbNavigation
+                    topicName={postDetail?.topicId?.name}
+                    postTitle={postDetail?.title}
+                    darkMode={darkMode}
+                    key={`${postDetail?.topicId?.name}-${postDetail?.title}`} // Force re-render when data changes
+                />
+            </Box>
 
             {/* Seamless Content Container */}
             <Box sx={{
                 backgroundColor: darkMode ? '#242526' : '#fff',
                 minHeight: '100vh',
-                pt: 2,
+                mt: '20px', // Margin-top để không bị che bởi header + breadcrumb
                 pb: 6,
                 width: '100%',
                 overflow: 'visible'

@@ -51,7 +51,7 @@ function CreatePostPage() {
     };
 
     return (
-        <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+        <Container maxWidth="md" sx={{ mt: 12, mb: 4 }}>
             <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
                 <Typography variant="h4" component="h1" gutterBottom
                     sx={{

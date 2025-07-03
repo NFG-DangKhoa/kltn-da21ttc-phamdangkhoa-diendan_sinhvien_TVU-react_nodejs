@@ -71,7 +71,7 @@ const HeroSection = ({ visible = true }) => {
             <Box
                 sx={{
                     position: 'relative',
-                    height: { xs: '70vh', md: '80vh' },
+                    height: { xs: '70vh', md: '90vh' },
                     overflow: 'hidden',
                     display: 'flex',
                     alignItems: 'center',

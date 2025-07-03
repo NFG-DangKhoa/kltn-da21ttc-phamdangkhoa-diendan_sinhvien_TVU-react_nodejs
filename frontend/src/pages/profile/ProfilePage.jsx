@@ -19,11 +19,12 @@ import {
 import {
     Person as PersonIcon,
     Timeline as TimelineIcon,
-    Settings as SettingsIcon
+    Settings as SettingsIcon,
 } from "@mui/icons-material";
 import ProfileHeader from "./ProfileHeader";
 import ProfileInfo from "./ProfileInfo";
 import UserActivity from "./UserActivity";
+import ActivityVisibilitySettings from "./ActivityVisibilitySettings";
 
 const ProfilePage = () => {
     const { userId } = useParams(); // Lấy userId từ URL
@@ -61,17 +62,17 @@ const ProfilePage = () => {
         if (userId) {
             fetchUserData();
         } else {
-            // Nếu không có userId trên URL, có thể là trang của người dùng hiện tại
-            // Hoặc chuyển hướng về trang chủ/đăng nhập
+            // If no userId in URL, it might be the current user's page
+            // Or redirect to home/login page
             if (currentUser) {
-                // Chuyển hướng đến trang cá nhân của người dùng hiện tại
+                // Redirect to current user's profile page
                 window.location.href = `/profile/${currentUser._id}`;
             } else {
                 setError("Không tìm thấy ID người dùng.");
                 setLoading(false);
             }
         }
-    }, [userId, currentUser]); // Chạy lại effect khi userId hoặc currentUser thay đổi
+    }, [userId, currentUser]); // Re-run effect when userId or currentUser changes
 
     const handleProfileUpdate = (newData) => {
         setUserData(prev => ({ ...prev, ...newData }));
@@ -85,6 +86,13 @@ const ProfilePage = () => {
 
     const handleTabChange = (event, newValue) => {
         setCurrentTab(newValue);
+    };
+
+    const handleVisibilityChange = (newVisibilitySettings) => {
+        setUserData(prev => ({
+            ...prev,
+            activityVisibility: newVisibilitySettings
+        }));
     };
 
     if (loading) {
@@ -113,7 +121,7 @@ const ProfilePage = () => {
     if (!userData) return null;
 
     return (
-        <Container maxWidth="lg" sx={{ mt: 2, mb: 4 }}>
+        <Container maxWidth="lg" sx={{ mb: 4 }}> {/* Giữ nguyên mt: 12 vì ProfilePage cần khoảng cách lớn hơn */}
             <Fade in={true} timeout={800}>
                 <Box>
                     {/* Profile Header */}
@@ -121,6 +129,7 @@ const ProfilePage = () => {
                         userData={userData}
                         isCurrentUser={isCurrentUser}
                         onProfileUpdate={handleProfileUpdate}
+                        currentUser={currentUser}
                     />
 
                     {/* Navigation Tabs */}
@@ -167,22 +176,49 @@ const ProfilePage = () => {
                                 iconPosition="start"
                                 sx={{ gap: 1 }}
                             />
+                            {isCurrentUser && (
+                                <Tab
+                                    icon={<SettingsIcon />}
+                                    label="Cài đặt"
+                                    iconPosition="start"
+                                    sx={{ gap: 1 }}
+                                />
+                            )}
                         </Tabs>
                     </Paper>
 
                     {/* Tab Content */}
                     <Box sx={{ mt: 3 }}>
-                        <Fade in={currentTab === 0} timeout={500}>
-                            <Box sx={{ display: currentTab === 0 ? 'block' : 'none' }}>
-                                <ProfileInfo userData={userData} isCurrentUser={isCurrentUser} />
-                            </Box>
-                        </Fade>
+                        {currentTab === 0 && (
+                            <Fade in={currentTab === 0} timeout={500}>
+                                <Box>
+                                    <ProfileInfo userData={userData} isCurrentUser={isCurrentUser} />
+                                </Box>
+                            </Fade>
+                        )}
 
-                        <Fade in={currentTab === 1} timeout={500}>
-                            <Box sx={{ display: currentTab === 1 ? 'block' : 'none' }}>
-                                <UserActivity userId={userData._id} />
-                            </Box>
-                        </Fade>
+                        {currentTab === 1 && (
+                            <Fade in={currentTab === 1} timeout={500}>
+                                <Box>
+                                    <UserActivity
+                                        userId={userData._id}
+                                        currentUser={currentUser}
+                                        activityVisibility={userData.activityVisibility}
+                                    />
+                                </Box>
+                            </Fade>
+                        )}
+
+                        {isCurrentUser && currentTab === 2 && (
+                            <Fade in={currentTab === 2} timeout={500}>
+                                <Box>
+                                    <ActivityVisibilitySettings
+                                        initialSettings={userData.activityVisibility}
+                                        onSettingsChange={handleVisibilityChange}
+                                    />
+                                </Box>
+                            </Fade>
+                        )}
                     </Box>
                 </Box>
             </Fade>

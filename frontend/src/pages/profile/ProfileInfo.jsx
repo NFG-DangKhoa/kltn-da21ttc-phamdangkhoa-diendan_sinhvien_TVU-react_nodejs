@@ -1,10 +1,9 @@
-// src/pages/profile/ProfileInfo.jsx
 import React from 'react';
-import { 
-    Box, 
-    Typography, 
-    useTheme, 
-    Chip, 
+import {
+    Box,
+    Typography,
+    useTheme,
+    Chip,
     Grid,
     Card,
     CardContent,
@@ -17,6 +16,7 @@ import {
 } from '@mui/material';
 import {
     Email as EmailIcon,
+    Phone as PhoneIcon,
     CalendarToday as CalendarTodayIcon,
     LocationOn as LocationOnIcon,
     Work as WorkIcon,
@@ -36,17 +36,9 @@ const ProfileInfo = ({ userData, isCurrentUser }) => {
 
     if (!userData) return null;
 
-    // Mock data for demonstration
-    const profileStats = {
-        posts: 24,
-        comments: 156,
-        likes: 89,
-        followers: 45,
-        following: 32,
-        joinDate: new Date(userData.createdAt || '2024-01-01').toLocaleDateString('vi-VN'),
-        level: 'Thành viên tích cực',
-        points: 1250
-    };
+    const joinDate = new Date(userData.createdAt || '2024-01-01').toLocaleDateString('vi-VN');
+    const level = 'Thành viên tích cực'; // This can be calculated based on stats
+    const points = (userData.stats?.totalPosts || 0) * 10 + (userData.stats?.totalComments || 0) * 2 + (userData.stats?.totalLikes || 0);
 
     const achievements = [
         { name: 'Người mới', icon: '🌟', description: 'Hoàn thành hồ sơ cá nhân' },
@@ -56,34 +48,40 @@ const ProfileInfo = ({ userData, isCurrentUser }) => {
     ];
 
     return (
-        <Grid container spacing={3}>
+        <Grid container spacing={4} justifyContent="center">
             {/* Personal Information Card */}
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12} md={7}>
                 <Card
                     sx={{
-                        borderRadius: 3,
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                        transition: 'all 0.3s ease',
+                        borderRadius: 4,
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                        transition: 'all 0.4s ease',
+                        background: 'linear-gradient(145deg, #ffffff, #f9f9f9)',
                         '&:hover': {
-                            boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-                            transform: 'translateY(-2px)'
+                            boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+                            transform: 'translateY(-4px)'
                         }
                     }}
                 >
-                    <CardContent sx={{ p: 4 }}>
+                    <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
                         {/* Header Section */}
-                        <Box sx={{ textAlign: 'center', mb: 4 }}>
-                            <Typography variant="h5" fontWeight="bold" gutterBottom>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+                            <EmojiEventsIcon color="primary" sx={{ fontSize: 40, mb: 1 }} />
+                            <Typography variant="h4" fontWeight="bold" gutterBottom sx={{
+                                background: 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                            }}>
                                 Thông tin cá nhân
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body1" color="text.secondary">
                                 Chi tiết về {userData.fullName || userData.username}
                             </Typography>
                         </Box>
 
                         {/* Basic Info */}
                         <List sx={{ mb: 3 }}>
-                            <ListItem>
+                            <ListItem sx={{ py: 1.5, borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
                                 <ListItemIcon>
                                     <EmailIcon color="primary" />
                                 </ListItemIcon>
@@ -93,17 +91,29 @@ const ProfileInfo = ({ userData, isCurrentUser }) => {
                                 />
                             </ListItem>
 
-                            <ListItem>
+                            {(userData.phoneNumber && (!userData.isPhoneNumberHidden || isCurrentUser)) && (
+                                <ListItem sx={{ py: 1.5, borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
+                                    <ListItemIcon>
+                                        <PhoneIcon color="primary" />
+                                    </ListItemIcon>
+                                    <ListItemText
+                                        primary="Số điện thoại"
+                                        secondary={userData.isPhoneNumberHidden && !isCurrentUser ? 'Đã ẩn' : userData.phoneNumber}
+                                    />
+                                </ListItem>
+                            )}
+
+                            <ListItem sx={{ py: 1.5, borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
                                 <ListItemIcon>
                                     <CalendarTodayIcon color="primary" />
                                 </ListItemIcon>
                                 <ListItemText
                                     primary="Ngày tham gia"
-                                    secondary={profileStats.joinDate}
+                                    secondary={joinDate}
                                 />
                             </ListItem>
 
-                            <ListItem>
+                            <ListItem sx={{ py: 1.5, borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
                                 <ListItemIcon>
                                     <LocationOnIcon color="primary" />
                                 </ListItemIcon>
@@ -113,7 +123,7 @@ const ProfileInfo = ({ userData, isCurrentUser }) => {
                                 />
                             </ListItem>
 
-                            <ListItem>
+                            <ListItem sx={{ py: 1.5, borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
                                 <ListItemIcon>
                                     <WorkIcon color="primary" />
                                 </ListItemIcon>
@@ -123,13 +133,13 @@ const ProfileInfo = ({ userData, isCurrentUser }) => {
                                 />
                             </ListItem>
 
-                            <ListItem>
+                            <ListItem sx={{ py: 1.5, borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
                                 <ListItemIcon>
                                     <SchoolIcon color="primary" />
                                 </ListItemIcon>
                                 <ListItemText
                                     primary="Trình độ"
-                                    secondary={profileStats.level}
+                                    secondary={level}
                                 />
                             </ListItem>
                         </List>
@@ -150,7 +160,7 @@ const ProfileInfo = ({ userData, isCurrentUser }) => {
                             <>
                                 <Divider sx={{ my: 3 }} />
                                 <Box>
-                                    <Typography variant="h6" gutterBottom fontWeight="bold">
+                                    <Typography variant="h6" fontWeight="bold" gutterBottom>
                                         Liên kết xã hội
                                     </Typography>
                                     <Box display="flex" gap={2} flexWrap="wrap">
@@ -196,40 +206,40 @@ const ProfileInfo = ({ userData, isCurrentUser }) => {
             </Grid>
 
             {/* Statistics & Achievements Sidebar */}
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={5}>
                 {/* Statistics Card */}
-                <Card sx={{ mb: 3, borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+                <Card sx={{ mb: 3, borderRadius: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
                     <CardContent>
                         <Typography variant="h6" fontWeight="bold" gutterBottom>
                             📊 Thống kê hoạt động
                         </Typography>
-                        
+
                         <Grid container spacing={2}>
                             <Grid item xs={6}>
-                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, bgcolor: 'primary.light', color: 'white' }}>
+                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 3, background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)', color: 'white', boxShadow: '0 3px 5px 2px rgba(255, 105, 135, .3)' }}>
                                     <ArticleIcon sx={{ fontSize: 32, mb: 1 }} />
-                                    <Typography variant="h6" fontWeight="bold">{profileStats.posts}</Typography>
+                                    <Typography variant="h6" fontWeight="bold">{(userData.stats && userData.stats.totalPosts) || 0}</Typography>
                                     <Typography variant="caption">Bài viết</Typography>
                                 </Box>
                             </Grid>
                             <Grid item xs={6}>
-                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, bgcolor: 'success.light', color: 'white' }}>
+                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 3, background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)', color: 'white', boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)' }}>
                                     <CommentIcon sx={{ fontSize: 32, mb: 1 }} />
-                                    <Typography variant="h6" fontWeight="bold">{profileStats.comments}</Typography>
+                                    <Typography variant="h6" fontWeight="bold">{(userData.stats && userData.stats.totalComments) || 0}</Typography>
                                     <Typography variant="caption">Bình luận</Typography>
                                 </Box>
                             </Grid>
                             <Grid item xs={6}>
-                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, bgcolor: 'error.light', color: 'white' }}>
+                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 3, background: 'linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)', color: 'white', boxShadow: '0 3px 5px 2px rgba(76, 175, 80, .3)' }}>
                                     <FavoriteIcon sx={{ fontSize: 32, mb: 1 }} />
-                                    <Typography variant="h6" fontWeight="bold">{profileStats.likes}</Typography>
+                                    <Typography variant="h6" fontWeight="bold">{(userData.stats && userData.stats.totalLikes) || 0}</Typography>
                                     <Typography variant="caption">Lượt thích</Typography>
                                 </Box>
                             </Grid>
                             <Grid item xs={6}>
-                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 2, bgcolor: 'warning.light', color: 'white' }}>
+                                <Box sx={{ textAlign: 'center', p: 2, borderRadius: 3, background: 'linear-gradient(45deg, #FFC107 30%, #FF9800 90%)', color: 'white', boxShadow: '0 3px 5px 2px rgba(255, 203, 107, .3)' }}>
                                     <StarIcon sx={{ fontSize: 32, mb: 1 }} />
-                                    <Typography variant="h6" fontWeight="bold">{profileStats.points}</Typography>
+                                    <Typography variant="h6" fontWeight="bold">{points}</Typography>
                                     <Typography variant="caption">Điểm</Typography>
                                 </Box>
                             </Grid>
@@ -241,20 +251,20 @@ const ProfileInfo = ({ userData, isCurrentUser }) => {
                         <Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                                 <Typography variant="body2" fontWeight="bold">Cấp độ</Typography>
-                                <Typography variant="body2" color="text.secondary">{profileStats.level}</Typography>
+                                <Typography variant="body2" color="text.secondary">{level}</Typography>
                             </Box>
-                            <LinearProgress 
-                                variant="determinate" 
-                                value={75} 
-                                sx={{ 
-                                    height: 8, 
-                                    borderRadius: 4,
+                            <LinearProgress
+                                variant="determinate"
+                                value={75}
+                                sx={{
+                                    height: 10,
+                                    borderRadius: 5,
                                     bgcolor: 'grey.200',
                                     '& .MuiLinearProgress-bar': {
-                                        borderRadius: 4,
+                                        borderRadius: 5,
                                         background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
                                     }
-                                }} 
+                                }}
                             />
                             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                                 75% đến cấp độ tiếp theo
@@ -264,21 +274,21 @@ const ProfileInfo = ({ userData, isCurrentUser }) => {
                 </Card>
 
                 {/* Achievements Card */}
-                <Card sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+                <Card sx={{ borderRadius: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
                     <CardContent>
                         <Typography variant="h6" fontWeight="bold" gutterBottom>
                             🏆 Thành tích
                         </Typography>
-                        
+
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             {achievements.map((achievement, index) => (
-                                <Box 
+                                <Box
                                     key={index}
-                                    sx={{ 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        p: 2, 
-                                        borderRadius: 2, 
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        p: 2,
+                                        borderRadius: 2,
                                         bgcolor: 'grey.50',
                                         border: '1px solid',
                                         borderColor: 'grey.200',

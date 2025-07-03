@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useContext, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
+    Toolbar, // Added Toolbar import
+
     Box,
     Container,
     Typography,
@@ -42,7 +44,9 @@ import {
     EmojiEvents as AwardIcon,
     Groups as StudentsIcon,
     MenuBook as FacultyIcon,
-    Business as DepartmentIcon
+    Business as DepartmentIcon,
+    Home as HomeIcon, // Added HomeIcon
+    Topic as TopicIcon // Added TopicIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import { ThemeContext } from '../context/ThemeContext';
@@ -150,7 +154,15 @@ const TopicsPage = () => {
                 darkMode={isDarkMode}
             />
 
-            <Box sx={{ maxWidth: 1200, mx: "auto", pt: 4 }}>
+            <Box sx={{
+                px: { xs: 1, sm: 2, md: 3 },
+                mt: '20px', // Margin-top để không bị che bởi header + breadcrumb
+                position: 'relative',
+                zIndex: 1,
+                width: '100%',
+                maxWidth: '100vw',
+                mx: 'auto'
+            }}>
                 <HeroSection visible={visibleSections.hero} />
 
                 <Container maxWidth="lg" sx={{ py: 6 }}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Box,
     Container,
@@ -24,7 +24,8 @@ import {
     Message as MessageIcon,
     Settings as SettingsIcon
 } from '@mui/icons-material';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'; // Added useLocation
+import axios from 'axios'; // Added axios import
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import SimpleConversationList from '../components/Chat/SimpleConversationList';
@@ -39,8 +40,10 @@ const ChatPage = () => {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const location = useLocation(); // Initialize useLocation
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const processedRecipientRef = useRef(null); // Track processed recipient to avoid re-processing
 
     const { user, loadingAuth } = useAuth();
     const {
@@ -75,6 +78,7 @@ const ChatPage = () => {
     // Load conversations on mount
     useEffect(() => {
         if (user && user._id) {
+            console.log('ChatPage: Loading conversations for user:', user._id);
             loadConversations();
         }
     }, [user]); // Removed loadConversations from dependencies to prevent infinite loop
@@ -120,7 +124,102 @@ const ChatPage = () => {
                 loadMessages(conversationId, conversation);
             }
         }
-    }, [searchParams, conversations]); // Removed loadMessages to prevent infinite loop
+    }, [searchParams, conversations]);
+
+    // Handle recipientId from location state
+    useEffect(() => {
+        if (user && user._id && location.state?.recipientId) {
+            const recipientId = location.state.recipientId;
+
+            // Avoid processing the same recipient multiple times
+            if (processedRecipientRef.current === recipientId) {
+                return;
+            }
+
+            console.log('ChatPage: Recipient ID from state:', recipientId);
+            processedRecipientRef.current = recipientId;
+
+            // Wait for conversations to load if they haven't yet
+            const processRecipient = async () => {
+                console.log('ChatPage: Processing recipient, conversations length:', conversations.length);
+
+                // Try to find an existing conversation with this recipient
+                const existingConversation = conversations.find(conv => {
+                    const participants = conv.participants || [];
+                    return participants.some(p => {
+                        const participantId = typeof p === 'object' ? p._id : p;
+                        return participantId === recipientId;
+                    }) && participants.some(p => {
+                        const participantId = typeof p === 'object' ? p._id : p;
+                        return participantId === user._id;
+                    });
+                });
+
+                if (existingConversation) {
+                    console.log('ChatPage: Found existing conversation with recipient:', existingConversation);
+                    setActiveTab(0); // Switch to conversations tab
+                    setSelectedConversation(existingConversation);
+                    loadMessages(existingConversation._id, existingConversation);
+                } else {
+                    console.log('ChatPage: No existing conversation, creating new chat with user ID:', recipientId);
+                    try {
+                        const token = localStorage.getItem("token");
+                        const response = await axios.get(`http://localhost:5000/api/users/${recipientId}`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        const recipientUser = response.data;
+                        console.log('ChatPage: Fetched recipient details:', recipientUser);
+
+                        // Create a mock conversation object for immediate display
+                        const mockConversation = {
+                            _id: `mock-${recipientUser._id}`, // Unique ID for mock
+                            participants: [user._id, recipientUser._id],
+                            participantDetails: [user, recipientUser],
+                            lastMessage: null,
+                            unreadCount: 0,
+                            isMock: true, // Flag to indicate it's a mock conversation
+                            name: recipientUser.username || recipientUser.fullName,
+                            avatar: recipientUser.profilePicture
+                        };
+
+                        console.log('ChatPage: Created mock conversation:', mockConversation);
+
+                        // Add the mock conversation to the list and select it
+                        const updatedConversations = [mockConversation, ...conversations];
+                        updateConversations(updatedConversations);
+                        setActiveTab(0); // Switch to conversations tab
+
+                        // Use setTimeout to ensure state updates are processed
+                        setTimeout(() => {
+                            setSelectedConversation(mockConversation);
+                            loadMessages(mockConversation._id, mockConversation);
+                        }, 100);
+
+                    } catch (err) {
+                        console.error('ChatPage: Error fetching recipient details:', err);
+                        // If error, just switch to users tab to let user find manually
+                        setActiveTab(1);
+                    }
+                }
+            };
+
+            // If conversations are not loaded yet, wait for them
+            if (conversations.length === 0) {
+                console.log('ChatPage: Conversations not loaded yet, waiting...');
+                const checkConversations = () => {
+                    if (conversations.length > 0) {
+                        processRecipient();
+                    } else {
+                        setTimeout(checkConversations, 200);
+                    }
+                };
+                setTimeout(checkConversations, 200);
+            } else {
+                processRecipient();
+            }
+        }
+    }, [user, location.state?.recipientId, conversations, updateConversations, loadMessages]);
+
 
     const handleSelectConversation = async (conversation) => {
         setSelectedConversation(conversation);
@@ -174,13 +273,40 @@ const ChatPage = () => {
             return;
         }
 
+        // Check if this is a mock message object or content string
+        const isMessageObject = typeof messageOrContent === 'object' && messageOrContent.content;
+        const messageContent = isMessageObject ? messageOrContent.content : messageOrContent;
+
+        if (!messageContent?.trim()) {
+            console.log('ChatPage: Empty message content');
+            return;
+        }
+
         if (selectedConversation.isMock) {
             console.log('ChatPage: Handling mock conversation message');
-            // For mock conversation, messageOrContent is the message object
-            addMessage(messageOrContent);
+
+            // For mock conversation, we need to create a real conversation first
+            const otherParticipant = selectedConversation.participantDetails?.find(p => p._id !== user._id);
+            if (otherParticipant) {
+                try {
+                    console.log('ChatPage: Creating real conversation with:', otherParticipant._id);
+                    const receiverId = otherParticipant._id;
+
+                    // Send the message which will create the conversation
+                    await sendMessage(receiverId, messageContent);
+
+                    // Reload conversations to get the new real conversation
+                    setTimeout(() => {
+                        loadConversations();
+                    }, 500);
+
+                } catch (error) {
+                    console.error('ChatPage: Error sending message to mock conversation:', error);
+                }
+            }
         } else {
             console.log('ChatPage: Handling real conversation message');
-            // For real conversation, messageOrContent is the content string
+            // For real conversation, messageContent is the content string
             const otherParticipant = selectedConversation.participantDetails?.find(p => p._id !== user._id) ||
                 selectedConversation.participants?.find(p => {
                     const participantId = typeof p === 'object' ? p._id : p;
@@ -192,7 +318,7 @@ const ChatPage = () => {
             if (otherParticipant) {
                 const receiverId = typeof otherParticipant === 'object' ? otherParticipant._id : otherParticipant;
                 console.log('ChatPage: Sending message to:', receiverId);
-                await sendMessage(receiverId, messageOrContent);
+                await sendMessage(receiverId, messageContent);
             } else {
                 console.log('ChatPage: No other participant found');
             }
@@ -245,7 +371,7 @@ const ChatPage = () => {
             />
             <Container maxWidth={false} sx={{
                 py: 3,
-                px: { xs: 2, sm: 3, md: 4 },
+                px: { xs: 2, sm: 3, md: 3 },
                 maxWidth: '100%',
                 width: '100%',
                 mx: 'auto',
@@ -268,10 +394,10 @@ const ChatPage = () => {
                 }} />
 
                 {/* Content wrapper */}
-                <Box sx={{ position: 'relative', zIndex: 1, mt: 8 }}>
+                <Box sx={{ position: 'relative', zIndex: 1, }}>
                     {/* Breadcrumbs */}
                     <Breadcrumbs sx={{
-                        mb: 3,
+                        mb: 2,
                         '& .MuiBreadcrumbs-separator': { color: 'rgba(71, 85, 105, 0.6)' },
                         '& a, & p': { color: 'rgba(71, 85, 105, 0.8)' }
                     }}>

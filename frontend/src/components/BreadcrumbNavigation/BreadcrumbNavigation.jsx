@@ -30,10 +30,18 @@ const BreadcrumbNavigation = ({
     if (customBreadcrumbs) {
         return (
             <Box sx={{
-                py: 2,
-                px: 3,
+                position: 'fixed',
+                top: '64px', // Sát mép dưới header (64px là chiều cao chuẩn của AppBar)
+                left: 0,
+                right: 0,
+                py: { xs: 0.5, md: 0.75 }, // Tăng padding một chút để dễ nhìn hơn
+                px: { xs: 2, md: 3 },
                 backgroundColor: darkMode ? '#1a1b1c' : '#f8f9fa',
-                borderBottom: `1px solid ${darkMode ? '#3a3b3c' : '#e0e0e0'}`
+                borderBottom: `1px solid ${darkMode ? '#3a3b3c' : '#e0e0e0'}`,
+                zIndex: (theme) => theme.zIndex.appBar - 1,
+                backdropFilter: 'blur(8px)',
+                width: '100%',
+                boxSizing: 'border-box'
             }}>
                 <Breadcrumbs
                     aria-label="breadcrumb"
@@ -221,28 +229,41 @@ const BreadcrumbNavigation = ({
                     Liên hệ
                 </Typography>
             );
+        } else if (pathname === '/topics') {
+            // Topics page
+            breadcrumbs.push(
+                <Typography
+                    key="topics"
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: darkMode ? '#e4e6eb' : 'text.primary',
+                        fontSize: '0.875rem',
+                        fontWeight: 500
+                    }}
+                >
+                    <TopicIcon sx={{ mr: 0.5, fontSize: 16 }} />
+                    Chủ đề
+                </Typography>
+            );
         }
         return breadcrumbs;
     }, [location.pathname, topicName, postTitle, userName, searchQuery, darkMode, theme]);
 
     return (
         <Box sx={{
-            py: { xs: 1.5, md: 2 },
-            px: { xs: 2, md: 4 },
-            mt: 8,
-            background: darkMode
-                ? 'linear-gradient(135deg, #1a1b1c 0%, #242526 50%, #1a1b1c 100%)'
-                : 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 50%, #ffffff 100%)',
+            position: 'fixed',
+            top: '64px', // Sát mép dưới header (64px là chiều cao chuẩn của AppBar)
+            left: 0,
+            right: 0,
+            py: { xs: 0.5, md: 0.75 }, // Tăng padding một chút để dễ nhìn hơn
+            px: { xs: 2, md: 3 },
+            backgroundColor: darkMode ? '#1a1b1c' : '#f8f9fa',
             borderBottom: `1px solid ${darkMode ? '#3a3b3c' : '#e0e0e0'}`,
-            boxShadow: darkMode
-                ? '0 2px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)'
-                : '0 2px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-            position: 'sticky',
-            top: 64,
-            zIndex: 1000,
-            backdropFilter: 'blur(10px)',
-            borderTop: `2px solid ${darkMode ? '#3a3b3c' : theme.palette.primary.main}`,
-            transition: 'all 0.3s ease'
+            zIndex: (theme) => theme.zIndex.appBar - 1,
+            backdropFilter: 'blur(8px)',
+            width: '100%',
+            boxSizing: 'border-box'
         }}>
             <Breadcrumbs
                 aria-label="breadcrumb"

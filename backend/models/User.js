@@ -6,9 +6,12 @@ const userSchema = new mongoose.Schema({
     email: { type: String, unique: true },
     password: String,
     username: { type: String, unique: true, sparse: true },
-    phone: String,
+    phoneNumber: String,
+    isPhoneNumberHidden: { type: Boolean, default: false },
+    bio: String,
     address: String,
     avatarUrl: { type: String, default: '' },
+    coverPhotoUrl: { type: String, default: '' }, // New field for cover photo
     role: { type: String, enum: ['user', 'editor', 'admin'], default: 'user' },
 
     // Google OAuth fields
@@ -63,6 +66,12 @@ const userSchema = new mongoose.Schema({
     lastSeen: { type: Date, default: Date.now },
 
     postsCount: { type: Number, default: 0 },
+
+    activityVisibility: {
+        posts: { type: Boolean, default: true },
+        comments: { type: Boolean, default: true },
+        likes: { type: Boolean, default: true },
+    },
 
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }

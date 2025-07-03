@@ -54,7 +54,7 @@ const Register = () => {
         <Container
             maxWidth="sm"
             sx={{
-                mt: 5,
+                mt: 10, // Điều chỉnh để phù hợp với header mới
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',

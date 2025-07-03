@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
-    Box, Typography, CircularProgress, Grid, Tabs, Tab, Paper,
+    Box, Typography, CircularProgress, Tabs, Tab, Paper,
     Stack, Link, Select, MenuItem, FormControl, Alert, Tooltip,
     useTheme, useMediaQuery, Button
 } from "@mui/material";
@@ -13,7 +13,7 @@ import CommentIcon from '@mui/icons-material/Comment';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import axios from "axios";
 import DOMPurify from 'dompurify';
 import parse from 'html-react-parser';
@@ -55,32 +55,24 @@ const ActivityCard = ({ children, ...props }) => (
 // Card for Post activities
 const PostActivityCard = ({ post }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const containerRef = useRef(null);
-    const [isOverflowing, setIsOverflowing] = useState(false);
     const theme = useTheme();
+    const navigate = useNavigate();
 
     const sanitizedContent = useMemo(() => DOMPurify.sanitize(post.content, { USE_PROFILES: { html: true } }), [post.content]);
+    const plainTextContent = useMemo(() => {
+        const parsed = parse(sanitizedContent);
+        if (typeof parsed === 'string') return parsed;
+        if (Array.isArray(parsed)) return parsed.map(p => p.props.children).join(' ');
+        if (parsed.props && parsed.props.children) return parsed.props.children.toString();
+        return '';
+    }, [sanitizedContent]);
 
-    useEffect(() => {
-        const checkOverflow = () => {
-            const element = containerRef.current;
-            if (element) {
-                const isCurrentlyOverflowing = element.scrollHeight > element.clientHeight;
-                if (isCurrentlyOverflowing !== isOverflowing) {
-                    setIsOverflowing(isCurrentlyOverflowing);
-                }
-            }
-        };
 
-        // Use a timeout to allow content (like images) to load before checking
-        const timer = setTimeout(checkOverflow, 100);
-        window.addEventListener('resize', checkOverflow);
+    const isLongContent = plainTextContent.length > 200;
 
-        return () => {
-            clearTimeout(timer);
-            window.removeEventListener('resize', checkOverflow);
-        };
-    }, [isOverflowing, sanitizedContent]);
+    const handleTitleClick = () => {
+        navigate(`/posts/detail?topicId=${post.topicId?._id}&postId=${post._id}`);
+    };
 
     return (
         <ActivityCard>
@@ -89,54 +81,49 @@ const PostActivityCard = ({ post }) => {
                 <Box flexGrow={1}>
                     <Typography
                         variant="h6"
-                        component={RouterLink}
-                        to={`/posts/${post._id}`}
+                        onClick={handleTitleClick}
                         sx={{
                             fontWeight: 'bold',
                             textDecoration: 'none',
                             color: 'text.primary',
+                            cursor: 'pointer',
                             '&:hover': { color: 'primary.main' }
                         }}
                     >
                         {post.title}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" gutterBottom>
-                        {formatTimeAgo(post.createdAt)}
+                        {formatTimeAgo(post.createdAt)} trong chủ đề <Link component={RouterLink} to={`/topic/${post.topicId?._id}`}>{post.topicId?.name}</Link>
                     </Typography>
                 </Box>
             </Stack>
             <Box
-                ref={containerRef}
                 sx={{
                     my: 2,
                     flexGrow: 1,
-                    maxHeight: isExpanded ? 'none' : '120px', // Reduced height
                     overflow: 'hidden',
                     position: 'relative',
                     transition: 'max-height 0.4s ease-in-out',
-                    '&::after': !isExpanded && isOverflowing ? {
-                        content: '""',
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: '40px',
-                        background: `linear-gradient(to bottom, rgba(255,255,255,0), ${theme.palette.background.paper})`,
-                    } : {},
                 }}
             >
-                <Typography component="div" variant="body2" color="text.secondary">
+                <Typography component="div" variant="body2" color="text.secondary"
+                    sx={{
+                        maxHeight: isExpanded ? 'none' : '100px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                    }}
+                >
                     {parse(sanitizedContent)}
                 </Typography>
             </Box>
 
-            {isOverflowing && (
+            {isLongContent && (
                 <Button onClick={() => setIsExpanded(!isExpanded)} size="small" sx={{ mt: 1, alignSelf: 'flex-start' }}>
                     {isExpanded ? 'Thu gọn' : 'Xem thêm'}
                 </Button>
             )}
 
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 'auto', pt: isOverflowing ? 0 : 2 }}>
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 'auto', pt: 2 }}>
                 <Tooltip title="Lượt thích">
                     <Stack direction="row" alignItems="center" spacing={0.5}>
                         <ThumbUpIcon fontSize="small" color="primary" />
@@ -166,7 +153,7 @@ const CommentActivityCard = ({ comment }) => (
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
                     Bình luận {formatTimeAgo(comment.createdAt)} trong bài viết:
                 </Typography>
-                <Link component={RouterLink} to={`/posts/${comment.postId}`} sx={{ fontWeight: 'medium' }}>
+                <Link component={RouterLink} to={`/posts/detail?topicId=${comment.topicId}&postId=${comment.postId}`} sx={{ fontWeight: 'medium' }}>
                     {comment.postTitle || 'Không có tiêu đề'}
                 </Link>
             </Box>
@@ -174,7 +161,7 @@ const CommentActivityCard = ({ comment }) => (
         <Box sx={{ mt: 'auto', pt: 2, textAlign: 'right' }}>
             <Link
                 component={RouterLink}
-                to={`/posts/${comment.postId}#comment-${comment._id}`}
+                to={`/posts/detail?topicId=${comment.topicId}&postId=${comment.postId}#comment-${comment._id}`}
                 sx={{ fontWeight: 'bold' }}
             >
                 Xem chi tiết
@@ -183,17 +170,38 @@ const CommentActivityCard = ({ comment }) => (
     </ActivityCard>
 );
 
-// Card for Like activities
-const LikeActivityCard = ({ like }) => {
-    const sanitizedContent = useMemo(() => DOMPurify.sanitize(like.postTitle || like.commentContent || 'Nội dung không có sẵn'), [like]);
+// Card for Like activities (Likes Received)
+const LikeActivityCard = ({ like, currentUser }) => {
+    const navigate = useNavigate();
+
+    const isSelfLike = currentUser && like.liker?._id === currentUser._id;
+
+    const handleLikerClick = () => {
+        if (like.liker?._id && !isSelfLike) {
+            navigate(`/profile/${like.liker._id}`);
+        }
+    };
 
     return (
         <ActivityCard>
             <Stack direction="row" spacing={2} alignItems="center">
                 <FavoriteIcon color="error" />
-                <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
-                        Đã thích {like.postId ? 'bài viết' : 'bình luận'}
+                <Box flexGrow={1}>
+                    <Typography variant="body1">
+                        {isSelfLike ? (
+                            "Bạn đã thích bài viết của bạn"
+                        ) : (
+                            <>
+                                <Link
+                                    component="span"
+                                    onClick={handleLikerClick}
+                                    sx={{ fontWeight: 'bold', cursor: 'pointer', color: 'primary.main' }}
+                                >
+                                    {like.liker?.fullName || 'Một người dùng'}
+                                </Link>
+                                {' đã thích bài viết của bạn'}
+                            </>
+                        )}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                         {formatTimeAgo(like.createdAt)}
@@ -202,26 +210,27 @@ const LikeActivityCard = ({ like }) => {
             </Stack>
             <Box sx={{ my: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1, flexGrow: 1 }}>
                 <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
-                    {parse(sanitizedContent)}
+                    <Link component={RouterLink} to={`/posts/detail?topicId=${like.topicId}&postId=${like.postId}`} sx={{ fontWeight: 'medium' }}>
+                        {like.postTitle || 'Nội dung không có sẵn'}
+                    </Link>
                 </Typography>
             </Box>
             <Box sx={{ mt: 'auto', textAlign: 'right' }}>
                 <Link
                     component={RouterLink}
-                    to={like.postId ? `/posts/${like.postId}` : `/posts/${like.commentPostId}#comment-${like.commentId}`}
+                    to={`/posts/detail?topicId=${like.topicId}&postId=${like.postId}`}
                     sx={{ fontWeight: 'bold' }}
                 >
-                    Xem nội dung gốc
+                    Xem bài viết
                 </Link>
             </Box>
         </ActivityCard>
     );
 };
 
-const UserActivity = ({ userId }) => {
+const UserActivity = ({ userId, currentUser, activityVisibility }) => {
     const [loading, setLoading] = useState(true);
     const [activities, setActivities] = useState({ posts: [], comments: [], likes: [] });
-    const [activeTab, setActiveTab] = useState(0);
     const [error, setError] = useState(null);
     const [sortBy, setSortBy] = useState('newest');
     const theme = useTheme();
@@ -268,6 +277,52 @@ const UserActivity = ({ userId }) => {
         };
     }, [activities, sortBy]);
 
+    const tabConfig = useMemo(() => ({
+        posts: {
+            key: 'posts',
+            label: `Bài viết`,
+            icon: <PostAddIcon />,
+            data: sortedActivities.posts,
+            card: PostActivityCard,
+            emptyIcon: <ArticleIcon sx={{ fontSize: 60 }} />,
+            emptyMessage: "Người dùng này chưa có bài viết nào.",
+        },
+        comments: {
+            key: 'comments',
+            label: `Bình luận`,
+            icon: <ChatBubbleOutlineIcon />,
+            data: sortedActivities.comments,
+            card: CommentActivityCard,
+            emptyIcon: <CommentIcon sx={{ fontSize: 60 }} />,
+            emptyMessage: "Chưa tìm thấy bình luận nào.",
+        },
+        likes: {
+            key: 'likes',
+            label: `Lượt thích nhận được`,
+            icon: <FavoriteIcon />,
+            data: sortedActivities.likes,
+            card: LikeActivityCard,
+            emptyIcon: <FavoriteIcon sx={{ fontSize: 60 }} />,
+            emptyMessage: "Chưa có lượt thích nào được ghi nhận.",
+        },
+    }), [sortedActivities]);
+
+    const visibleTabs = useMemo(() => {
+        const defaultVisibility = { posts: true, comments: true, likes: true };
+        const visibility = activityVisibility || defaultVisibility;
+        return Object.values(tabConfig).filter(tab => visibility[tab.key] ?? true);
+    }, [tabConfig, activityVisibility]);
+
+    const [activeTab, setActiveTab] = useState(visibleTabs.length > 0 ? visibleTabs[0].key : null);
+
+    useEffect(() => {
+        if (visibleTabs.length > 0 && !visibleTabs.find(t => t.key === activeTab)) {
+            setActiveTab(visibleTabs[0].key);
+        } else if (visibleTabs.length === 0) {
+            setActiveTab(null);
+        }
+    }, [visibleTabs, activeTab]);
+
     const renderContent = () => {
         if (loading) {
             return <Box display="flex" justifyContent="center" p={5}><CircularProgress /></Box>;
@@ -276,42 +331,30 @@ const UserActivity = ({ userId }) => {
             return <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>;
         }
 
-        let items, CardComponent, emptyIcon, emptyMessage;
-        switch (activeTab) {
-            case 0:
-                items = sortedActivities.posts;
-                CardComponent = PostActivityCard;
-                emptyIcon = <ArticleIcon sx={{ fontSize: 60 }} />;
-                emptyMessage = "Người dùng này chưa có bài viết nào.";
-                break;
-            case 1:
-                items = sortedActivities.comments;
-                CardComponent = CommentActivityCard;
-                emptyIcon = <CommentIcon sx={{ fontSize: 60 }} />;
-                emptyMessage = "Chưa tìm thấy bình luận nào.";
-                break;
-            case 2:
-                items = sortedActivities.likes;
-                CardComponent = LikeActivityCard;
-                emptyIcon = <FavoriteIcon sx={{ fontSize: 60 }} />;
-                emptyMessage = "Chưa có lượt thích nào được ghi nhận.";
-                break;
-            default:
-                return null;
+        if (!activeTab) {
+            return <EmptyState icon={<ArticleIcon sx={{ fontSize: 60 }} />} message="Không có hoạt động nào được hiển thị." />;
         }
+
+        const currentTabData = tabConfig[activeTab];
+        if (!currentTabData) return null;
+
+        const { data: items, card: CardComponent, emptyIcon, emptyMessage } = currentTabData;
 
         if (items.length === 0) {
             return <EmptyState icon={emptyIcon} message={emptyMessage} />;
         }
 
         return (
-            <Grid container spacing={3} sx={{ pt: 3 }} justifyContent="center">
+            <Stack spacing={3} sx={{ pt: 3, alignItems: 'center' }}>
                 {items.map(item => (
-                    <Grid item xs={12} md={9} lg={8} key={item._id}>
-                        <CardComponent {...{ [CardComponent.name.replace('ActivityCard', '').toLowerCase()]: item }} />
-                    </Grid>
+                    <Box key={item._id} sx={{ width: { xs: '100%', sm: '90%', md: '80%' } }}>
+                        <CardComponent
+                            {...{ [CardComponent.name.replace('ActivityCard', '').toLowerCase()]: item }}
+                            currentUser={currentUser}
+                        />
+                    </Box>
                 ))}
-            </Grid>
+            </Stack>
         );
     };
 
@@ -324,46 +367,61 @@ const UserActivity = ({ userId }) => {
                     alignItems="center"
                     spacing={isMobile ? 2 : 0}
                 >
-                    <Tabs
-                        value={activeTab}
-                        onChange={(_, newValue) => setActiveTab(newValue)}
-                        variant={isMobile ? "fullWidth" : "standard"}
-                        sx={{
-                            '& .MuiTab-root': {
-                                minHeight: 'auto',
-                                py: 1.5,
-                                px: 3,
-                                display: 'flex',
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                gap: 1,
-                            },
-                            '& .Mui-selected': {
-                                color: 'primary.main',
-                                fontWeight: 'bold',
-                            },
-                            '& .MuiTabs-indicator': {
-                                height: 3,
-                                borderRadius: '3px 3px 0 0',
-                            }
-                        }}
-                    >
-                        <Tab icon={<PostAddIcon />} label={`Bài viết (${activities.posts.length})`} />
-                        <Tab icon={<ChatBubbleOutlineIcon />} label={`Bình luận (${activities.comments.length})`} />
-                        <Tab icon={<ThumbUpIcon />} label={`Lượt thích (${activities.likes.length})`} />
-                    </Tabs>
-
-                    <FormControl sx={{ minWidth: 150, pr: isMobile ? 0 : 1 }} size="small">
-                        <Select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                            startAdornment={<SortIcon sx={{ mr: 1, color: 'action.active' }} />}
-                            sx={{ borderRadius: 2 }}
+                    {visibleTabs.length > 0 ? (
+                        <Tabs
+                            value={activeTab}
+                            onChange={(_, newValue) => setActiveTab(newValue)}
+                            variant={isMobile ? "fullWidth" : "standard"}
+                            sx={{
+                                '& .MuiTab-root': {
+                                    minHeight: 'auto',
+                                    py: 1.5,
+                                    px: 3,
+                                    display: 'flex',
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                },
+                                '& .Mui-selected': {
+                                    color: 'primary.main',
+                                    fontWeight: 'bold',
+                                },
+                                '& .MuiTabs-indicator': {
+                                    height: 3,
+                                    borderRadius: '3px 3px 0 0',
+                                }
+                            }}
                         >
-                            <MenuItem value="newest">Mới nhất</MenuItem>
-                            <MenuItem value="oldest">Cũ nhất</MenuItem>
-                        </Select>
-                    </FormControl>
+                            {visibleTabs.map(tab => (
+                                <Tab
+                                    key={tab.key}
+                                    value={tab.key}
+                                    icon={tab.icon}
+                                    label={`${tab.label} (${tab.data.length})`}
+                                />
+                            ))}
+                        </Tabs>
+                    ) : (
+                        <Box sx={{ p: 2 }}>
+                            <Typography variant="body2" color="text.secondary">
+                                Người dùng đã ẩn tất cả các hoạt động.
+                            </Typography>
+                        </Box>
+                    )}
+
+                    {visibleTabs.length > 0 && (
+                        <FormControl sx={{ minWidth: 150, pr: isMobile ? 0 : 1 }} size="small">
+                            <Select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                startAdornment={<SortIcon sx={{ mr: 1, color: 'action.active' }} />}
+                                sx={{ borderRadius: 2 }}
+                            >
+                                <MenuItem value="newest">Mới nhất</MenuItem>
+                                <MenuItem value="oldest">Cũ nhất</MenuItem>
+                            </Select>
+                        </FormControl>
+                    )}
                 </Stack>
             </Paper>
 

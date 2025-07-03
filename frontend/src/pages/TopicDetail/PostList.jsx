@@ -123,7 +123,7 @@ function PostList() {
     const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);
 
     return (
-        <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+        <Container maxWidth="md" sx={{ mt: 12, mb: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
                     Diễn Đàn Công Nghệ

@@ -176,7 +176,7 @@ const TopicDetail = () => {
                 }}
             >
                 {/* Global Breadcrumb Navigation */}
-                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Box>
                     <BreadcrumbNavigation
                         topicName={topic?.name}
                         darkMode={theme.palette.mode === 'dark'}
@@ -186,8 +186,8 @@ const TopicDetail = () => {
                 {/* Main Content Container */}
                 <Box
                     sx={{
-                        py: 3,
                         px: { xs: 1, sm: 2, md: 3 },
+                        mt: '20px', // Margin-top để không bị che bởi header + breadcrumb
                         position: 'relative',
                         zIndex: 1,
                         width: '100%',

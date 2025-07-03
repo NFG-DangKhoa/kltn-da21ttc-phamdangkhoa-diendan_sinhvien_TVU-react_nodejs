@@ -131,9 +131,13 @@ const PostDetail = () => {
     return (
         <Box
             sx={{
-                maxWidth: 1200,
+                px: { xs: 1, sm: 2, md: 3 },
+                position: 'relative',
+                zIndex: 1,
+                width: '100%',
+                maxWidth: '100vw',
                 mx: 'auto',
-                mt: 15,
+                mt: 0,
                 p: 2,
                 backgroundColor: theme.palette.background.default,
                 color: theme.palette.text.primary,

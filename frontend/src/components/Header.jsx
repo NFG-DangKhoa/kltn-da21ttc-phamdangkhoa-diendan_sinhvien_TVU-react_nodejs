@@ -219,7 +219,7 @@ const Header = () => {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        minHeight: '64px',
+                        minHeight: '64px', // Chiều cao chuẩn để breadcrumb navigation sát mép dưới
                         position: 'relative',
                         '&::before': {
                             content: '""',
@@ -249,7 +249,7 @@ const Header = () => {
                             src="/favicon.png" // Đường dẫn đến ảnh logo của bạn trong thư mục public
                             alt="Diễn Đàn Sinh Viên TVU Logo"
                             style={{
-                                height: '80px', // Chiều cao của ảnh logo, điều chỉnh theo kích thước mong muốn
+                                height: '60px', // Giảm xuống để phù hợp với header 64px
                                 marginRight: '8px', // Khoảng cách giữa logo và các phần tử khác nếu có
                                 // Bạn có thể thêm max-width, object-fit để kiểm soát kích thước tốt hơn
                                 // maxWidth: '180px',
@@ -272,8 +272,8 @@ const Header = () => {
                     </Typography> */}
                     </Box>
 
-                    {/* Các nút điều hướng chính cho mọi người dùng */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, marginLeft: 4 }}>
+                    {/* Main Navigation Buttons */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
                         <Button
                             color="inherit"
                             onClick={() => navigate('/')}
@@ -281,7 +281,7 @@ const Header = () => {
                                 color: 'white',
                                 fontWeight: 'bold',
                                 borderRadius: '8px',
-                                padding: '8px 12px',
+                                padding: '8px 16px',
                                 transition: 'background-color 0.3s ease',
                                 '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
                             }}
@@ -291,12 +291,12 @@ const Header = () => {
                         </Button>
                         <Button
                             color="inherit"
-                            onClick={() => navigate('/topics')} // Thay bằng đường dẫn trang danh mục của bạn
+                            onClick={() => navigate('/topics')}
                             sx={{
                                 color: 'white',
                                 fontWeight: 'bold',
                                 borderRadius: '8px',
-                                padding: '8px 12px',
+                                padding: '8px 16px',
                                 transition: 'background-color 0.3s ease',
                                 '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
                             }}
@@ -304,8 +304,6 @@ const Header = () => {
                         >
                             Chủ đề
                         </Button>
-
-                        {/* Nút Quy định diễn đàn */}
                         <Button
                             color="inherit"
                             onClick={() => setShowRulesDialog(true)}
@@ -313,7 +311,7 @@ const Header = () => {
                                 color: 'white',
                                 fontWeight: 'bold',
                                 borderRadius: '8px',
-                                padding: '8px 12px',
+                                padding: '8px 16px',
                                 transition: 'background-color 0.3s ease',
                                 '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
                             }}
@@ -321,11 +319,9 @@ const Header = () => {
                         >
                             Quy định
                         </Button>
-
-                        {/* Nút Tìm kiếm (có thể là IconButton nếu bạn muốn icon không có text) */}
                         <IconButton
                             color="inherit"
-                            onClick={() => navigate('/search')} // Thay bằng đường dẫn trang tìm kiếm của bạn
+                            onClick={() => navigate('/search')}
                             sx={{
                                 color: 'white',
                                 '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
@@ -333,12 +329,10 @@ const Header = () => {
                         >
                             <Search />
                         </IconButton>
-
-
                     </Box>
 
                     {/* Navbar actions - Phía bên phải */}
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                         {user ? (
                             <>
                                 {/* Nút Đăng Bài (chỉ user thường thấy) */}
@@ -535,6 +529,7 @@ const Header = () => {
                         )}
                     </Box>
                 </Toolbar>
+
             </AppBar>
 
             {/* Post Creation Dialog */}

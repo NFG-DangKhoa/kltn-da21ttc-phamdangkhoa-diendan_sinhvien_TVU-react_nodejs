@@ -76,7 +76,14 @@ app.use(express.json({ limit: '50mb' }));
 app.use(updateUserActivity);
 
 // Serve static files from public/upload directory
-app.use('/upload', express.static('public/upload'));
+const path = require('path');
+
+// ... (các import khác)
+
+// ... (code còn lại)
+
+// Serve static files from public/upload directory
+app.use('/upload', express.static(path.join(__dirname, 'public', 'upload')));
 console.log('📁 Static files served from /upload -> public/upload');
 
 // Middleware để inject services vào req (PHẢI ĐẶT TRƯỚC ROUTES)
