@@ -1,0 +1,14 @@
+{
+  "primaryColor": "#d28519",
+  "secondaryColor": "#f5f5f5",
+  "textColor": "#333333",
+  "greetingMessage": "Hù, bạn cần hỗ trợ gì không nè",
+  "greetingDelay": 3000,
+  "position": "bottom-right",
+  "size": "medium",
+  "showAvatar": true,
+  "autoOpen": true,
+  "welcomeSound": true,
+  "updatedAt": "2025-07-05T08:41:40.542Z",
+  "updatedBy": "6818277c8a8e93bde75c2156"
+}
