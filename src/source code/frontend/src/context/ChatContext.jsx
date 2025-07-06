@@ -16,7 +16,9 @@ const initialState = {
     loading: false,
     error: null,
     isConnected: false,
-    heartbeatInterval: null
+    heartbeatInterval: null,
+    pendingMessages: [], // Tin nhắn đang chờ chấp nhận
+    conversationSettings: {} // Cài đặt cho từng cuộc trò chuyện
 };
 
 // Action types
@@ -31,6 +33,7 @@ const CHAT_ACTIONS = {
     ADD_MESSAGE: 'ADD_MESSAGE',
     UPDATE_MESSAGE: 'UPDATE_MESSAGE',
     DELETE_MESSAGE: 'DELETE_MESSAGE',
+    RECALL_MESSAGE: 'RECALL_MESSAGE',
     SET_ONLINE_USERS: 'SET_ONLINE_USERS',
     USER_ONLINE: 'USER_ONLINE',
     USER_OFFLINE: 'USER_OFFLINE',
@@ -41,7 +44,13 @@ const CHAT_ACTIONS = {
     SET_CONNECTED: 'SET_CONNECTED',
     SET_HEARTBEAT_INTERVAL: 'SET_HEARTBEAT_INTERVAL',
     CLEAR_CHAT: 'CLEAR_CHAT',
-    SET_CURRENT_CONVERSATION: 'SET_CURRENT_CONVERSATION'
+    SET_CURRENT_CONVERSATION: 'SET_CURRENT_CONVERSATION',
+    SET_PENDING_MESSAGES: 'SET_PENDING_MESSAGES',
+    ADD_PENDING_MESSAGE: 'ADD_PENDING_MESSAGE',
+    REMOVE_PENDING_MESSAGE: 'REMOVE_PENDING_MESSAGE',
+    SET_CONVERSATION_SETTINGS: 'SET_CONVERSATION_SETTINGS',
+    UPDATE_CONVERSATION_SETTINGS: 'UPDATE_CONVERSATION_SETTINGS',
+    DELETE_ALL_MESSAGES: 'DELETE_ALL_MESSAGES'
 };
 
 // Reducer
@@ -146,7 +155,21 @@ function chatReducer(state, action) {
         case CHAT_ACTIONS.DELETE_MESSAGE:
             return {
                 ...state,
-                messages: state.messages.filter(msg => msg._id !== action.payload)
+                messages: state.messages.map(msg =>
+                    msg._id === action.payload
+                        ? { ...msg, isDeletedForUser: true, content: 'Tin nhắn đã bị xóa' } // Mark as deleted for user
+                        : msg
+                )
+            };
+
+        case CHAT_ACTIONS.RECALL_MESSAGE:
+            return {
+                ...state,
+                messages: state.messages.map(msg =>
+                    msg._id === action.payload
+                        ? { ...msg, content: 'Tin nhắn đã được thu hồi', isRecalled: true, isDeletedForUser: true } // Mark as recalled and deleted for user
+                        : msg
+                )
             };
 
         case CHAT_ACTIONS.SET_ONLINE_USERS:
@@ -220,6 +243,51 @@ function chatReducer(state, action) {
             return {
                 ...state,
                 currentConversation: action.payload
+            };
+
+        case CHAT_ACTIONS.SET_PENDING_MESSAGES:
+            return {
+                ...state,
+                pendingMessages: action.payload
+            };
+
+        case CHAT_ACTIONS.ADD_PENDING_MESSAGE:
+            return {
+                ...state,
+                pendingMessages: [...state.pendingMessages, action.payload]
+            };
+
+        case CHAT_ACTIONS.REMOVE_PENDING_MESSAGE:
+            return {
+                ...state,
+                pendingMessages: state.pendingMessages.filter(msg => msg._id !== action.payload)
+            };
+
+        case CHAT_ACTIONS.SET_CONVERSATION_SETTINGS:
+            return {
+                ...state,
+                conversationSettings: {
+                    ...state.conversationSettings,
+                    [action.payload.conversationId]: action.payload.settings
+                }
+            };
+
+        case CHAT_ACTIONS.UPDATE_CONVERSATION_SETTINGS:
+            return {
+                ...state,
+                conversationSettings: {
+                    ...state.conversationSettings,
+                    [action.payload.conversationId]: {
+                        ...state.conversationSettings[action.payload.conversationId],
+                        ...action.payload.settings
+                    }
+                }
+            };
+
+        case CHAT_ACTIONS.DELETE_ALL_MESSAGES:
+            return {
+                ...state,
+                messages: action.payload.conversationId === state.currentConversation?._id ? [] : state.messages
             };
 
         default:
@@ -503,6 +571,18 @@ export function ChatProvider({ children }) {
             dispatch({ type: CHAT_ACTIONS.DELETE_MESSAGE, payload: data.messageId });
         });
 
+        // Message recalled
+        socket.on('messageRecalled', (data) => {
+            console.log('↩️ Message recalled:', data.messageId);
+            dispatch({ type: CHAT_ACTIONS.RECALL_MESSAGE, payload: data.messageId });
+        });
+
+        // All messages deleted
+        socket.on('allMessagesDeleted', (data) => {
+            console.log('🗑️ All messages deleted in conversation:', data.conversationId);
+            dispatch({ type: CHAT_ACTIONS.DELETE_ALL_MESSAGES, payload: data.conversationId });
+        });
+
         // User online/offline
         socket.on('userOnline', (data) => {
             dispatch({ type: CHAT_ACTIONS.USER_ONLINE, payload: data.userId });
@@ -522,6 +602,34 @@ export function ChatProvider({ children }) {
                     payload: { userId: data.userId, lastSeen: data.lastSeen }
                 });
             }
+        });
+
+        // Pending message events
+        socket.on('pendingMessage', (data) => {
+            console.log('📩 Pending message received:', data);
+            dispatch({ type: CHAT_ACTIONS.ADD_PENDING_MESSAGE, payload: data });
+        });
+
+        socket.on('messageAccepted', (data) => {
+            console.log('✅ Message accepted:', data);
+            dispatch({ type: CHAT_ACTIONS.REMOVE_PENDING_MESSAGE, payload: data.messageId });
+            // Add message to conversation if it's the current one
+            if (data.conversationId === state.currentConversation?._id) {
+                dispatch({ type: CHAT_ACTIONS.ADD_MESSAGE, payload: data.message });
+            }
+        });
+
+        socket.on('messageRejected', (data) => {
+            console.log('❌ Message rejected:', data);
+            dispatch({ type: CHAT_ACTIONS.REMOVE_PENDING_MESSAGE, payload: data.messageId });
+        });
+
+        socket.on('deleteAllMessages', (data) => {
+            console.log('🗑️ All messages deleted:', data);
+            dispatch({
+                type: CHAT_ACTIONS.DELETE_ALL_MESSAGES,
+                payload: { conversationId: data.conversationId }
+            });
         });
 
         // Typing indicators
@@ -554,9 +662,15 @@ export function ChatProvider({ children }) {
             socket.off('messageRead');
             socket.off('conversationRead');
             socket.off('messageDeleted');
+            socket.off('messageRecalled');
+            socket.off('allMessagesDeleted');
             socket.off('userOnline');
             socket.off('userOffline');
             socket.off('userTyping');
+            socket.off('pendingMessage');
+            socket.off('messageAccepted');
+            socket.off('messageRejected');
+            socket.off('deleteAllMessages');
             socket.off('test');
         };
     }, [user, handleNewMessage]);
@@ -776,26 +890,26 @@ export function ChatProvider({ children }) {
             try {
                 const response = await chatService.markConversationAsRead(conversationId);
                 if (response.success) {
-                    // Update unread count
                     const markedCount = response.data.markedCount || 0;
+
+                    // Update global unread count
                     if (markedCount > 0) {
-                        const newUnreadCount = Math.max(0, state.unreadCount - markedCount);
                         dispatch({
                             type: CHAT_ACTIONS.SET_UNREAD_COUNT,
-                            payload: newUnreadCount
-                        });
-
-                        // Update conversation unread count to 0
-                        const updatedConversations = state.conversations.map(conv =>
-                            conv._id === conversationId
-                                ? { ...conv, unreadCount: 0 }
-                                : conv
-                        );
-                        dispatch({
-                            type: CHAT_ACTIONS.SET_CONVERSATIONS,
-                            payload: updatedConversations
+                            payload: Math.max(0, state.unreadCount - markedCount)
                         });
                     }
+
+                    // Update the specific conversation's unread count to 0
+                    const updatedConversations = state.conversations.map(conv =>
+                        conv._id === conversationId
+                            ? { ...conv, unreadCount: 0 }
+                            : conv
+                    );
+                    dispatch({
+                        type: CHAT_ACTIONS.SET_CONVERSATIONS,
+                        payload: updatedConversations
+                    });
                 }
                 return response;
             } catch (error) {
@@ -818,16 +932,25 @@ export function ChatProvider({ children }) {
             }
         },
 
-        // Delete message
+        // Delete message (one-sided)
         deleteMessage: async (messageId) => {
             try {
                 await chatService.deleteMessage(messageId);
                 dispatch({ type: CHAT_ACTIONS.DELETE_MESSAGE, payload: messageId });
-
-                // Emit socket event for real-time deletion
-                socket.emit('deleteMessage', { messageId, userId: user._id });
             } catch (error) {
                 console.error('Error deleting message:', error);
+                dispatch({ type: CHAT_ACTIONS.SET_ERROR, payload: error.message });
+                throw error;
+            }
+        },
+
+        // Delete all messages in a conversation for the current user
+        deleteAllMessagesInConversation: async (conversationId) => {
+            try {
+                await chatService.deleteAllMessagesInConversation(conversationId);
+                dispatch({ type: CHAT_ACTIONS.DELETE_ALL_MESSAGES, payload: { conversationId } });
+            } catch (error) {
+                console.error('Error deleting all messages in conversation:', error);
                 dispatch({ type: CHAT_ACTIONS.SET_ERROR, payload: error.message });
                 throw error;
             }
@@ -919,7 +1042,103 @@ export function ChatProvider({ children }) {
                 console.error('Error resetting read status:', error);
                 throw error;
             }
-        }
+        },
+
+        // Pending messages methods
+        loadPendingMessages: async () => {
+            try {
+                const response = await chatService.getPendingMessages();
+                dispatch({ type: CHAT_ACTIONS.SET_PENDING_MESSAGES, payload: response.data });
+                return response.data;
+            } catch (error) {
+                console.error('Error loading pending messages:', error);
+                throw error;
+            }
+        },
+
+        acceptMessage: async (messageId) => {
+            try {
+                const response = await chatService.acceptMessage(messageId);
+                dispatch({ type: CHAT_ACTIONS.REMOVE_PENDING_MESSAGE, payload: messageId });
+                // Add message to current conversation if it belongs to it
+                if (response.data.conversationId === state.currentConversation?._id) {
+                    dispatch({ type: CHAT_ACTIONS.ADD_MESSAGE, payload: response.data });
+                }
+                return response.data;
+            } catch (error) {
+                console.error('Error accepting message:', error);
+                throw error;
+            }
+        },
+
+        rejectMessage: async (messageId) => {
+            try {
+                const response = await chatService.rejectMessage(messageId);
+                dispatch({ type: CHAT_ACTIONS.REMOVE_PENDING_MESSAGE, payload: messageId });
+                return response.data;
+            } catch (error) {
+                console.error('Error rejecting message:', error);
+                throw error;
+            }
+        },
+
+        // Conversation settings methods
+        loadConversationSettings: async (conversationId) => {
+            try {
+                const response = await chatService.getConversationSettings(conversationId);
+                dispatch({
+                    type: CHAT_ACTIONS.SET_CONVERSATION_SETTINGS,
+                    payload: { conversationId, settings: response.data }
+                });
+                return response.data;
+            } catch (error) {
+                console.error('Error loading conversation settings:', error);
+                throw error;
+            }
+        },
+
+        updateConversationSettings: async (conversationId, settings) => {
+            try {
+                const response = await chatService.updateConversationSettings(conversationId, settings);
+                dispatch({
+                    type: CHAT_ACTIONS.UPDATE_CONVERSATION_SETTINGS,
+                    payload: { conversationId, settings: response.data }
+                });
+                return response.data;
+            } catch (error) {
+                console.error('Error updating conversation settings:', error);
+                throw error;
+            }
+        },
+
+        // Delete all messages
+        deleteAllMessages: async (conversationId) => {
+            try {
+                const response = await chatService.deleteAllMessages(conversationId);
+                dispatch({
+                    type: CHAT_ACTIONS.DELETE_ALL_MESSAGES,
+                    payload: { conversationId }
+                });
+                return response.data;
+            } catch (error) {
+                console.error('Error deleting all messages:', error);
+                throw error;
+            }
+        },
+
+        // Recall message
+        recallMessage: async (messageId) => {
+            try {
+                await chatService.recallMessage(messageId);
+                // Dispatch action to update UI immediately
+                dispatch({ type: CHAT_ACTIONS.RECALL_MESSAGE, payload: messageId });
+                // Socket event will handle real-time update for other users
+            } catch (error) {
+                console.error('Error recalling message:', error);
+                dispatch({ type: CHAT_ACTIONS.SET_ERROR, payload: error.message });
+                throw error;
+            }
+        },
 
     };
 

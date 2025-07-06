@@ -17,7 +17,7 @@ exports.setIo = (socketIoInstance) => {
 exports.createComment = async (req, res) => {
     try {
         const { postId, content, parentCommentId, imageId } = req.body;
-        const authorId = req.user.id; // Giả sử bạn lấy ID người dùng từ middleware xác thực
+        const authorId = req.user._id; // Giả sử bạn lấy ID người dùng từ middleware xác thực
 
         let targetPostId = postId;
         let level = 0;
@@ -143,7 +143,7 @@ exports.createComment = async (req, res) => {
 exports.getCommentsByPostId = async (req, res) => {
     try {
         const { postId } = req.params;
-        const userId = req.user ? req.user.id : null; // Get user ID if authenticated
+        const userId = req.user ? req.user._id : null; // Get user ID if authenticated
 
         const comments = await Comment.find({ postId: postId, parentCommentId: null })
             .populate('authorId', 'username avatarUrl fullName') // Lấy thông tin tác giả

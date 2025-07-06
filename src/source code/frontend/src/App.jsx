@@ -17,6 +17,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import ChatbotWidget from './components/ChatbotWidget';
 import LoadingScreen from './components/LoadingScreen';
 import WelcomeRulesDialog from './components/WelcomeRulesDialog';
+import Marquee from './components/Marquee';
 
 // Contexts
 import { AuthProvider, AuthContext } from './context/AuthContext'; // Import AuthContext để sử dụng useContext
@@ -133,46 +134,51 @@ const AppContent = () => {
       {/* Hiển thị Header chỉ khi không phải là trang admin */}
       {!isAdminRoute && <Header />}
 
-      {/* Định tuyến các trang */}
-      <main style={{ paddingTop: '96px' }}>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/verify-email" element={<EmailVerification />} />
-          <Route path="/CreatePostPage" element={<CreatePostPage />} />
-          <Route path="/profile/:userId" element={<ProfilePage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/all-posts" element={<AllPosts />} />
-          <Route path="/topics" element={<TopicsPage />} />
-          <Route path="/featured-posts" element={<FeaturedPostsPage />} />
+      <div style={{ paddingTop: '100px' }}>
+        {/* Marquee will be displayed below the header */}
+        {!isAdminRoute && <Marquee />}
 
-          {/* Topic and Post Routes */}
-          <Route path="/topic/:topicId" element={<TopicDetail />} />
-          <Route path="/PostList" element={<PostList />} />
-          <Route path="/PostDetailSingleImage" element={<PostDetailSingleImage />} />
-          <Route path="/MembersList" element={<MembersList />} />
-          <Route path="/members-demo" element={<MembersPageDemo />} />
-          <Route path="/posts/detail" element={<PostDetail />} />
-          <Route path="/post-detail" element={<PostDetail />} />
-          <Route path="/edit-post/:postId" element={<EditPostPage />} />
+        {/* Định tuyến các trang */}
+        <main>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<EmailVerification />} />
+            <Route path="/CreatePostPage" element={<CreatePostPage />} />
+            <Route path="/profile/:userId" element={<ProfilePage />} />
+            <Route path="/chat" element={<ChatPage />} />
+            <Route path="/all-posts" element={<AllPosts />} />
+            <Route path="/topics" element={<TopicsPage />} />
+            <Route path="/featured-posts" element={<FeaturedPostsPage />} />
 
-          {/* Test Routes */}
-          <Route path="/test/breadcrumb" element={<BreadcrumbTest />} />
-          <Route path="/test/google-oauth" element={<GoogleOAuthDebug />} />
-          <Route path="/test/chat-realtime" element={<RealtimeTestPanel />} />
-          <Route path="/test/trending" element={<TestTrending />} />
+            {/* Topic and Post Routes */}
+            <Route path="/topic/:topicId" element={<TopicDetail />} />
+            <Route path="/PostList" element={<PostList />} />
+            <Route path="/PostDetailSingleImage" element={<PostDetailSingleImage />} />
+            <Route path="/MembersList" element={<MembersList />} />
+            <Route path="/members-demo" element={<MembersPageDemo />} />
+            <Route path="/posts/detail" element={<PostDetail />} />
+            <Route path="/post-detail" element={<PostDetail />} />
+            <Route path="/edit-post/:postId" element={<EditPostPage />} />
 
-          {/* Admin Dashboard Route */}
-          <Route path="/admin/*" element={<AdminDashboard />} />
+            {/* Test Routes */}
+            <Route path="/test/breadcrumb" element={<BreadcrumbTest />} />
+            <Route path="/test/google-oauth" element={<GoogleOAuthDebug />} />
+            <Route path="/test/chat-realtime" element={<RealtimeTestPanel />} />
+            <Route path="/test/trending" element={<TestTrending />} />
 
-          {/* Catch-all route cho các trang không tìm thấy */}
-          <Route path="*" element={<div>404 Not Found</div>} />
-        </Routes>
-      </main>
+            {/* Admin Dashboard Route */}
+            <Route path="/admin/*" element={<AdminDashboard />} />
+
+            {/* Catch-all route cho các trang không tìm thấy */}
+            <Route path="*" element={<div>404 Not Found</div>} />
+          </Routes>
+        </main>
+      </div>
 
       {/* Hiển thị Footer chỉ khi không phải là trang admin */}
       {!isAdminRoute && <Footer />}

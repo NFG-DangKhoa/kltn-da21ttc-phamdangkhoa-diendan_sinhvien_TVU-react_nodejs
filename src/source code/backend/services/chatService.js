@@ -117,6 +117,30 @@ class ChatService {
             // Tìm hoặc tạo cuộc trò chuyện
             const conversation = await Conversation.findOrCreateDirectConversation(senderId, receiverId);
 
+            // Kiểm tra cài đặt chấp nhận tin nhắn của người nhận
+            const receiverSettings = conversation.getMessageAcceptanceSettings(receiverId);
+            let acceptanceStatus = 'auto_accepted';
+
+            // Nếu người nhận yêu cầu chấp nhận tin nhắn
+            if (receiverSettings.requireAcceptance) {
+                // Kiểm tra xem có phải là cuộc trò chuyện mới không (chưa có tin nhắn nào được chấp nhận)
+                const existingAcceptedMessages = await Message.countDocuments({
+                    conversationId: conversation._id,
+                    acceptanceStatus: { $in: ['accepted', 'auto_accepted'] }
+                });
+
+                if (existingAcceptedMessages === 0) {
+                    // Cuộc trò chuyện mới, cần chấp nhận
+                    acceptanceStatus = 'pending';
+                } else if (receiverSettings.autoAcceptFromKnownUsers) {
+                    // Đã có tin nhắn trước đó, tự động chấp nhận
+                    acceptanceStatus = 'auto_accepted';
+                } else {
+                    // Vẫn cần chấp nhận mỗi tin nhắn
+                    acceptanceStatus = 'pending';
+                }
+            }
+
             // Tạo tin nhắn mới
             const message = new Message({
                 conversationId: conversation._id,
@@ -125,7 +149,8 @@ class ChatService {
                 content,
                 messageType,
                 attachments,
-                status: 'sent'
+                status: 'sent',
+                acceptanceStatus
             });
 
             await message.save();
@@ -136,14 +161,19 @@ class ChatService {
                 { path: 'receiverId', select: 'fullName username avatarUrl role' }
             ]);
 
-            // Cập nhật cuộc trò chuyện
-            await conversation.updateLastMessage(message._id);
-
-            // Đánh dấu cuộc trò chuyện đã đọc cho người gửi (vì họ đang gửi tin nhắn)
-            await conversation.markAsRead(senderId, message._id);
-
-            // Gửi tin nhắn realtime
-            this.sendRealtimeMessage(message);
+            // Nếu tin nhắn được chấp nhận, cập nhật cuộc trò chuyện
+            if (acceptanceStatus === 'auto_accepted') {
+                await conversation.updateLastMessage(message._id);
+                // Đánh dấu cuộc trò chuyện đã đọc cho người gửi
+                await conversation.markAsRead(senderId, message._id);
+                // Gửi tin nhắn realtime
+                this.sendRealtimeMessage(message);
+            } else {
+                // Tin nhắn đang chờ chấp nhận
+                await conversation.addPendingMessage(message._id);
+                // Gửi thông báo pending message
+                this.sendPendingMessageNotification(message);
+            }
 
             // Không tạo notification cho tin nhắn chat
             // Tin nhắn sẽ hiện trực tiếp trong khung chat qua Socket.IO
@@ -346,7 +376,7 @@ class ChatService {
                 throw new Error('Không có quyền truy cập cuộc trò chuyện này');
             }
 
-            const messages = await Message.getConversationMessages(conversationId, page, limit);
+            const messages = await Message.getConversationMessages(conversationId, userId, page, limit);
             return messages.reverse(); // Đảo ngược để tin nhắn cũ nhất ở đầu
         } catch (error) {
             console.error('Error getting conversation messages:', error);
@@ -548,6 +578,189 @@ class ChatService {
             };
         }
         return activities;
+    }
+
+    // Gửi thông báo tin nhắn đang chờ chấp nhận
+    sendPendingMessageNotification(message) {
+        try {
+            const receiverSocketId = this.getUserSocketId(message.receiverId.toString());
+            if (receiverSocketId) {
+                this.io.to(receiverSocketId).emit('pendingMessage', {
+                    messageId: message._id,
+                    senderId: message.senderId,
+                    senderName: message.senderId.fullName || message.senderId.username,
+                    content: message.content,
+                    conversationId: message.conversationId,
+                    timestamp: message.createdAt
+                });
+            }
+        } catch (error) {
+            console.error('Error sending pending message notification:', error);
+        }
+    }
+
+    // Chấp nhận tin nhắn
+    async acceptMessage(messageId, userId) {
+        try {
+            const message = await Message.findById(messageId);
+            if (!message || message.receiverId.toString() !== userId) {
+                throw new Error('Không có quyền chấp nhận tin nhắn này');
+            }
+
+            await message.acceptMessage(userId);
+
+            // Xóa khỏi danh sách pending
+            const conversation = await Conversation.findById(message.conversationId);
+            if (conversation) {
+                await conversation.removePendingMessage(messageId);
+                // Cập nhật last message nếu đây là tin nhắn mới nhất
+                await conversation.updateLastMessage(messageId);
+            }
+
+            // Populate thông tin để gửi realtime
+            await message.populate([
+                { path: 'senderId', select: 'fullName username avatarUrl role' },
+                { path: 'receiverId', select: 'fullName username avatarUrl role' }
+            ]);
+
+            // Gửi tin nhắn realtime
+            this.sendRealtimeMessage(message);
+
+            // Thông báo cho người gửi rằng tin nhắn đã được chấp nhận
+            const senderSocketId = this.getUserSocketId(message.senderId._id.toString());
+            if (senderSocketId) {
+                this.io.to(senderSocketId).emit('messageAccepted', {
+                    messageId: message._id,
+                    conversationId: message.conversationId
+                });
+            }
+
+            return message;
+        } catch (error) {
+            console.error('Error accepting message:', error);
+            throw error;
+        }
+    }
+
+    // Từ chối tin nhắn
+    async rejectMessage(messageId, userId) {
+        try {
+            const message = await Message.findById(messageId);
+            if (!message || message.receiverId.toString() !== userId) {
+                throw new Error('Không có quyền từ chối tin nhắn này');
+            }
+
+            await message.rejectMessage(userId);
+
+            // Xóa khỏi danh sách pending
+            const conversation = await Conversation.findById(message.conversationId);
+            if (conversation) {
+                await conversation.removePendingMessage(messageId);
+            }
+
+            // Thông báo cho người gửi rằng tin nhắn đã bị từ chối
+            const senderSocketId = this.getUserSocketId(message.senderId.toString());
+            if (senderSocketId) {
+                this.io.to(senderSocketId).emit('messageRejected', {
+                    messageId: message._id,
+                    conversationId: message.conversationId
+                });
+            }
+
+            return message;
+        } catch (error) {
+            console.error('Error rejecting message:', error);
+            throw error;
+        }
+    }
+
+    // Thu hồi tin nhắn (cho cả hai phía)
+    async recallMessage(messageId, userId) {
+        try {
+            const message = await Message.findById(messageId);
+            if (!message) {
+                throw new Error('Tin nhắn không tồn tại');
+            }
+
+            // Chỉ người gửi mới có thể thu hồi tin nhắn
+            if (message.senderId.toString() !== userId.toString()) {
+                throw new Error('Không có quyền thu hồi tin nhắn này');
+            }
+
+            // Kiểm tra có thể thu hồi không (trong vòng 5 phút)
+            if (!message.canRecall()) {
+                throw new Error('Không thể thu hồi tin nhắn sau 5 phút');
+            }
+
+            await message.recallMessage();
+
+            // Gửi thông báo realtime cho tất cả các thành viên trong cuộc trò chuyện
+            const conversation = await Conversation.findById(message.conversationId);
+            if (conversation) {
+                conversation.participants.forEach(participantId => {
+                    this.io.to(`user_${participantId.toString()}`).emit('messageRecalled', {
+                        messageId: message._id,
+                        conversationId: message.conversationId,
+                        recalledBy: userId
+                    });
+                });
+            }
+
+            return message;
+        } catch (error) {
+            console.error('Error recalling message:', error);
+            throw error;
+        }
+    }
+
+    // Xóa tin nhắn (một phía)
+    async deleteMessage(messageId, userId) {
+        try {
+            const message = await Message.findById(messageId);
+            if (!message) {
+                throw new Error('Tin nhắn không tồn tại');
+            }
+
+            // Chỉ người gửi hoặc người nhận mới có thể xóa tin nhắn cho chính họ
+            if (message.senderId.toString() !== userId.toString() && message.receiverId.toString() !== userId.toString()) {
+                throw new Error('Không có quyền xóa tin nhắn này');
+            }
+
+            await message.softDelete(userId);
+
+            // Gửi thông báo realtime cho người dùng đã xóa tin nhắn
+            this.io.to(`user_${userId.toString()}`).emit('messageDeleted', {
+                messageId: message._id,
+                conversationId: message.conversationId,
+                deletedBy: userId
+            });
+
+            return message;
+        } catch (error) {
+            console.error('Error deleting message:', error);
+            throw error;
+        }
+    }
+
+    // Xóa tất cả tin nhắn trong cuộc trò chuyện cho một user
+    async deleteAllMessagesForUser(conversationId, userId) {
+        try {
+            const result = await Message.deleteAllForUserInConversation(conversationId, userId);
+
+            // Gửi thông báo realtime
+            const userSocketId = this.getUserSocketId(userId);
+            if (userSocketId) {
+                this.io.to(userSocketId).emit('allMessagesDeleted', {
+                    conversationId,
+                    deletedCount: result.modifiedCount
+                });
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Error deleting all messages for user:', error);
+            throw error;
+        }
     }
 }
 

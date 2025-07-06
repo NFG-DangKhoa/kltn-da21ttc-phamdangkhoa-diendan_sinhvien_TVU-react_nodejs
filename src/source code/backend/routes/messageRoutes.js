@@ -18,7 +18,7 @@ const initChatService = (req, res, next) => {
 router.get('/conversations', auth, initChatService, async (req, res) => {
     try {
         const { page = 1, limit = 20 } = req.query;
-        const userId = req.user.id;
+        const userId = req.user._id;
 
         const conversations = await req.chatService.getUserConversations(
             userId,
@@ -50,7 +50,7 @@ router.get('/conversations/:conversationId', auth, initChatService, async (req, 
     try {
         const { conversationId } = req.params;
         const { page = 1, limit = 50 } = req.query;
-        const userId = req.user.id;
+        const userId = req.user._id;
 
         const messages = await req.chatService.getConversationMessages(
             conversationId,
@@ -82,7 +82,7 @@ router.get('/conversations/:conversationId', auth, initChatService, async (req, 
 router.post('/send', auth, initChatService, async (req, res) => {
     try {
         const { receiverId, content, messageType = 'text', attachments = [] } = req.body;
-        const senderId = req.user.id;
+        const senderId = req.user._id;
 
         // Validate input
         if (!receiverId || !content) {
@@ -127,7 +127,7 @@ router.post('/send', auth, initChatService, async (req, res) => {
 router.put('/:messageId/read', auth, initChatService, async (req, res) => {
     try {
         const { messageId } = req.params;
-        const userId = req.user.id;
+        const userId = req.user._id;
 
         const message = await req.chatService.markMessageAsRead(messageId, userId);
 
@@ -149,7 +149,7 @@ router.put('/:messageId/read', auth, initChatService, async (req, res) => {
 // GET /api/messages/unread-count - Lấy số tin nhắn chưa đọc
 router.get('/unread-count', auth, initChatService, async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user._id;
         const unreadCount = await req.chatService.getTotalUnreadCount(userId);
 
         res.json({
@@ -170,7 +170,7 @@ router.get('/unread-count', auth, initChatService, async (req, res) => {
 router.post('/conversation/create', auth, async (req, res) => {
     try {
         const { participantId } = req.body;
-        const userId = req.user.id;
+        const userId = req.user._id;
 
         // Validate input
         if (!participantId) {
@@ -265,7 +265,7 @@ router.post('/conversation/create', auth, async (req, res) => {
 router.get('/users/search', auth, async (req, res) => {
     try {
         const { q = '', page = 1, limit = 20 } = req.query;
-        const userId = req.user.id;
+        const userId = req.user._id;
 
         const searchQuery = {
             _id: { $ne: userId }, // Loại trừ chính mình
@@ -305,97 +305,66 @@ router.get('/users/search', auth, async (req, res) => {
     }
 });
 
-// DELETE /api/messages/:messageId - Xóa tin nhắn
-router.delete('/:messageId', auth, async (req, res) => {
+// DELETE /api/messages/:messageId/delete-for-me - Xóa tin nhắn cho riêng mình
+router.delete('/:messageId/delete-for-me', auth, initChatService, async (req, res) => {
     try {
         const { messageId } = req.params;
-        const userId = req.user.id;
+        const userId = req.user._id;
 
-        const message = await Message.findById(messageId);
-        if (!message) {
-            return res.status(404).json({
-                success: false,
-                message: 'Tin nhắn không tồn tại'
-            });
-        }
-
-        // Chỉ người gửi mới có thể xóa tin nhắn
-        if (message.senderId.toString() !== userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Không có quyền xóa tin nhắn này'
-            });
-        }
-
-        await message.softDelete();
+        await req.chatService.deleteMessage(messageId, userId);
 
         res.json({
             success: true,
-            message: 'Tin nhắn đã được xóa thành công'
+            message: 'Tin nhắn đã được xóa cho bạn'
         });
     } catch (error) {
-        console.error('Error deleting message:', error);
+        console.error('Error deleting message for user:', error);
         res.status(500).json({
             success: false,
-            message: 'Lỗi khi xóa tin nhắn',
-            error: error.message
+            message: error.message
         });
     }
 });
 
-// PUT /api/messages/conversations/:conversationId/read - Đánh dấu tất cả tin nhắn trong cuộc trò chuyện đã đọc
-router.put('/conversations/:conversationId/read', auth, initChatService, async (req, res) => {
+// DELETE /api/messages/:messageId/delete-for-all - Xóa tin nhắn cho tất cả (chỉ người gửi)
+router.delete('/:messageId/delete-for-all', auth, initChatService, async (req, res) => {
     try {
-        const { conversationId } = req.params;
-        const userId = req.user.id;
+        const { messageId } = req.params;
+        const userId = req.user._id;
 
-        const result = await req.chatService.markConversationAsRead(conversationId, userId);
+        // Gọi hàm thu hồi tin nhắn (sẽ kiểm tra quyền và thời gian)
+        await req.chatService.recallMessage(messageId, userId);
 
         res.json({
             success: true,
-            message: 'Đã đánh dấu tất cả tin nhắn trong cuộc trò chuyện đã đọc',
-            data: {
-                markedCount: result.markedCount
-            }
+            message: 'Tin nhắn đã được xóa cho tất cả mọi người'
         });
     } catch (error) {
-        console.error('Error marking conversation as read:', error);
+        console.error('Error deleting message for all:', error);
         res.status(500).json({
             success: false,
-            message: 'Lỗi khi đánh dấu cuộc trò chuyện đã đọc',
-            error: error.message
+            message: error.message
         });
     }
 });
 
-// PUT /api/messages/conversations/:conversationId/reset-read-status - Reset read status khi có vấn đề đồng bộ
-router.put('/conversations/:conversationId/reset-read-status', auth, initChatService, async (req, res) => {
+// DELETE /api/messages/conversations/:conversationId/delete-all-for-me - Xóa tất cả tin nhắn trong cuộc trò chuyện cho riêng mình
+router.delete('/conversations/:conversationId/delete-all-for-me', auth, initChatService, async (req, res) => {
     try {
         const { conversationId } = req.params;
-        const userId = req.user.id;
+        const userId = req.user._id;
 
-        const Conversation = require('../models/Conversation');
-        const conversation = await Conversation.findById(conversationId);
-
-        if (!conversation || !conversation.participants.includes(userId)) {
-            return res.status(403).json({
-                success: false,
-                message: 'Không có quyền truy cập cuộc trò chuyện này'
-            });
-        }
-
-        await conversation.resetReadStatus(userId);
+        await req.chatService.deleteAllMessagesForUser(conversationId, userId);
 
         res.json({
             success: true,
-            message: 'Đã reset read status thành công'
+            message: 'Đã xóa tất cả tin nhắn trong cuộc trò chuyện cho bạn'
         });
     } catch (error) {
-        console.error('Error resetting read status:', error);
+        console.error('Error deleting all messages for user in conversation:', error);
         res.status(500).json({
             success: false,
-            message: 'Lỗi khi reset read status',
-            error: error.message
+            message: error.message
         });
     }
 });

@@ -67,6 +67,32 @@ const conversationSchema = new mongoose.Schema({
         }
     }],
 
+    // Cài đặt chấp nhận tin nhắn cho từng người
+    messageAcceptanceSettings: [{
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        requireAcceptance: {
+            type: Boolean,
+            default: false
+        },
+        autoAcceptFromKnownUsers: {
+            type: Boolean,
+            default: true
+        },
+        updatedAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+
+    // Danh sách tin nhắn đang chờ chấp nhận
+    pendingMessages: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Message'
+    }],
+
     // Thống kê
     messageCount: {
         type: Number,
@@ -144,49 +170,29 @@ conversationSchema.methods.markAsRead = function (userId, messageId = null) {
 conversationSchema.methods.getUnreadCount = async function (userId) {
     const Message = mongoose.model('Message');
 
+    // Tìm tin nhắn cuối cùng mà user đã đọc trong cuộc trò chuyện này
     const userReadStatus = this.readStatus.find(
         status => status.userId.toString() === userId.toString()
     );
 
-    if (!userReadStatus || !userReadStatus.lastReadMessageId) {
-        // Nếu chưa đọc tin nhắn nào, đếm tất cả tin nhắn của người khác
-        return await Message.countDocuments({
-            conversationId: this._id,
-            senderId: { $ne: userId },
-            isDeleted: false
-        });
+    let query = {
+        conversationId: this._id,
+        receiverId: userId, // Tin nhắn gửi đến user này
+        status: { $ne: 'read' }, // Chưa được đánh dấu là đã đọc
+        isDeleted: false, // Không phải tin nhắn đã bị xóa hoàn toàn
+        isRecalled: false, // Không phải tin nhắn đã bị thu hồi
+        'deletedBy.userId': { $ne: userId } // Không phải tin nhắn đã bị xóa một phía cho user này
+    };
+
+    if (userReadStatus && userReadStatus.lastReadMessageId) {
+        // Nếu có lastReadMessageId, chỉ đếm những tin nhắn sau đó
+        const lastReadMessage = await Message.findById(userReadStatus.lastReadMessageId);
+        if (lastReadMessage) {
+            query.createdAt = { $gt: lastReadMessage.createdAt };
+        }
     }
 
-    // Đếm tin nhắn sau tin nhắn đã đọc cuối cùng
-    const lastReadMessage = await Message.findById(userReadStatus.lastReadMessageId);
-    if (!lastReadMessage) {
-        // Nếu không tìm thấy tin nhắn đã đọc cuối cùng, reset và đếm lại
-        console.log(`Warning: lastReadMessage not found for user ${userId} in conversation ${this._id}`);
-        return await Message.countDocuments({
-            conversationId: this._id,
-            senderId: { $ne: userId },
-            isDeleted: false
-        });
-    }
-
-    // Đếm tin nhắn chưa đọc dựa trên status thay vì chỉ dựa vào createdAt
-    const unreadByStatus = await Message.countDocuments({
-        conversationId: this._id,
-        receiverId: userId,
-        status: { $ne: 'read' },
-        isDeleted: false
-    });
-
-    // Đếm tin nhắn sau tin nhắn đã đọc cuối cùng (backup method)
-    const unreadByTime = await Message.countDocuments({
-        conversationId: this._id,
-        senderId: { $ne: userId },
-        createdAt: { $gt: lastReadMessage.createdAt },
-        isDeleted: false
-    });
-
-    // Sử dụng method nào cho kết quả chính xác hơn
-    return Math.min(unreadByStatus, unreadByTime);
+    return await Message.countDocuments(query);
 };
 
 // Method để reset read status khi có vấn đề đồng bộ
@@ -265,6 +271,59 @@ conversationSchema.statics.getUserConversations = function (userId, page = 1, li
         .sort({ lastMessageAt: -1 })
         .skip(skip)
         .limit(limit);
+};
+
+// Method để cập nhật cài đặt chấp nhận tin nhắn
+conversationSchema.methods.updateMessageAcceptanceSettings = function (userId, settings) {
+    const settingsIndex = this.messageAcceptanceSettings.findIndex(
+        setting => setting.userId.toString() === userId.toString()
+    );
+
+    if (settingsIndex >= 0) {
+        this.messageAcceptanceSettings[settingsIndex] = {
+            ...this.messageAcceptanceSettings[settingsIndex],
+            ...settings,
+            userId: userId,
+            updatedAt: new Date()
+        };
+    } else {
+        this.messageAcceptanceSettings.push({
+            userId: userId,
+            ...settings,
+            updatedAt: new Date()
+        });
+    }
+
+    return this.save();
+};
+
+// Method để lấy cài đặt chấp nhận tin nhắn của user
+conversationSchema.methods.getMessageAcceptanceSettings = function (userId) {
+    const settings = this.messageAcceptanceSettings.find(
+        setting => setting.userId.toString() === userId.toString()
+    );
+
+    return settings || {
+        requireAcceptance: false,
+        autoAcceptFromKnownUsers: true
+    };
+};
+
+// Method để thêm tin nhắn vào danh sách chờ chấp nhận
+conversationSchema.methods.addPendingMessage = function (messageId) {
+    if (!this.pendingMessages.includes(messageId)) {
+        this.pendingMessages.push(messageId);
+        return this.save();
+    }
+    return Promise.resolve(this);
+};
+
+// Method để xóa tin nhắn khỏi danh sách chờ chấp nhận
+conversationSchema.methods.removePendingMessage = function (messageId) {
+    this.pendingMessages = this.pendingMessages.filter(
+        id => id.toString() !== messageId.toString()
+    );
+    return this.save();
 };
 
 module.exports = mongoose.model('Conversation', conversationSchema);

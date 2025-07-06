@@ -9,7 +9,9 @@ import {
     Paper,
     Chip,
     Divider,
-    CircularProgress
+    CircularProgress,
+    Menu,
+    MenuItem
 } from '@mui/material';
 import { OnlineBadge } from './OnlineIndicator';
 import TypingIndicator from './TypingIndicator';
@@ -17,8 +19,13 @@ import { useChat } from '../../context/ChatContext';
 import socket from '../../socket';
 import {
     ArrowBack as ArrowBackIcon,
-    Send as SendIcon
+    Send as SendIcon,
+    Settings as SettingsIcon,
+    NotificationImportant as NotificationImportantIcon,
+    MoreVert as MoreVertIcon
 } from '@mui/icons-material';
+import MessageAcceptanceDialog from './MessageAcceptanceDialog';
+import ConversationSettings from './ConversationSettings';
 
 const constructUrl = (url) => {
     if (!url) return null;
@@ -40,8 +47,15 @@ const ConversationView = ({
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
-    const { startTyping, stopTyping } = useChat();
+    const { startTyping, stopTyping, recallMessage, deleteMessage } = useChat();
     const typingTimeoutRef = useRef(null);
+    const [pendingMessage, setPendingMessage] = useState(null);
+    const [showAcceptanceDialog, setShowAcceptanceDialog] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [pendingCount, setPendingCount] = useState(0);
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [selectedMessage, setSelectedMessage] = useState(null);
+    const [hoveredMessageId, setHoveredMessageId] = useState(null);
 
     // Auto scroll to bottom when new messages arrive (với delay để tránh conflict)
     useEffect(() => {
@@ -72,6 +86,39 @@ const ConversationView = ({
             socket.off('newMessage', handleNewMessage);
         };
     }, [conversation]);
+
+    // Listen for pending message events
+    useEffect(() => {
+        const handlePendingMessage = (data) => {
+            if (data.conversationId === conversation?._id) {
+                setPendingMessage(data);
+                setShowAcceptanceDialog(true);
+                setPendingCount(prev => prev + 1);
+            }
+        };
+
+        const handleMessageAccepted = (data) => {
+            if (data.conversationId === conversation?._id) {
+                setPendingCount(prev => Math.max(0, prev - 1));
+            }
+        };
+
+        const handleMessageRejected = (data) => {
+            if (data.conversationId === conversation?._id) {
+                setPendingCount(prev => Math.max(0, prev - 1));
+            }
+        };
+
+        socket.on('pendingMessage', handlePendingMessage);
+        socket.on('messageAccepted', handleMessageAccepted);
+        socket.on('messageRejected', handleMessageRejected);
+
+        return () => {
+            socket.off('pendingMessage', handlePendingMessage);
+            socket.off('messageAccepted', handleMessageAccepted);
+            socket.off('messageRejected', handleMessageRejected);
+        };
+    }, [conversation?._id]);
 
     const scrollToBottom = () => {
         // Scroll trong messages container, không scroll toàn page
@@ -225,6 +272,52 @@ const ConversationView = ({
         });
     };
 
+    const handleAcceptMessage = (message) => {
+        console.log('Message accepted:', message);
+        // Message will be added to conversation through socket event
+    };
+
+    const handleRejectMessage = (message) => {
+        console.log('Message rejected:', message);
+        // Message will be removed from pending list
+    };
+
+    const handleOpenSettings = () => {
+        setShowSettings(true);
+    };
+
+    const handleMenuOpen = (event, message) => {
+        setAnchorEl(event.currentTarget);
+        setSelectedMessage(message);
+    };
+
+    const handleMenuClose = () => {
+        setAnchorEl(null);
+        setSelectedMessage(null);
+    };
+
+    const handleRevokeMessage = async () => {
+        if (selectedMessage && selectedMessage._id) {
+            try {
+                await recallMessage(selectedMessage._id);
+            } catch (error) {
+                console.error('Error recalling message:', error);
+            }
+        }
+        handleMenuClose();
+    };
+
+    const handleDeleteMessage = async () => {
+        if (selectedMessage && selectedMessage._id) {
+            try {
+                await deleteMessage(selectedMessage._id);
+            } catch (error) {
+                console.error('Error deleting message:', error);
+            }
+        }
+        handleMenuClose();
+    };
+
     const otherParticipant = getOtherParticipant();
 
     return (
@@ -343,6 +436,51 @@ const ConversationView = ({
                         {otherParticipant.email}
                     </Typography>
                 </Box>
+
+                {/* Settings and Pending Messages */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {pendingCount > 0 && (
+                        <IconButton
+                            onClick={() => setShowAcceptanceDialog(true)}
+                            sx={{
+                                color: 'white',
+                                backgroundColor: 'rgba(255,193,7,0.2)',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(255,193,7,0.3)'
+                                }
+                            }}
+                        >
+                            <NotificationImportantIcon />
+                            {pendingCount > 0 && (
+                                <Chip
+                                    label={pendingCount}
+                                    size="small"
+                                    sx={{
+                                        position: 'absolute',
+                                        top: -8,
+                                        right: -8,
+                                        minWidth: 20,
+                                        height: 20,
+                                        backgroundColor: '#ff4757',
+                                        color: 'white',
+                                        fontSize: '0.7rem'
+                                    }}
+                                />
+                            )}
+                        </IconButton>
+                    )}
+                    <IconButton
+                        onClick={handleOpenSettings}
+                        sx={{
+                            color: 'white',
+                            '&:hover': {
+                                backgroundColor: 'rgba(255,255,255,0.1)'
+                            }
+                        }}
+                    >
+                        <SettingsIcon />
+                    </IconButton>
+                </Box>
             </Box>
 
             {/* Messages */}
@@ -424,6 +562,8 @@ const ConversationView = ({
                                         mb: 2,
                                         alignItems: 'flex-end'
                                     }}
+                                    onMouseEnter={() => setHoveredMessageId(message._id)}
+                                    onMouseLeave={() => setHoveredMessageId(null)}
                                 >
                                     {!isOwnMessage && showAvatar && (
                                         <Avatar
@@ -475,8 +615,8 @@ const ConversationView = ({
                                             } : {}
                                         }}
                                     >
-                                        <Typography variant="body2">
-                                            {message.content}
+                                        <Typography variant="body2" sx={{ fontStyle: message.isRecalled || message.isDeletedForUser ? 'italic' : 'normal', color: message.isRecalled || message.isDeletedForUser ? 'text.secondary' : 'inherit' }}>
+                                            {message.isRecalled ? 'Tin nhắn đã được thu hồi' : message.isDeletedForUser ? 'Tin nhắn đã bị xóa' : message.content}
                                         </Typography>
                                         <Typography
                                             variant="caption"
@@ -489,6 +629,22 @@ const ConversationView = ({
                                         >
                                             {formatMessageTime(message.createdAt)}
                                         </Typography>
+                                        {isOwnMessage && (hoveredMessageId === message._id || Boolean(anchorEl)) && (
+                                            <IconButton
+                                                size="small"
+                                                sx={{
+                                                    position: 'absolute',
+                                                    top: 4,
+                                                    right: 4,
+                                                    color: 'white',
+                                                    opacity: 0.7,
+                                                    '&:hover': { opacity: 1, backgroundColor: 'rgba(255,255,255,0.1)' }
+                                                }}
+                                                onClick={(event) => handleMenuOpen(event, message)}
+                                            >
+                                                <MoreVertIcon fontSize="small" />
+                                            </IconButton>
+                                        )}
                                     </Paper>
                                 </Box>
                             );
@@ -596,6 +752,41 @@ const ConversationView = ({
                     </IconButton>
                 </Box>
             </Box>
+
+            {/* Message Acceptance Dialog */}
+            <MessageAcceptanceDialog
+                open={showAcceptanceDialog}
+                onClose={() => setShowAcceptanceDialog(false)}
+                pendingMessage={pendingMessage}
+                onAccept={handleAcceptMessage}
+                onReject={handleRejectMessage}
+            />
+
+            {/* Conversation Settings Dialog */}
+            <ConversationSettings
+                open={showSettings}
+                onClose={() => setShowSettings(false)}
+                conversationId={conversation?._id}
+                currentUserId={currentUser?._id}
+            />
+
+            {/* Message Action Menu */}
+            <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleMenuClose}
+                anchorOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+                transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+            >
+                <MenuItem onClick={handleRevokeMessage}>Thu hồi</MenuItem>
+                <MenuItem onClick={handleDeleteMessage}>Xóa</MenuItem>
+            </Menu>
         </Box>
     );
 };

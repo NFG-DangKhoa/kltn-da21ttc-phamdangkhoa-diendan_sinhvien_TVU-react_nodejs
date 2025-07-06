@@ -18,7 +18,9 @@ import {
     Image as ImageIcon,
     AttachFile as AttachFileIcon,
     Delete as DeleteIcon,
-    Edit as EditIcon
+    Edit as EditIcon,
+    DeleteSweep as DeleteSweepIcon,
+    Undo as UndoIcon
 } from '@mui/icons-material';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -30,6 +32,8 @@ const MessageList = ({ messages, conversation }) => {
     const { user } = useAuth();
     const [menuAnchor, setMenuAnchor] = useState(null);
     const [selectedMessage, setSelectedMessage] = useState(null);
+    const [deletingAll, setDeletingAll] = useState(false);
+    const [hoveredMessageId, setHoveredMessageId] = useState(null);
 
     // Auto scroll to bottom when new messages arrive
     useEffect(() => {
@@ -53,9 +57,9 @@ const MessageList = ({ messages, conversation }) => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    const handleMessageMenu = (event, message) => {
-        setMenuAnchor(event.currentTarget);
+    const handleMenuClick = (event, message) => {
         setSelectedMessage(message);
+        setMenuAnchor(event.currentTarget);
     };
 
     const handleCloseMenu = () => {
@@ -74,6 +78,45 @@ const MessageList = ({ messages, conversation }) => {
             }
         }
         handleCloseMenu();
+    };
+
+    const handleDeleteAllMessages = async () => {
+        if (!conversation?._id) return;
+
+        setDeletingAll(true);
+        try {
+            await chatService.deleteAllMessages(conversation._id);
+            console.log('✅ All messages deleted successfully');
+        } catch (error) {
+            console.error('❌ Error deleting all messages:', error);
+            // Could show a snackbar or toast here
+        } finally {
+            setDeletingAll(false);
+        }
+        handleCloseMenu();
+    };
+
+    const handleRecallMessage = async () => {
+        if (selectedMessage) {
+            try {
+                await chatService.recallMessage(selectedMessage._id);
+                console.log('✅ Message recalled successfully');
+            } catch (error) {
+                console.error('❌ Error recalling message:', error);
+                // Could show a snackbar or toast here
+            }
+        }
+        handleCloseMenu();
+    };
+
+    const canRecallMessage = (message) => {
+        if (!isMyMessage(message)) return false;
+
+        const now = new Date();
+        const messageTime = new Date(message.createdAt);
+        const diffMinutes = (now - messageTime) / (1000 * 60);
+
+        return diffMinutes <= 5; // 5 minutes recall window
     };
 
     const isMyMessage = (message) => {
@@ -107,6 +150,21 @@ const MessageList = ({ messages, conversation }) => {
                     }}
                 >
                     Tin nhắn đã bị xóa
+                </Typography>
+            );
+        }
+
+        if (message.isRecalled) {
+            return (
+                <Typography
+                    variant="body2"
+                    sx={{
+                        fontStyle: 'italic',
+                        color: 'text.secondary',
+                        opacity: 0.7
+                    }}
+                >
+                    Tin nhắn đã được thu hồi
                 </Typography>
             );
         }
@@ -266,7 +324,11 @@ const MessageList = ({ messages, conversation }) => {
                                 new Date(messages[index - 1].createdAt).getTime() > 300000; // 5 minutes
 
                             return (
-                                <Box key={message._id}>
+                                <Box
+                                    key={message._id}
+                                    onMouseEnter={() => setHoveredMessageId(message._id)}
+                                    onMouseLeave={() => setHoveredMessageId(null)}
+                                >
                                     {showTime && (
                                         <Box sx={{ textAlign: 'center', my: 2 }}>
                                             <Chip
@@ -283,7 +345,7 @@ const MessageList = ({ messages, conversation }) => {
                                             display: 'flex',
                                             justifyContent: isMe ? 'flex-end' : 'flex-start',
                                             mb: 1,
-                                            alignItems: 'flex-end'
+                                            alignItems: 'center'
                                         }}
                                     >
                                         {showAvatar && !isMe && (
@@ -295,10 +357,21 @@ const MessageList = ({ messages, conversation }) => {
                                             </Avatar>
                                         )}
 
+                                        {isMe && hoveredMessageId === message._id && (
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => handleMenuClick(e, message)}
+                                                sx={{ mr: 0.5 }}
+                                            >
+                                                <MoreVertIcon fontSize="small" />
+                                            </IconButton>
+                                        )}
+
                                         <Box
                                             sx={{
+                                                position: 'relative',
                                                 maxWidth: '70%',
-                                                ml: !isMe && !showAvatar ? 5 : 0
+                                                ml: !isMe && !showAvatar ? 5 : 0,
                                             }}
                                         >
                                             <Paper
@@ -308,11 +381,7 @@ const MessageList = ({ messages, conversation }) => {
                                                     color: isMe ? 'primary.contrastText' : 'text.primary',
                                                     borderRadius: 2,
                                                     borderTopRightRadius: isMe ? 0.5 : 2,
-                                                    borderTopLeftRadius: !isMe ? 0.5 : 2,
-                                                    position: 'relative',
-                                                    '&:hover .message-menu': {
-                                                        opacity: 1
-                                                    }
+                                                    borderTopLeftRadius: !isMe ? 0.5 : 2
                                                 }}
                                             >
                                                 {renderMessageContent(message)}
@@ -334,30 +403,20 @@ const MessageList = ({ messages, conversation }) => {
 
                                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                                         {getMessageStatus(message)}
-
-                                                        {isMe && !message.isDeleted && (
-                                                            <IconButton
-                                                                size="small"
-                                                                className="message-menu"
-                                                                onClick={(e) => handleMessageMenu(e, message)}
-                                                                sx={{
-                                                                    opacity: 0.6,
-                                                                    transition: 'opacity 0.2s',
-                                                                    color: 'inherit',
-                                                                    p: 0.25,
-                                                                    '&:hover': {
-                                                                        opacity: 1,
-                                                                        backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <MoreVertIcon fontSize="small" />
-                                                            </IconButton>
-                                                        )}
                                                     </Box>
                                                 </Box>
                                             </Paper>
                                         </Box>
+
+                                        {!isMe && hoveredMessageId === message._id && (
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => handleMenuClick(e, message)}
+                                                sx={{ ml: 0.5 }}
+                                            >
+                                                <MoreVertIcon fontSize="small" />
+                                            </IconButton>
+                                        )}
                                     </Box>
                                 </Box>
                             );
@@ -371,14 +430,47 @@ const MessageList = ({ messages, conversation }) => {
 
             {/* Message Menu */}
             <Menu
-                anchorEl={menuAnchor}
                 open={Boolean(menuAnchor)}
                 onClose={handleCloseMenu}
+                anchorEl={menuAnchor}
+                anchorOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+                transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'left',
+                }}
+                sx={{ zIndex: 1002 }}
             >
-                <MenuItem onClick={handleDeleteMessage}>
-                    <DeleteIcon sx={{ mr: 1 }} />
-                    Xóa tin nhắn
-                </MenuItem>
+                {selectedMessage && isMyMessage(selectedMessage) && canRecallMessage(selectedMessage) && (
+                    <MenuItem onClick={handleRecallMessage}>
+                        <UndoIcon sx={{ mr: 1 }} />
+                        Thu hồi tin nhắn
+                    </MenuItem>
+                )}
+                {selectedMessage && isMyMessage(selectedMessage) && (
+                    <MenuItem>
+                        <EditIcon sx={{ mr: 1 }} />
+                        Chỉnh sửa tin nhắn
+                    </MenuItem>
+                )}
+                {selectedMessage && (
+                    <MenuItem onClick={handleDeleteMessage}>
+                        <DeleteIcon sx={{ mr: 1 }} />
+                        Xóa tin nhắn
+                    </MenuItem>
+                )}
+                {selectedMessage && isMyMessage(selectedMessage) && (
+                    <MenuItem
+                        onClick={handleDeleteAllMessages}
+                        disabled={deletingAll}
+                        sx={{ color: 'error.main' }}
+                    >
+                        <DeleteSweepIcon sx={{ mr: 1 }} />
+                        {deletingAll ? 'Đang xóa...' : 'Xóa tất cả tin nhắn'}
+                    </MenuItem>
+                )}
             </Menu>
         </Box>
     );

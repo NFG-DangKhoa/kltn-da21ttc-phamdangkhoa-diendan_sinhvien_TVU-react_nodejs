@@ -7,7 +7,7 @@ exports.getNotifications = async (req, res) => {
         const { page = 1, limit = 20, unreadOnly = false } = req.query;
         const userId = req.user.id;
 
-        const query = { 
+        const query = {
             recipient: userId,
             isVisible: true
         };
@@ -127,7 +127,7 @@ exports.getUnreadCount = async (req, res) => {
 exports.createBroadcastNotification = async (req, res) => {
     try {
         const { title, message, targetRole, priority = 'normal', expiresAt } = req.body;
-        const adminId = req.user.id;
+        const adminId = req.user._id;
 
         // Kiểm tra quyền admin
         if (req.user.role !== 'admin') {
@@ -186,7 +186,7 @@ exports.createBroadcastNotification = async (req, res) => {
 exports.createUserNotification = async (req, res) => {
     try {
         const { userId, title, message, type = 'announcement', priority = 'normal' } = req.body;
-        const adminId = req.user.id;
+        const adminId = req.user._id;
 
         // Kiểm tra quyền admin
         if (req.user.role !== 'admin') {

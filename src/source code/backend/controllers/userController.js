@@ -235,7 +235,7 @@ exports.getAllMembers = async (req, res) => {
 // Get user stats
 exports.getUserStats = async (req, res) => {
     try {
-        const userId = req.params.userId || req.user.id;
+        const userId = req.params.userId || req.user._id;
 
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json({ message: 'ID người dùng không hợp lệ.' });
@@ -438,7 +438,7 @@ exports.updateProfileImage = async (req, res) => {
             return res.status(400).json({ message: 'Dữ liệu ảnh, cắt và loại ảnh là bắt buộc.' });
         }
 
-        const currentUser = await User.findById(req.user.id);
+        const currentUser = await User.findById(req.user._id);
         if (!currentUser) {
             return res.status(404).json({ message: 'Không tìm thấy người dùng.' });
         }

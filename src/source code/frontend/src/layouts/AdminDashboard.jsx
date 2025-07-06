@@ -27,6 +27,7 @@ import AdminFeaturedPage from '../pages/admin/AdminFeaturedPage';
 import AdminNotificationsPage from '../pages/admin/AdminNotificationsPage';
 import AdminDataManagementPage from '../pages/admin/AdminDataManagementPage';
 import AdminForumRulesPage from '../pages/admin/AdminForumRulesPage';
+import AdminMarqueePage from '../pages/Admin/AdminMarqueePage';
 
 const AdminDashboard = () => {
     const { mode, toggleColorMode } = useContext(ThemeContext);

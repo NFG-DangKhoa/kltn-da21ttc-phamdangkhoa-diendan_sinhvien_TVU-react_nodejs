@@ -30,7 +30,9 @@ import {
     Avatar,
     Tooltip,
     Fab,
-    Badge
+    Badge,
+    Tabs,
+    Tab
 } from '@mui/material';
 import {
     Notifications as NotificationsIcon,
@@ -49,8 +51,10 @@ import {
 } from '@mui/icons-material';
 // Removed DateTimePicker imports to avoid dependency issues
 import api from '../../services/api';
+import AdminMarqueePage from '../Admin/AdminMarqueePage';
 
 const AdminNotificationsPage = () => {
+    const [currentTab, setCurrentTab] = useState(0);
     const [notifications, setNotifications] = useState([]);
     const [users, setUsers] = useState([]);
     const [stats, setStats] = useState(null);
@@ -276,8 +280,10 @@ const AdminNotificationsPage = () => {
                         variant="outlined"
                         startIcon={<RefreshIcon />}
                         onClick={() => {
-                            fetchNotifications();
-                            fetchStats();
+                            if (currentTab === 0) {
+                                fetchNotifications();
+                                fetchStats();
+                            }
                         }}
                     >
                         Làm mới
@@ -295,180 +301,195 @@ const AdminNotificationsPage = () => {
                 </Box>
             </Box>
 
-            {/* Statistics Cards */}
-            {stats && (
-                <Grid container spacing={3} mb={4}>
-                    <Grid item xs={12} md={3}>
-                        <Card>
-                            <CardContent sx={{ textAlign: 'center' }}>
-                                <Typography variant="h4" color="primary">
-                                    {stats.totalNotifications}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Tổng thông báo
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid item xs={12} md={3}>
-                        <Card>
-                            <CardContent sx={{ textAlign: 'center' }}>
-                                <Typography variant="h4" color="warning.main">
-                                    {stats.totalUnread}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Chưa đọc
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid item xs={12} md={3}>
-                        <Card>
-                            <CardContent sx={{ textAlign: 'center' }}>
-                                <Typography variant="h4" color="success.main">
-                                    {stats.totalRead}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Đã đọc
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid item xs={12} md={3}>
-                        <Card>
-                            <CardContent sx={{ textAlign: 'center' }}>
-                                <Typography variant="h4" color="info.main">
-                                    {stats.todayNotifications}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Hôm nay
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                </Grid>
-            )}
+            <Paper sx={{ width: '100%', mb: 2 }}>
+                <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                    <Tab label="Thông báo chung" />
+                    <Tab label="Thông báo chạy" />
+                </Tabs>
 
-            {/* Action Buttons */}
-            <Box display="flex" gap={2} mb={3}>
-                <Button
-                    variant="contained"
-                    startIcon={<GroupIcon />}
-                    onClick={() => openCreateDialog('broadcast')}
-                    sx={{ bgcolor: 'primary.main' }}
-                >
-                    Gửi thông báo chung
-                </Button>
-                <Button
-                    variant="contained"
-                    startIcon={<PersonIcon />}
-                    onClick={() => openCreateDialog('individual')}
-                    sx={{ bgcolor: 'secondary.main' }}
-                >
-                    Gửi thông báo cá nhân
-                </Button>
-            </Box>
-
-            {/* Notifications Table */}
-            <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-                <TableContainer sx={{ maxHeight: 600 }}>
-                    <Table stickyHeader>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Loại</TableCell>
-                                <TableCell>Tiêu đề</TableCell>
-                                <TableCell>Người nhận</TableCell>
-                                <TableCell>Độ ưu tiên</TableCell>
-                                <TableCell>Trạng thái</TableCell>
-                                <TableCell>Ngày tạo</TableCell>
-                                <TableCell>Thao tác</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {notifications.map((notification) => (
-                                <TableRow key={notification._id} hover>
-                                    <TableCell>
-                                        <Box display="flex" alignItems="center" gap={1}>
-                                            {getTypeIcon(notification.type)}
-                                            <Typography variant="body2">
-                                                {notification.type}
+                {currentTab === 0 && (
+                    <Box sx={{ p: 3 }}>
+                        {/* Statistics Cards */}
+                        {stats && (
+                            <Grid container spacing={3} mb={4}>
+                                <Grid item xs={12} md={3}>
+                                    <Card>
+                                        <CardContent sx={{ textAlign: 'center' }}>
+                                            <Typography variant="h4" color="primary">
+                                                {stats.totalNotifications}
                                             </Typography>
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Typography variant="subtitle2">
-                                            {notification.title}
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            {notification.message.substring(0, 50)}...
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                        {notification.recipient ? (
-                                            <Box display="flex" alignItems="center" gap={1}>
-                                                <Avatar sx={{ width: 24, height: 24 }}>
-                                                    {notification.recipient.fullName?.charAt(0)}
-                                                </Avatar>
-                                                <Typography variant="body2">
-                                                    {notification.recipient.fullName}
+                                            <Typography variant="body2" color="text.secondary">
+                                                Tổng thông báo
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                <Grid item xs={12} md={3}>
+                                    <Card>
+                                        <CardContent sx={{ textAlign: 'center' }}>
+                                            <Typography variant="h4" color="warning.main">
+                                                {stats.totalUnread}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Chưa đọc
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                <Grid item xs={12} md={3}>
+                                    <Card>
+                                        <CardContent sx={{ textAlign: 'center' }}>
+                                            <Typography variant="h4" color="success.main">
+                                                {stats.totalRead}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Đã đọc
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                <Grid item xs={12} md={3}>
+                                    <Card>
+                                        <CardContent sx={{ textAlign: 'center' }}>
+                                            <Typography variant="h4" color="info.main">
+                                                {stats.todayNotifications}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Hôm nay
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                            </Grid>
+                        )}
+
+                        {/* Action Buttons */}
+                        <Box display="flex" gap={2} mb={3}>
+                            <Button
+                                variant="contained"
+                                startIcon={<GroupIcon />}
+                                onClick={() => openCreateDialog('broadcast')}
+                                sx={{ bgcolor: 'primary.main' }}
+                            >
+                                Gửi thông báo chung
+                            </Button>
+                            <Button
+                                variant="contained"
+                                startIcon={<PersonIcon />}
+                                onClick={() => openCreateDialog('individual')}
+                                sx={{ bgcolor: 'secondary.main' }}
+                            >
+                                Gửi thông báo cá nhân
+                            </Button>
+                        </Box>
+
+                        {/* Notifications Table */}
+                        <TableContainer sx={{ maxHeight: 600 }}>
+                            <Table stickyHeader>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>Loại</TableCell>
+                                        <TableCell>Tiêu đề</TableCell>
+                                        <TableCell>Người nhận</TableCell>
+                                        <TableCell>Độ ưu tiên</TableCell>
+                                        <TableCell>Trạng thái</TableCell>
+                                        <TableCell>Ngày tạo</TableCell>
+                                        <TableCell>Thao tác</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {notifications.map((notification) => (
+                                        <TableRow key={notification._id} hover>
+                                            <TableCell>
+                                                <Box display="flex" alignItems="center" gap={1}>
+                                                    {getTypeIcon(notification.type)}
+                                                    <Typography variant="body2">
+                                                        {notification.type}
+                                                    </Typography>
+                                                </Box>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="subtitle2">
+                                                    {notification.title}
                                                 </Typography>
-                                            </Box>
-                                        ) : (
-                                            <Chip label="Tất cả" size="small" color="primary" />
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={notification.priority}
-                                            size="small"
-                                            color={getPriorityColor(notification.priority)}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={notification.isRead ? 'Đã đọc' : 'Chưa đọc'}
-                                            size="small"
-                                            color={notification.isRead ? 'success' : 'warning'}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        {new Date(notification.createdAt).toLocaleDateString('vi-VN')}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Box display="flex" gap={1}>
-                                            <Tooltip title="Xem chi tiết">
-                                                <IconButton size="small">
-                                                    <ViewIcon />
-                                                </IconButton>
-                                            </Tooltip>
-                                            <Tooltip title="Xóa">
-                                                <IconButton
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {notification.message.substring(0, 50)}...
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                {notification.recipient ? (
+                                                    <Box display="flex" alignItems="center" gap={1}>
+                                                        <Avatar sx={{ width: 24, height: 24 }}>
+                                                            {notification.recipient.fullName?.charAt(0)}
+                                                        </Avatar>
+                                                        <Typography variant="body2">
+                                                            {notification.recipient.fullName}
+                                                        </Typography>
+                                                    </Box>
+                                                ) : (
+                                                    <Chip label="Tất cả" size="small" color="primary" />
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    label={notification.priority}
                                                     size="small"
-                                                    color="error"
-                                                    onClick={() => handleDeleteNotification(notification._id)}
-                                                >
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            </Tooltip>
-                                        </Box>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-                <TablePagination
-                    rowsPerPageOptions={[5, 10, 25, 50]}
-                    component="div"
-                    count={totalCount}
-                    rowsPerPage={rowsPerPage}
-                    page={page}
-                    onPageChange={(event, newPage) => setPage(newPage)}
-                    onRowsPerPageChange={(event) => {
-                        setRowsPerPage(parseInt(event.target.value, 10));
-                        setPage(0);
-                    }}
-                />
+                                                    color={getPriorityColor(notification.priority)}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    label={notification.isRead ? 'Đã đọc' : 'Chưa đọc'}
+                                                    size="small"
+                                                    color={notification.isRead ? 'success' : 'warning'}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                {new Date(notification.createdAt).toLocaleDateString('vi-VN')}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Box display="flex" gap={1}>
+                                                    <Tooltip title="Xem chi tiết">
+                                                        <IconButton size="small">
+                                                            <ViewIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Xóa">
+                                                        <IconButton
+                                                            size="small"
+                                                            color="error"
+                                                            onClick={() => handleDeleteNotification(notification._id)}
+                                                        >
+                                                            <DeleteIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Box>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                        <TablePagination
+                            rowsPerPageOptions={[5, 10, 25, 50]}
+                            component="div"
+                            count={totalCount}
+                            rowsPerPage={rowsPerPage}
+                            page={page}
+                            onPageChange={(event, newPage) => setPage(newPage)}
+                            onRowsPerPageChange={(event) => {
+                                setRowsPerPage(parseInt(event.target.value, 10));
+                                setPage(0);
+                            }}
+                        />
+                    </Box>
+                )}
+
+                {currentTab === 1 && (
+                    <Box sx={{ p: 3 }}>
+                        <AdminMarqueePage />
+                    </Box>
+                )}
             </Paper>
 
             {/* Create/Edit Notification Dialog */}

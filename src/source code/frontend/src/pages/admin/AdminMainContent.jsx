@@ -9,6 +9,9 @@ const MainContentArea = styled('main')(({ theme }) => ({
     padding: theme.spacing(3),
     backgroundColor: theme.palette.background.default,
     minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
 }));
 
 const AdminMainContent = ({ children, toggleColorMode, mode }) => {

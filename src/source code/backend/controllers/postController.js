@@ -864,7 +864,7 @@ exports.updatePost = async (req, res) => {
 exports.deletePost = async (req, res) => {
     try {
         const postId = req.params.id; // Changed from req.params.postId for consistency with other functions
-        const userId = req.user.id; // Assuming req.user.id is available from authentication middleware
+        const userId = req.user._id; // Assuming req.user._id is available from authentication middleware
 
         const post = await Post.findById(postId);
         if (!post) {

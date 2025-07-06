@@ -253,6 +253,94 @@ class ChatService {
         formatted = formatted.replace(/\n/g, '<br>');
         return formatted;
     }
+
+    // Xóa tất cả tin nhắn trong cuộc trò chuyện
+    async deleteAllMessages(conversationId) {
+        try {
+            const response = await api.delete(`/messages/conversations/${conversationId}/all`);
+            return response.data;
+        } catch (error) {
+            console.error('Error deleting all messages:', error);
+            throw error;
+        }
+    }
+
+    // Thu hồi tin nhắn
+    async recallMessage(messageId) {
+        try {
+            const response = await api.put(`/messages/${messageId}/recall`);
+            return response.data;
+        } catch (error) {
+            console.error('Error recalling message:', error);
+            throw error;
+        }
+    }
+
+    // Lấy tin nhắn đang chờ chấp nhận
+    async getPendingMessages() {
+        try {
+            const response = await api.get('/messages/pending');
+            return response.data;
+        } catch (error) {
+            console.error('Error getting pending messages:', error);
+            throw error;
+        }
+    }
+
+    // Chấp nhận tin nhắn
+    async acceptMessage(messageId) {
+        try {
+            const response = await api.post(`/messages/${messageId}/accept`);
+            return response.data;
+        } catch (error) {
+            console.error('Error accepting message:', error);
+            throw error;
+        }
+    }
+
+    // Từ chối tin nhắn
+    async rejectMessage(messageId) {
+        try {
+            const response = await api.post(`/messages/${messageId}/reject`);
+            return response.data;
+        } catch (error) {
+            console.error('Error rejecting message:', error);
+            throw error;
+        }
+    }
+
+    // Lấy cài đặt cuộc trò chuyện
+    async getConversationSettings(conversationId) {
+        try {
+            const response = await api.get(`/conversations/${conversationId}/settings`);
+            return response.data;
+        } catch (error) {
+            console.error('Error getting conversation settings:', error);
+            throw error;
+        }
+    }
+
+    // Cập nhật cài đặt cuộc trò chuyện
+    async updateConversationSettings(conversationId, settings) {
+        try {
+            const response = await api.put(`/conversations/${conversationId}/settings`, settings);
+            return response.data;
+        } catch (error) {
+            console.error('Error updating conversation settings:', error);
+            throw error;
+        }
+    }
+
+    // Lấy số lượng tin nhắn chờ chấp nhận
+    async getPendingCount(conversationId) {
+        try {
+            const response = await api.get(`/conversations/${conversationId}/pending-count`);
+            return response.data;
+        } catch (error) {
+            console.error('Error getting pending count:', error);
+            throw error;
+        }
+    }
 }
 
 export default new ChatService();

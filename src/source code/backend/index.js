@@ -25,6 +25,7 @@ const homeRoutes = require('./routes/homeRoutes');
 const adminFeaturedRoutes = require('./routes/adminFeaturedRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const messageRoutes = require('./routes/messageRoutes');
+const conversationRoutes = require('./routes/conversationRoutes');
 
 // Import Chat Service
 const ChatService = require('./services/chatService');
@@ -33,6 +34,7 @@ const adminNotificationRoutes = require('./routes/adminNotificationRoutes');
 const adminDataRoutes = require('./routes/adminDataRoutes');
 const forumRulesRoutes = require('./routes/forumRulesRoutes');
 const adminContactRoutes = require('./routes/adminContactRoutes');
+const marqueeRoutes = require('./routes/marqueeRoutes');
 
 // Import middleware
 const updateUserActivity = require('./middlewares/updateUserActivity');
@@ -113,11 +115,13 @@ app.use('/api/home', homeRoutes);
 app.use('/api/admin/featured', adminFeaturedRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/messages', messageRoutes(io));
+app.use('/api/conversations', conversationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin/notifications', adminNotificationRoutes);
 app.use('/api/admin/data', adminDataRoutes);
 app.use('/api/forum-rules', forumRulesRoutes);
 app.use('/api/admin', adminContactRoutes);
+app.use('/api/marquee', marqueeRoutes);
 
 // Socket.IO connection handler
 io.on('connection', (socket) => {
@@ -336,6 +340,63 @@ io.on('connection', (socket) => {
         const { userId } = data;
         const activity = chatService.getUserActivity(userId);
         socket.emit('userActivity', { userId, ...activity });
+    });
+
+    // Xóa tất cả tin nhắn trong cuộc trò chuyện
+    socket.on('deleteAllMessages', async (data) => {
+        try {
+            const { conversationId, userId } = data;
+            console.log(`🗑️ Delete all messages request: conversation ${conversationId}, user ${userId}`);
+
+            if (!userId || !conversationId) {
+                console.error('❌ Missing userId or conversationId for delete all messages');
+                return;
+            }
+
+            const result = await chatService.deleteAllMessagesForUser(conversationId, userId);
+            console.log(`✅ Deleted ${result.modifiedCount} messages for user ${userId}`);
+
+        } catch (error) {
+            console.error('❌ Error deleting all messages via socket:', error);
+        }
+    });
+
+    // Chấp nhận tin nhắn
+    socket.on('acceptMessage', async (data) => {
+        try {
+            const { messageId, userId } = data;
+            console.log(`✅ Accept message request: message ${messageId}, user ${userId}`);
+
+            if (!userId || !messageId) {
+                console.error('❌ Missing userId or messageId for accept message');
+                return;
+            }
+
+            const message = await chatService.acceptMessage(messageId, userId);
+            console.log(`✅ Message ${messageId} accepted by user ${userId}`);
+
+        } catch (error) {
+            console.error('❌ Error accepting message via socket:', error);
+        }
+    });
+
+    // Từ chối tin nhắn
+    socket.on('rejectMessage', async (data) => {
+        try {
+            const { messageId, userId } = data;
+            console.log(`❌ Reject message request: message ${messageId}, user ${userId}`);
+
+            if (!userId || !messageId) {
+                console.error('❌ Missing userId or messageId for reject message');
+                return;
+            }
+
+            const message = await chatService.rejectMessage(messageId, userId);
+            console.log(`❌ Message ${messageId} rejected by user ${userId}`);
+
+        } catch (error) {
+            console.error('❌ Error rejecting message via socket:', error);
+        }
     });
 
     socket.on('disconnect', () => {
