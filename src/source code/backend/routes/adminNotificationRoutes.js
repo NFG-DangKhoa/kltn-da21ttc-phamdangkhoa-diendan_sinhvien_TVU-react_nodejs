@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const AdminNotificationController = require('../controllers/adminNotificationController');
-const authenticateToken = require('../middlewares/authMiddleware');
-const requireAdmin = require('../middlewares/isAdminMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 
 // Middleware để khởi tạo controller với io instance
 const initController = (req, res, next) => {
@@ -15,8 +14,8 @@ const initController = (req, res, next) => {
 };
 
 // Apply authentication middleware
-router.use(authenticateToken);
-router.use(requireAdmin);
+router.use(protect);
+router.use(admin);
 router.use(initController);
 
 // Routes for notification management

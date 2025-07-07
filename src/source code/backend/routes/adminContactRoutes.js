@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminContactController = require('../controllers/adminContactController');
-const authMiddleware = require('../middlewares/authMiddleware');
-const isAdminMiddleware = require('../middlewares/isAdminMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 
 /**
  * @route GET /api/admin/contact-info
@@ -16,13 +15,13 @@ router.get('/contact-info', adminContactController.getAdminContactInfo);
  * @desc Cập nhật thông tin liên hệ admin
  * @access Private (Admin Only)
  */
-router.put('/contact-info', authMiddleware, isAdminMiddleware, adminContactController.updateAdminContactInfo);
+router.put('/contact-info', protect, admin, adminContactController.updateAdminContactInfo);
 
 /**
  * @route GET /api/admin/profile/contact-info
  * @desc Lấy thông tin liên hệ admin cho trang profile admin
  * @access Private (Admin Only)
  */
-router.get('/profile/contact-info', authMiddleware, isAdminMiddleware, adminContactController.getAdminProfileContactInfo);
+router.get('/profile/contact-info', protect, admin, adminContactController.getAdminProfileContactInfo);
 
 module.exports = router;

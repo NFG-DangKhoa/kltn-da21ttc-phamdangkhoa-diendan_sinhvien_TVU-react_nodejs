@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const ratingSchema = new mongoose.Schema({
     postId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Posts',
+        ref: 'Post',
         required: true,
     },
     userId: {
@@ -23,5 +23,4 @@ const ratingSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('Ratings', ratingSchema);
-
+module.exports = mongoose.model('Rating', ratingSchema);

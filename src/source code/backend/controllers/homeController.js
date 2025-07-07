@@ -158,6 +158,9 @@ exports.getTrendingTopics = async (req, res) => {
         // 2. Chủ đề có nhiều bài viết và hoạt động
         const trendingTopics = await Topic.aggregate([
             {
+                $match: { status: 'active' }
+            },
+            {
                 $lookup: {
                     from: 'posts',
                     localField: '_id',

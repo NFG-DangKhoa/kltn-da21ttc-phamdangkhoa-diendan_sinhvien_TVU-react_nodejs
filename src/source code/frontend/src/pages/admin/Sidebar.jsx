@@ -22,6 +22,7 @@ import AnalyticsIcon from '@mui/icons-material/Analytics';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CommentIcon from '@mui/icons-material/Comment';
 import StarIcon from '@mui/icons-material/Star';
+import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import StorageIcon from '@mui/icons-material/Storage';
 import GavelIcon from '@mui/icons-material/Gavel';
@@ -160,23 +161,25 @@ const Sidebar = () => {
                         </ListItemIcon>
                         <ListItemText primary="Quản lý Chatbot" />
                     </StyledListItem>
-                    <StyledListItem button component={Link} to="/admin/products">
-                        <ListItemIcon>
-                            <ShoppingCartIcon />
-                        </ListItemIcon>
-                        <ListItemText primary="Quản lý Sản phẩm" />
-                    </StyledListItem>
-                    <StyledListItem button component={Link} to="/admin/reports">
-                        <ListItemIcon>
-                            <BarChartIcon />
-                        </ListItemIcon>
-                        <ListItemText primary="Báo cáo" />
-                    </StyledListItem>
+
+
                     <StyledListItem button component={Link} to="/admin/comments">
                         <ListItemIcon>
                             <CommentIcon />
                         </ListItemIcon>
                         <ListItemText primary="Quản lý Bình luận" />
+                    </StyledListItem>
+                    <StyledListItem button component={Link} to="/admin/ratings">
+                        <ListItemIcon>
+                            <StarIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Quản lý Đánh giá" />
+                    </StyledListItem>
+                    <StyledListItem button component={Link} to="/admin/likes">
+                        <ListItemIcon>
+                            <ThumbUpIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Quản lý Lượt thích" />
                     </StyledListItem>
                     <StyledListItem button component={Link} to="/admin/featured">
                         <ListItemIcon>

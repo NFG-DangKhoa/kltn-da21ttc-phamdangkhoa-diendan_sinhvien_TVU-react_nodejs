@@ -93,7 +93,7 @@ const LeftColumn = ({ user }) => {
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <Avatar
-                        src={user?.avatarUrl ? `http://localhost:5000${user.avatarUrl}` : undefined}
+                        src={user?.avatarUrl && !user?.isAvatarBlocked ? `http://localhost:5000${user.avatarUrl}` : undefined}
                         sx={{ width: 40, height: 40, mr: 1.5, background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)' }}
                     >
                         {user?.fullName?.charAt(0) || <Person />}

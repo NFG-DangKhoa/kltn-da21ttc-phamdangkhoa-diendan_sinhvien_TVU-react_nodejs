@@ -350,7 +350,7 @@ const MessageList = ({ messages, conversation }) => {
                                     >
                                         {showAvatar && !isMe && (
                                             <Avatar
-                                                src={message.senderId?.avatarUrl}
+                                                src={message.senderId?.avatarUrl && !message.senderId?.isAvatarBlocked ? message.senderId?.avatarUrl : undefined}
                                                 sx={{ width: 32, height: 32, mr: 1 }}
                                             >
                                                 {message.senderId?.fullName?.charAt(0)}

@@ -16,23 +16,29 @@ const MarqueeContainer = styled.div`
   align-items: center;
   overflow: hidden;
   white-space: nowrap;
-  position: relative;
+  position: fixed;
+  top: ${props => props.isMemberList ? '64px' : '104px'};
+  left: 0;
+  z-index: 1200;
   border-radius: 5px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);
   border: 1px solid rgba(0,0,0,0.1);
   width: 100%;
-  margin-bottom: 20px;
+  margin-bottom: 0px;
 `;
 
-const MarqueeIcon = styled(VolumeUp)`
-  margin-right: 15px;
-  font-size: 1.5em;
-`;
+
 
 const MarqueeContent = styled.div`
   display: inline-block;
   padding-left: 100%;
-  animation: ${marqueeAnimation} 10s linear infinite;
+  animation: ${marqueeAnimation} 20s linear infinite;
+  font-family: 'Arial', sans-serif; /* Or a more attractive font like 'Roboto', 'Open Sans' if imported */
+  font-size: 1.1em;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 `;
 
 const Marquee = () => {
@@ -58,8 +64,7 @@ const Marquee = () => {
 
   return (
     <MarqueeContainer bgColor={marquee.backgroundColor}>
-      <MarqueeIcon />
-      <MarqueeContent>{marquee.content}</MarqueeContent>
+      <MarqueeContent><VolumeUp sx={{ fontSize: '1.2em', verticalAlign: 'middle', mr: 1 }} />{marquee.content}</MarqueeContent>
     </MarqueeContainer>
   );
 };

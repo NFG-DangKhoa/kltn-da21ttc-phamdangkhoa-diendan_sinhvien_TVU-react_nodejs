@@ -122,7 +122,7 @@ const AdminMarqueePage = () => {
 
     return (
         <Box sx={{ width: '100%', boxSizing: 'border-box' }}>
-            <Typography variant="h4" gutterBottom>Quản lý thông báo chạy</Typography>
+            <Typography variant="h4" sx={{ mb: 2 }}>Quản lý thông báo chạy</Typography>
 
             {loading && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>

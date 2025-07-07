@@ -1,16 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const marqueeController = require('../controllers/marqueeController');
-const authMiddleware = require('../middlewares/authMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 const isAdminMiddleware = require('../middlewares/isAdminMiddleware');
 
 // Admin routes
-router.post('/', authMiddleware, isAdminMiddleware, marqueeController.createMarquee);
-router.get('/', authMiddleware, isAdminMiddleware, marqueeController.getMarquees);
-router.put('/:id', authMiddleware, isAdminMiddleware, marqueeController.updateMarquee);
-router.delete('/:id', authMiddleware, isAdminMiddleware, marqueeController.deleteMarquee);
-router.put('/activate/:id', authMiddleware, isAdminMiddleware, marqueeController.activateMarquee);
-router.put('/deactivate/:id', authMiddleware, isAdminMiddleware, marqueeController.deactivateMarquee);
+router.post('/', protect, isAdminMiddleware, marqueeController.createMarquee);
+router.get('/', protect, isAdminMiddleware, marqueeController.getMarquees);
+router.put('/:id', protect, isAdminMiddleware, marqueeController.updateMarquee);
+router.delete('/:id', protect, isAdminMiddleware, marqueeController.deleteMarquee);
+router.put('/activate/:id', protect, isAdminMiddleware, marqueeController.activateMarquee);
+router.put('/deactivate/:id', protect, isAdminMiddleware, marqueeController.deactivateMarquee);
 
 // Public route
 router.get('/active', marqueeController.getActiveMarquee);

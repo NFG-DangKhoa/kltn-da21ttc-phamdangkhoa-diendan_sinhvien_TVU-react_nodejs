@@ -40,16 +40,16 @@ import {
     Delete as DeleteIcon,
     Visibility as ViewIcon,
     VisibilityOff as VisibilityOffIcon,
-    Archive as ArchiveIcon,
-    Unarchive as UnarchiveIcon,
     Search as SearchIcon,
     Refresh as RefreshIcon,
     DragIndicator as DragIcon,
     TrendingUp as TrendingUpIcon,
     Category as CategoryIcon,
-    BugReport as DebugIcon
+    GetApp as ExportIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import TopicChart from '../../components/admin/TopicChart';
+import * as XLSX from 'xlsx';
 
 const AdminTopicsPage = () => {
     // State management
@@ -69,6 +69,7 @@ const AdminTopicsPage = () => {
     const [stats, setStats] = useState({});
     const [debugDialogOpen, setDebugDialogOpen] = useState(false);
     const [debugInfo, setDebugInfo] = useState(null);
+    const [timePeriod, setTimePeriod] = useState('last_month');
 
     // Form state
     const [formData, setFormData] = useState({
@@ -145,7 +146,7 @@ const AdminTopicsPage = () => {
     const fetchStats = async () => {
         try {
             const token = getAuthToken();
-            const response = await axios.get(`${API_BASE_URL}/admin/topics/stats`, {
+            const response = await axios.get(`${API_BASE_URL}/admin/analytics/topics?period=${timePeriod}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -353,8 +354,24 @@ const AdminTopicsPage = () => {
     // Effects
     useEffect(() => {
         fetchTopics();
-        fetchStats();
     }, [page, rowsPerPage, searchTerm, categoryFilter, statusFilter]);
+
+    useEffect(() => {
+        fetchStats();
+    }, [timePeriod]);
+
+
+    const handleExportExcel = () => {
+        const worksheet = XLSX.utils.json_to_sheet(topics.map(topic => ({
+            "Tên chủ đề": topic.name,
+            "Trạng thái": topic.status,
+            "Số bài viết": topic.postCount,
+            "Ngày tạo": new Date(topic.createdAt).toLocaleDateString('vi-VN')
+        })));
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Chủ đề");
+        XLSX.writeFile(workbook, "DanhSachChuDe.xlsx");
+    };
 
     return (
         <Container maxWidth="xl">
@@ -374,7 +391,38 @@ const AdminTopicsPage = () => {
                 </Fab>
             </Box>
 
+            {/* Chart */}
+            {stats.topicsByPosts && stats.topicsByPosts.length > 0 && (
+                <TopicChart data={stats.topicsByPosts} />
+            )}
+
             {/* Stats Cards */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', width: '100%', mb: 3, gap: 2 }}>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel>Thời gian</InputLabel>
+                    <Select
+                        value={timePeriod}
+                        label="Thời gian"
+                        onChange={(e) => setTimePeriod(e.target.value)}
+                    >
+                        <MenuItem value={'yesterday'}>Hôm qua</MenuItem>
+                        <MenuItem value={'last_week'}>Tuần trước</MenuItem>
+                        <MenuItem value={'last_month'}>Tháng trước</MenuItem>
+                        <MenuItem value={'last_3_months'}>3 tháng qua</MenuItem>
+                        <MenuItem value={'last_6_months'}>6 tháng qua</MenuItem>
+                        <MenuItem value={'last_year'}>Năm qua</MenuItem>
+                        <MenuItem value={'all_time'}>Tất cả</MenuItem>
+                    </Select>
+                </FormControl>
+                <Button
+                    variant="outlined"
+                    startIcon={<RefreshIcon />}
+                    onClick={fetchStats}
+                    disabled={loading}
+                >
+                    Làm mới
+                </Button>
+            </Box>
             <Grid container spacing={3} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6} md={3}>
                     <Card>
@@ -386,7 +434,7 @@ const AdminTopicsPage = () => {
                                         Tổng chủ đề
                                     </Typography>
                                     <Typography variant="h4">
-                                        {stats.totalTopics || 0}
+                                        {stats.totals?.topics || 0}
                                     </Typography>
                                 </Box>
                             </Box>
@@ -400,10 +448,10 @@ const AdminTopicsPage = () => {
                                 <ViewIcon sx={{ mr: 2, color: 'success.main' }} />
                                 <Box>
                                     <Typography color="textSecondary" gutterBottom>
-                                        Đang hoạt động
+                                        Mới trong kỳ
                                     </Typography>
                                     <Typography variant="h4" color="success.main">
-                                        {stats.activeTopics || 0}
+                                        {stats.periodStats?.topics || 0}
                                     </Typography>
                                 </Box>
                             </Box>
@@ -414,13 +462,13 @@ const AdminTopicsPage = () => {
                     <Card>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <VisibilityOffIcon sx={{ mr: 2, color: 'warning.main' }} />
+                                <TrendingUpIcon sx={{ mr: 2, color: 'warning.main' }} />
                                 <Box>
                                     <Typography color="textSecondary" gutterBottom>
-                                        Không hoạt động
+                                        Có bài viết mới
                                     </Typography>
                                     <Typography variant="h4" color="warning.main">
-                                        {stats.inactiveTopics || 0}
+                                        {stats.periodStats?.topicsWithNewPosts || 0}
                                     </Typography>
                                 </Box>
                             </Box>
@@ -431,19 +479,20 @@ const AdminTopicsPage = () => {
                     <Card>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <ArchiveIcon sx={{ mr: 2, color: 'text.secondary' }} />
+                                <ViewIcon sx={{ mr: 2, color: 'primary.main' }} />
                                 <Box>
                                     <Typography color="textSecondary" gutterBottom>
-                                        Đã lưu trữ
+                                        Chủ đề đang hoạt động
                                     </Typography>
-                                    <Typography variant="h4" color="text.secondary">
-                                        {stats.archivedTopics || 0}
+                                    <Typography variant="h4">
+                                        {stats.totals?.activeTopics || 0}
                                     </Typography>
                                 </Box>
                             </Box>
                         </CardContent>
                     </Card>
                 </Grid>
+                
             </Grid>
 
             {/* Filters and Search */}
@@ -493,42 +542,33 @@ const AdminTopicsPage = () => {
                             </Select>
                         </FormControl>
                     </Grid>
-                    <Grid item xs={12} md={2}>
-                        <Button
-                            variant="outlined"
-                            startIcon={<RefreshIcon />}
-                            onClick={() => {
-                                setSearchTerm('');
-                                setCategoryFilter('');
-                                setStatusFilter('');
-                                fetchTopics();
-                            }}
-                            fullWidth
-                            sx={{ mb: 1 }}
-                        >
-                            Làm mới
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            color="secondary"
-                            startIcon={<TrendingUpIcon />}
-                            onClick={handleUpdatePostCounts}
-                            fullWidth
-                            size="small"
-                            sx={{ mb: 1 }}
-                        >
-                            Cập nhật số bài viết
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            color="info"
-                            startIcon={<RefreshIcon />}
-                            onClick={handleFixTopicData}
-                            fullWidth
-                            size="small"
-                        >
-                            Sửa dữ liệu ngày tạo
-                        </Button>
+                    <Grid item xs={12} md={2} container spacing={1}>
+                        <Grid item xs={12}>
+                            <Button
+                                variant="outlined"
+                                startIcon={<RefreshIcon />}
+                                onClick={() => {
+                                    setSearchTerm('');
+                                    setCategoryFilter('');
+                                    setStatusFilter('');
+                                    fetchTopics();
+                                }}
+                                fullWidth
+                            >
+                                Làm mới
+                            </Button>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <Button
+                                variant="contained"
+                                color="success"
+                                startIcon={<ExportIcon />}
+                                onClick={handleExportExcel}
+                                fullWidth
+                            >
+                                Export Excel
+                            </Button>
+                        </Grid>
                     </Grid>
                 </Grid>
             </Paper>
@@ -539,12 +579,9 @@ const AdminTopicsPage = () => {
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell>Thứ tự</TableCell>
                                 <TableCell>Tên chủ đề</TableCell>
-                                <TableCell>Danh mục</TableCell>
                                 <TableCell>Trạng thái</TableCell>
                                 <TableCell>Bài viết</TableCell>
-                                <TableCell>Lượt xem</TableCell>
                                 <TableCell>Ngày tạo</TableCell>
                                 <TableCell>Hành động</TableCell>
                             </TableRow>
@@ -564,97 +601,49 @@ const AdminTopicsPage = () => {
                                 </TableRow>
                             ) : (
                                 topics.map((topic) => (
-                                    <TableRow key={topic._id}>
+                                    <TableRow key={topic._id} sx={{ '&:hover': { backgroundColor: 'action.hover' } }}>
                                         <TableCell>
                                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                <DragIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                                                <Badge
-                                                    badgeContent={topic.priority}
-                                                    color="primary"
-                                                    max={10}
-                                                >
-                                                    <Box
-                                                        sx={{
-                                                            width: 20,
-                                                            height: 20,
-                                                            backgroundColor: topic.color,
-                                                            borderRadius: '50%'
-                                                        }}
-                                                    />
-                                                </Badge>
+                                                <Box
+                                                    sx={{
+                                                        width: 12,
+                                                        height: 12,
+                                                        backgroundColor: topic.color,
+                                                        borderRadius: '50%',
+                                                        mr: 1.5
+                                                    }}
+                                                />
+                                                <Box>
+                                                    <Typography variant="subtitle2" fontWeight="bold">
+                                                        {topic.name}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {topic.description?.substring(0, 60)}...
+                                                    </Typography>
+                                                </Box>
                                             </Box>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Box>
-                                                <Typography variant="subtitle2" fontWeight="bold">
-                                                    {topic.name}
-                                                </Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {topic.description?.substring(0, 50)}...
-                                                </Typography>
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={topic.category}
-                                                color={getCategoryColor(topic.category)}
-                                                size="small"
-                                            />
                                         </TableCell>
                                         <TableCell>
                                             <Chip
                                                 label={
                                                     topic.status === 'active' ? 'Hoạt động' :
-                                                        topic.status === 'inactive' ? 'Không hoạt động' : 'Đã lưu trữ'
+                                                        topic.status === 'inactive' ? 'Tạm ngưng' : 'Đã lưu trữ'
                                                 }
                                                 color={getStatusColor(topic.status)}
                                                 size="small"
                                             />
                                         </TableCell>
+                                        <TableCell align="center">{topic.postCount || 0}</TableCell>
                                         <TableCell>
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                <TrendingUpIcon sx={{ mr: 1, fontSize: 16 }} />
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight="bold">
-                                                        {topic.postCount || 0}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        bài viết
-                                                    </Typography>
-                                                </Box>
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell>{topic.viewCount || 0}</TableCell>
-                                        <TableCell>
-                                            {topic.createdAt ? (
-                                                <Box>
-                                                    <Typography variant="body2">
-                                                        {new Date(topic.createdAt).toLocaleDateString('vi-VN')}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {new Date(topic.createdAt).toLocaleTimeString('vi-VN', {
-                                                            hour: '2-digit',
-                                                            minute: '2-digit'
-                                                        })}
-                                                    </Typography>
-                                                </Box>
-                                            ) : (
-                                                <Typography variant="body2" color="text.secondary">
-                                                    Không có dữ liệu
-                                                </Typography>
-                                            )}
+                                            {topic.createdAt ? new Date(topic.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
                                         </TableCell>
                                         <TableCell>
                                             <Tooltip title="Chỉnh sửa">
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => openEditDialog(topic)}
-                                                >
+                                                <IconButton size="small" onClick={() => openEditDialog(topic)}>
                                                     <EditIcon />
                                                 </IconButton>
                                             </Tooltip>
-
-                                            <Tooltip title={topic.status === 'active' ? 'Vô hiệu hóa' : 'Kích hoạt'}>
+                                            <Tooltip title={topic.status === 'active' ? 'Tạm ngưng' : 'Kích hoạt'}>
                                                 <IconButton
                                                     size="small"
                                                     color={topic.status === 'active' ? 'warning' : 'success'}
@@ -666,30 +655,6 @@ const AdminTopicsPage = () => {
                                                     {topic.status === 'active' ? <VisibilityOffIcon /> : <ViewIcon />}
                                                 </IconButton>
                                             </Tooltip>
-
-                                            <Tooltip title={topic.status === 'archived' ? 'Bỏ lưu trữ' : 'Lưu trữ'}>
-                                                <IconButton
-                                                    size="small"
-                                                    color="info"
-                                                    onClick={() => handleStatusChange(
-                                                        topic._id,
-                                                        topic.status === 'archived' ? 'active' : 'archived'
-                                                    )}
-                                                >
-                                                    {topic.status === 'archived' ? <UnarchiveIcon /> : <ArchiveIcon />}
-                                                </IconButton>
-                                            </Tooltip>
-
-                                            <Tooltip title="Debug">
-                                                <IconButton
-                                                    size="small"
-                                                    color="info"
-                                                    onClick={() => handleDebugTopic(topic)}
-                                                >
-                                                    <DebugIcon />
-                                                </IconButton>
-                                            </Tooltip>
-
                                             <Tooltip title="Xóa">
                                                 <IconButton
                                                     size="small"

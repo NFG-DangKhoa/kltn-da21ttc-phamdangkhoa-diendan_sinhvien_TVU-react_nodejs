@@ -115,7 +115,7 @@ const AdminHeader = ({ toggleColorMode, mode }) => {
 
     return (
         <StyledAppBar position="fixed">
-            <Toolbar>
+            <Toolbar sx={{ minHeight: 0 }}>
                 <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
                     Bảng Điều Khiển Admin
                 </Typography>

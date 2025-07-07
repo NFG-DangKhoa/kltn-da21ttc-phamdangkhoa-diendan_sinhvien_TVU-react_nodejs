@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const adminFeaturedController = require('../controllers/adminFeaturedController');
-const authenticateToken = require('../middlewares/authMiddleware');
-const requireAdmin = require('../middlewares/isAdminMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 
 // Apply authentication and admin middleware to all routes
-router.use(authenticateToken);
-router.use(requireAdmin);
+router.use(protect);
+router.use(admin);
 
 /**
  * @route GET /api/admin/featured/posts

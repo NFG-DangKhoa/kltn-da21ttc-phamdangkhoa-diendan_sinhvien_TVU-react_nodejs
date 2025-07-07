@@ -4,12 +4,11 @@ const router = express.Router();
 const adminChatbotController = require('../controllers/adminChatbotController');
 
 // Import middleware
-const authMiddleware = require('../middlewares/authMiddleware');
-const isAdminMiddleware = require('../middlewares/isAdminMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 
 // Áp dụng middleware xác thực và phân quyền admin cho tất cả routes
-router.use(authMiddleware);
-router.use(isAdminMiddleware);
+router.use(protect);
+router.use(admin);
 
 // Intent Management Routes
 

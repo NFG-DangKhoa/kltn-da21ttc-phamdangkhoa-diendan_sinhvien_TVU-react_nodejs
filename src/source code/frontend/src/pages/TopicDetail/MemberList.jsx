@@ -2,9 +2,11 @@ import React, { useState, useEffect, useContext } from 'react';
 import {
     Box, Typography, Card, CardContent, Grid, TextField, InputAdornment,
     Pagination, useTheme, Avatar, Chip, CircularProgress, Alert,
-    Container, Breadcrumbs, Link, Fade, IconButton, Tooltip,
+    Container, Fade, IconButton, Tooltip,
     FormControl, InputLabel, Select, MenuItem, Paper, ToggleButton, ToggleButtonGroup
 } from '@mui/material';
+import MuiLink from '@mui/material/Link';
+import BreadcrumbNavigation from '../../components/BreadcrumbNavigation';
 import {
     Search as SearchIcon,
     Home as HomeIcon,
@@ -19,6 +21,7 @@ import axios from 'axios';
 import { ThemeContext } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { OnlineBadge } from '../../components/Chat/OnlineIndicator';
+import { getActiveMarquee } from '../../services/marqueeService';
 
 const constructUrl = (path) => {
     if (!path) return '';
@@ -43,6 +46,7 @@ const MembersList = () => {
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({});
     const membersPerPage = 12;
+    const [marquee, setMarquee] = useState(null);
 
     // Fetch members from API
     const fetchMembers = async (page = 1, search = '', sort = 'latest', role = 'all') => {
@@ -72,6 +76,15 @@ const MembersList = () => {
     };
 
     useEffect(() => {
+        const fetchMarquee = async () => {
+            try {
+                const res = await getActiveMarquee();
+                setMarquee(res.data);
+            } catch (error) {
+                console.error('Error fetching active marquee:', error);
+            }
+        };
+        fetchMarquee();
         fetchMembers(currentPage, searchTerm, sortBy, filterRole);
     }, [currentPage, sortBy, filterRole]);
 
@@ -131,46 +144,56 @@ const MembersList = () => {
     };
 
     return (
-        <Container maxWidth="xl" sx={{ pb: 4 }}>
-            {/* Breadcrumb Navigation */}
-            <Breadcrumbs
-                aria-label="breadcrumb"
-                sx={{
-                    mb: 3,
-                    '& .MuiBreadcrumbs-separator': {
-                        color: theme.palette.text.secondary
-                    }
-                }}
-            >
-                <Link
-                    component={RouterLink}
-                    to="/"
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        color: theme.palette.text.secondary,
-                        textDecoration: 'none',
-                        '&:hover': {
-                            color: theme.palette.primary.main,
-                            textDecoration: 'underline'
-                        }
-                    }}
-                >
-                    <HomeIcon sx={{ mr: 0.5, fontSize: 20 }} />
-                    Trang chủ
-                </Link>
-                <Typography
-                    color="text.primary"
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        fontWeight: 600
-                    }}
-                >
-                    <PeopleIcon sx={{ mr: 0.5, fontSize: 20 }} />
-                    Thành viên
-                </Typography>
-            </Breadcrumbs>
+        <Container maxWidth="xl" sx={{ pb: 4, pt: marquee ? '50px' : 0 }}>
+            <BreadcrumbNavigation
+                darkMode={mode === 'dark'}
+                customBreadcrumbs={[
+                    <RouterLink
+                        key="home"
+                        to="/"
+                        style={{
+                            textDecoration: 'none',
+                            color: mode === 'dark' ? '#90caf9' : theme.palette.primary.main,
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '0.9rem',
+                            fontWeight: 600,
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            transition: 'all 0.2s ease',
+                            background: mode === 'dark'
+                                ? 'rgba(144, 202, 249, 0.1)'
+                                : 'rgba(25, 118, 210, 0.08)',
+                            border: `1px solid ${mode === 'dark' ? 'rgba(144, 202, 249, 0.2)' : 'rgba(25, 118, 210, 0.15)'}`,
+                        }}
+                    >
+                        <HomeIcon sx={{ mr: 1, fontSize: 18 }} />
+                        Trang chủ
+                    </RouterLink>,
+                    <Typography
+                        key="members"
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: mode === 'dark' ? '#e4e6eb' : '#1c1e21',
+                            fontSize: '0.9rem',
+                            fontWeight: 700,
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            background: mode === 'dark'
+                                ? 'linear-gradient(135deg, #3a3b3c 0%, #2a2b2c 100%)'
+                                : 'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)',
+                            border: mode === 'dark' ? '1px solid #4a4b4c' : '1px solid #d0d0d0',
+                            boxShadow: mode === 'dark'
+                                ? 'inset 0 1px 3px rgba(0,0,0,0.3)'
+                                : 'inset 0 1px 3px rgba(0,0,0,0.1)',
+                        }}
+                    >
+                        <PeopleIcon sx={{ mr: 1, fontSize: 18 }} />
+                        Thành viên
+                    </Typography>,
+                ]}
+            />
 
             {/* Page Header */}
             <Fade in={true} timeout={800}>

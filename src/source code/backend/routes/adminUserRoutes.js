@@ -4,12 +4,11 @@ const router = express.Router();
 const adminUserController = require('../controllers/adminUserController');
 
 // Import middleware
-const authMiddleware = require('../middlewares/authMiddleware');
-const isAdminMiddleware = require('../middlewares/isAdminMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 
 // Áp dụng middleware xác thực và phân quyền admin cho tất cả các route
-router.use(authMiddleware);
-router.use(isAdminMiddleware);
+router.use(protect);
+router.use(admin);
 
 // Routes cho quản lý người dùng
 
@@ -75,5 +74,33 @@ router.put('/:id/role', adminUserController.updateUserRole);
  * @access Private (Admin Only)
  */
 router.delete('/:id/warnings/:warningId', adminUserController.removeWarning);
+
+/**
+ * @route PUT /api/admin/users/:id/block-avatar
+ * @desc Tạm khóa ảnh đại diện của người dùng
+ * @access Private (Admin Only)
+ */
+router.put('/:id/block-avatar', adminUserController.blockAvatar);
+
+/**
+ * @route PUT /api/admin/users/:id/unblock-avatar
+ * @desc Bỏ tạm khóa ảnh đại diện của người dùng
+ * @access Private (Admin Only)
+ */
+router.put('/:id/unblock-avatar', adminUserController.unblockAvatar);
+
+/**
+ * @route PUT /api/admin/users/:id/block-cover-photo
+ * @desc Tạm khóa ảnh bìa của người dùng
+ * @access Private (Admin Only)
+ */
+router.put('/:id/block-cover-photo', adminUserController.blockCoverPhoto);
+
+/**
+ * @route PUT /api/admin/users/:id/unblock-cover-photo
+ * @desc Bỏ tạm khóa ảnh bìa của người dùng
+ * @access Private (Admin Only)
+ */
+router.put('/:id/unblock-cover-photo', adminUserController.unblockCoverPhoto);
 
 module.exports = router;

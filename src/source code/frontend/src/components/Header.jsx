@@ -38,7 +38,9 @@ import Home from '@mui/icons-material/Home'; // Thêm icon Home
 import Category from '@mui/icons-material/Category'; // Thêm icon Category
 import Search from '@mui/icons-material/Search'; // Thêm icon Search
 import Chat from '@mui/icons-material/Chat'; // Thêm icon Chat
+import ArticleIcon from '@mui/icons-material/Article'; // Thêm icon Article
 import Gavel from '@mui/icons-material/Gavel'; // Thêm icon Gavel cho quy định
+import GroupIcon from '@mui/icons-material/Group'; // Thêm icon Group cho Thành viên
 
 // Import your custom contexts
 import { AuthContext } from '../context/AuthContext';
@@ -117,6 +119,8 @@ const Header = () => {
 
     // State for user menu
     const [anchorElUser, setAnchorElUser] = useState(null);
+    // State for topics menu
+    const [anchorElTopics, setAnchorElTopics] = useState(null);
     const [openPostDialog, setOpenPostDialog] = useState(false);
     const [topics, setTopics] = useState([]);
     const [selectedTopic, setSelectedTopic] = useState('');
@@ -331,7 +335,7 @@ const Header = () => {
                         </Button>
                         <Button
                             color="inherit"
-                            onClick={() => navigate('/topics')}
+                            onClick={(event) => setAnchorElTopics(event.currentTarget)}
                             sx={{
                                 color: 'white',
                                 fontWeight: 'bold',
@@ -341,9 +345,52 @@ const Header = () => {
                                 '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
                             }}
                             startIcon={<Category />}
+                            endIcon={<ArrowDropDown />}
                         >
                             Chủ đề
                         </Button>
+                        <Menu
+                            sx={{ mt: '45px' }}
+                            id="menu-topics"
+                            anchorEl={anchorElTopics}
+                            anchorOrigin={{
+                                vertical: 'top',
+                                horizontal: 'left',
+                            }}
+                            keepMounted
+                            transformOrigin={{
+                                vertical: 'top',
+                                horizontal: 'left',
+                            }}
+                            open={Boolean(anchorElTopics)}
+                            onClose={() => setAnchorElTopics(null)}
+                        >
+                            <MenuItem onClick={() => { navigate('/topics'); setAnchorElTopics(null); }}>
+                                <Category sx={{ marginRight: 1 }} />
+                                <Typography textAlign="center">Tất cả chủ đề</Typography>
+                            </MenuItem>
+                            <MenuItem onClick={() => { navigate('/featured-posts'); setAnchorElTopics(null); }}>
+                                <ArticleIcon sx={{ marginRight: 1 }} />
+                                <Typography textAlign="center">Bài viết nổi bật</Typography>
+                            </MenuItem>
+                        </Menu>
+                        {user && ( // Only show when user is logged in
+                            <Button
+                                color="inherit"
+                                onClick={() => navigate('/MembersList')}
+                                sx={{
+                                    color: 'white',
+                                    fontWeight: 'bold',
+                                    borderRadius: '8px',
+                                    padding: '8px 16px',
+                                    transition: 'background-color 0.3s ease',
+                                    '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
+                                }}
+                                startIcon={<GroupIcon />}
+                            >
+                                Thành viên
+                            </Button>
+                        )}
                         <Button
                             color="inherit"
                             onClick={() => setShowRulesDialog(true)}
@@ -469,10 +516,10 @@ const Header = () => {
                                         >
                                             <Avatar
                                                 alt={user?.fullName || user?.email}
-                                                src={constructUrl(user?.avatarUrl) || undefined}
+                                                src={user?.avatarUrl && !user?.isAvatarBlocked ? constructUrl(user?.avatarUrl) : undefined}
                                                 sx={{ width: 32, height: 32, marginRight: 1 }}
                                             >
-                                                {!user?.avatarUrl && (user?.fullName?.[0] || user?.email?.[0] || 'U')}
+                                                {(!user?.avatarUrl || user?.isAvatarBlocked) && (user?.fullName?.[0] || user?.email?.[0] || 'U')}
                                             </Avatar>
                                             <Typography sx={{ display: { xs: 'none', md: 'block' } }}>
                                                 {user?.fullName || user?.email}

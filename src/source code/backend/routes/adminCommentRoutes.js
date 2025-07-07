@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middlewares/authMiddleware');
-const isAdmin = require('../middlewares/isAdminMiddleware');
+const { protect: auth, admin: isAdmin } = require('../middlewares/authMiddleware');
 const adminCommentController = require('../controllers/adminCommentController');
 
 // GET all comments (with optional filters)

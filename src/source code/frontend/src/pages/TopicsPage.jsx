@@ -52,6 +52,7 @@ import axios from 'axios';
 import { ThemeContext } from '../context/ThemeContext';
 import HeroSection from '../components/HeroSection';
 import BreadcrumbNavigation from '../components/BreadcrumbNavigation';
+import { getActiveMarquee } from '../services/marqueeService';
 
 const TopicsPage = () => {
     const [topics, setTopics] = useState([]);
@@ -61,6 +62,7 @@ const TopicsPage = () => {
         hero: false,
         topics: false
     });
+    const [marquee, setMarquee] = useState(null);
 
     const theme = useTheme();
     const { mode } = useContext(ThemeContext);
@@ -85,6 +87,15 @@ const TopicsPage = () => {
     useEffect(() => {
         window.scrollTo(0, 0);
 
+        const fetchMarquee = async () => {
+            try {
+                const res = await getActiveMarquee();
+                setMarquee(res.data);
+            } catch (error) {
+                console.error('Error fetching active marquee:', error);
+            }
+        };
+
         const fetchData = async () => {
             try {
                 setLoading(true);
@@ -104,6 +115,7 @@ const TopicsPage = () => {
             }
         };
 
+        fetchMarquee();
         fetchData();
     }, []);
 
@@ -157,9 +169,55 @@ const TopicsPage = () => {
     }
 
     return (
-        <Box>
+        <Box sx={{ pt: marquee ? '50px' : 0 }}>
             <BreadcrumbNavigation
                 darkMode={isDarkMode}
+                customBreadcrumbs={[
+                    <Link
+                        key="home"
+                        to="/"
+                        style={{
+                            textDecoration: 'none',
+                            color: isDarkMode ? '#90caf9' : theme.palette.primary.main,
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '0.9rem',
+                            fontWeight: 600,
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            transition: 'all 0.2s ease',
+                            background: isDarkMode
+                                ? 'rgba(144, 202, 249, 0.1)'
+                                : 'rgba(25, 118, 210, 0.08)',
+                            border: `1px solid ${isDarkMode ? 'rgba(144, 202, 249, 0.2)' : 'rgba(25, 118, 210, 0.15)'}`,
+                        }}
+                    >
+                        <HomeIcon sx={{ mr: 1, fontSize: 18 }} />
+                        Trang chủ
+                    </Link>,
+                    <Typography
+                        key="topics"
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: isDarkMode ? '#e4e6eb' : '#1c1e21',
+                            fontSize: '0.9rem',
+                            fontWeight: 700,
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            background: isDarkMode
+                                ? 'linear-gradient(135deg, #3a3b3c 0%, #2a2b2c 100%)'
+                                : 'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)',
+                            border: isDarkMode ? '1px solid #4a4b4c' : '1px solid #d0d0d0',
+                            boxShadow: isDarkMode
+                                ? 'inset 0 1px 3px rgba(0,0,0,0.3)'
+                                : 'inset 0 1px 3px rgba(0,0,0,0.1)',
+                        }}
+                    >
+                        <TopicIcon sx={{ mr: 1, fontSize: 18 }} />
+                        Chủ đề
+                    </Typography>,
+                ]}
             />
 
             <Box sx={{

@@ -29,7 +29,8 @@ import {
     Alert,
     Snackbar,
     Tooltip,
-    Avatar
+    Avatar,
+    Modal
 } from '@mui/material';
 import {
     Visibility as ViewIcon,
@@ -39,9 +40,18 @@ import {
     Edit as EditIcon,
     Delete as DeleteIcon,
     Search as SearchIcon,
-    Refresh as RefreshIcon
+    Refresh as RefreshIcon,
+    People as PeopleIcon,
+    PersonAdd as PersonAddIcon,
+    AdminPanelSettings as AdminPanelSettingsIcon,
+    SupervisorAccount as SupervisorAccountIcon,
+    GetApp as GetAppIcon,
+    ArrowUpward as ArrowUpwardIcon,
+    ArrowDownward as ArrowDownwardIcon,
 } from '@mui/icons-material';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 
 // Helper function to construct full URL for images
 const constructUrl = (url) => {
@@ -62,26 +72,35 @@ const AdminUsersPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [sortBy, setSortBy] = useState('createdAt'); // Default sort by creation date
+    const [sortOrder, setSortOrder] = useState('-1'); // Default sort order: descending (-1)
     const [selectedUser, setSelectedUser] = useState(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [actionDialogOpen, setActionDialogOpen] = useState(false);
     const [actionType, setActionType] = useState('');
     const [actionData, setActionData] = useState({ reason: '', suspendedUntil: '', role: '' });
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-    const [stats, setStats] = useState({});
+    const [stats, setStats] = useState(null);
+    const [timePeriod, setTimePeriod] = useState('last_month');
+    const [zoomOpen, setZoomOpen] = useState(false);
+    const [zoomImage, setZoomImage] = useState('');
 
     // API base URL
     const API_BASE_URL = 'http://localhost:5000/api';
 
     // Get auth token
     const getAuthToken = () => {
-        // Try to get token from localStorage directly first
         const token = localStorage.getItem('token');
-        if (token) return token;
+        if (token && token !== 'undefined') {
+            return token;
+        }
 
-        // Fallback to user.token for backward compatibility
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        return user.token;
+        if (user && user.token && user.token !== 'undefined') {
+            return user.token;
+        }
+
+        return null;
     };
 
     // Fetch users
@@ -96,7 +115,9 @@ const AdminUsersPage = () => {
                     limit: rowsPerPage,
                     search: searchTerm,
                     role: roleFilter,
-                    status: statusFilter
+                    status: statusFilter,
+                    sortBy: sortBy,
+                    sortOrder: sortOrder
                 }
             });
 
@@ -116,8 +137,9 @@ const AdminUsersPage = () => {
     const fetchStats = async () => {
         try {
             const token = getAuthToken();
-            const response = await axios.get(`${API_BASE_URL}/admin/users/stats`, {
-                headers: { Authorization: `Bearer ${token}` }
+            const response = await axios.get(`${API_BASE_URL}/admin/analytics/users`, {
+                headers: { Authorization: `Bearer ${token}` },
+                params: { period: timePeriod }
             });
 
             if (response.data.success) {
@@ -125,6 +147,7 @@ const AdminUsersPage = () => {
             }
         } catch (error) {
             console.error('Error fetching stats:', error);
+            showSnackbar('Lỗi khi tải dữ liệu thống kê', 'error');
         }
     };
 
@@ -162,9 +185,26 @@ const AdminUsersPage = () => {
                     endpoint = `${API_BASE_URL}/admin/users/${selectedUser._id}/role`;
                     data = { role: actionData.role };
                     break;
+                case 'blockAvatar':
+                    endpoint = `${API_BASE_URL}/admin/users/${selectedUser._id}/block-avatar`;
+                    data = { reason: actionData.reason, suspendedUntil: actionData.suspendedUntil };
+                    break;
+                case 'unblockAvatar':
+                    endpoint = `${API_BASE_URL}/admin/users/${selectedUser._id}/unblock-avatar`;
+                    break;
+                case 'blockCoverPhoto':
+                    endpoint = `${API_BASE_URL}/admin/users/${selectedUser._id}/block-cover-photo`;
+                    data = { reason: actionData.reason, suspendedUntil: actionData.suspendedUntil };
+                    break;
+                case 'unblockCoverPhoto':
+                    endpoint = `${API_BASE_URL}/admin/users/${selectedUser._id}/unblock-cover-photo`;
+                    break;
+                case 'delete':
+                    endpoint = `${API_BASE_URL}/admin/users/${selectedUser._id}`;
+                    break;
             }
 
-            const method = actionType === 'warn' ? 'post' : 'put';
+            const method = actionType === 'warn' ? 'post' : (actionType === 'delete' ? 'delete' : 'put');
             await axios[method](endpoint, data, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -187,7 +227,12 @@ const AdminUsersPage = () => {
             suspend: 'tạm khóa',
             ban: 'cấm',
             activate: 'kích hoạt',
-            updateRole: 'cập nhật vai trò'
+            updateRole: 'cập nhật vai trò',
+            blockAvatar: 'tạm khóa ảnh đại diện',
+            unblockAvatar: 'bỏ tạm khóa ảnh đại diện',
+            blockCoverPhoto: 'tạm khóa ảnh bìa',
+            unblockCoverPhoto: 'bỏ tạm khóa ảnh bìa',
+            delete: 'xóa'
         };
         return actions[action] || action;
     };
@@ -205,76 +250,170 @@ const AdminUsersPage = () => {
     // Get role color
     const getRoleColor = (role) => {
         const colors = {
-            admin: 'error',
-            editor: 'warning',
-            user: 'primary'
+            admin: '#FF6B6B',
+            editor: '#FFD166',
+            user: '#06D6A0'
         };
-        return colors[role] || 'default';
+        return colors[role] || '#118AB2';
+    };
+
+    const handleExportExcel = async () => {
+        try {
+            showSnackbar('Đang chuẩn bị file Excel...', 'info');
+            const token = getAuthToken();
+            // Fetch all users for export
+            const response = await axios.get(`${API_BASE_URL}/admin/users`, {
+                headers: { Authorization: `Bearer ${token}` },
+                params: {
+                    limit: totalUsers > 0 ? totalUsers : 1000, // Fetch all
+                    page: 1
+                }
+            });
+
+            if (response.data.success) {
+                const usersToExport = response.data.data.users.map(user => ({
+                    'Tên': user.fullName,
+                    'Email': user.email,
+                    'Vai trò': user.role,
+                    'Trạng thái': user.status,
+                    'Cảnh báo': user.warnings?.length || 0,
+                    'Địa chỉ': user.address || 'N/A',
+                    'Số điện thoại': user.phone || 'N/A',
+                    'Mô tả bản thân': user.bio || 'N/A',
+                    'Ngày tạo': new Date(user.createdAt).toLocaleString('vi-VN')
+                }));
+
+                const worksheet = XLSX.utils.json_to_sheet(usersToExport);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+                XLSX.writeFile(workbook, 'DanhSachNguoiDung.xlsx');
+                showSnackbar('Xuất file Excel thành công!', 'success');
+            } else {
+                throw new Error('Failed to fetch users for export');
+            }
+        } catch (error) {
+            console.error('Error exporting to Excel:', error);
+            showSnackbar('Lỗi khi xuất file Excel', 'error');
+        }
     };
 
     // Effects
     useEffect(() => {
         fetchUsers();
-        fetchStats();
     }, [page, rowsPerPage, searchTerm, roleFilter, statusFilter]);
 
+    useEffect(() => {
+        fetchStats();
+    }, [timePeriod]);
+
+    const roleDistributionData = stats?.roleDistribution.map((role, index) => ({
+        name: role._id,
+        value: role.count,
+        color: getRoleColor(role._id)
+    })) || [];
+
     return (
-        <Container maxWidth="xl">
+        <Box>
             <Typography variant="h4" gutterBottom>
                 Quản lý Người dùng
             </Typography>
 
+
+
             {/* Stats Cards */}
-            <Grid container spacing={3} sx={{ mb: 3 }}>
-                <Grid item xs={12} sm={6} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Tổng người dùng
-                            </Typography>
-                            <Typography variant="h4">
-                                {stats.totalUsers || 0}
-                            </Typography>
-                        </CardContent>
-                    </Card>
+            {stats && (
+                <Grid container spacing={3} sx={{ mb: 3 }} justifyContent="center">
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card>
+                            <CardContent>
+                                <PeopleIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+                                <Typography color="textSecondary" gutterBottom>
+                                    Tổng người dùng
+                                </Typography>
+                                <Typography variant="h4">
+                                    {stats.totals?.users || 0}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card>
+                            <CardContent>
+                                <PersonAddIcon sx={{ fontSize: 40, color: 'success.main' }} />
+                                <Typography color="textSecondary" gutterBottom>
+                                    Người dùng mới
+                                </Typography>
+                                <Typography variant="h4" color="success.main">
+                                    {stats.periodStats?.newUsers || 0}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card>
+                            <CardContent>
+                                <AdminPanelSettingsIcon sx={{ fontSize: 40, color: 'error.main' }} />
+                                <Typography color="textSecondary" gutterBottom>
+                                    Quản trị viên
+                                </Typography>
+                                <Typography variant="h4" color="error.main">
+                                    {stats.roleDistribution?.find(r => r._id === 'admin')?.count || 0}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Card>
+                            <CardContent>
+                                <SupervisorAccountIcon sx={{ fontSize: 40, color: 'warning.main' }} />
+                                <Typography color="textSecondary" gutterBottom>
+                                    Biên tập viên
+                                </Typography>
+                                <Typography variant="h4" color="warning.main">
+                                    {stats.roleDistribution?.find(r => r._id === 'editor')?.count || 0}
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Đang hoạt động
-                            </Typography>
-                            <Typography variant="h4" color="success.main">
-                                {stats.activeUsers || 0}
-                            </Typography>
-                        </CardContent>
-                    </Card>
+            )}
+
+            {/* User Role Distribution Chart */}
+            {stats && (
+                <Grid container spacing={3} sx={{ mb: 3 }} justifyContent="center">
+                    <Grid item xs={12} md={6}>
+                        <Card>
+                            <CardContent>
+                                <Typography variant="h6" gutterBottom align="center">
+                                    Phân bố vai trò người dùng
+                                </Typography>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <PieChart>
+                                        <Pie
+                                            data={roleDistributionData}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            outerRadius={80}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                        >
+                                            {roleDistributionData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <RechartsTooltip formatter={(value, name) => [`${value} người dùng`, name]} />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+                    </Grid>
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Tạm khóa
-                            </Typography>
-                            <Typography variant="h4" color="warning.main">
-                                {stats.suspendedUsers || 0}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Bị cấm
-                            </Typography>
-                            <Typography variant="h4" color="error.main">
-                                {stats.bannedUsers || 0}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
+            )}
+
 
             {/* Filters and Search */}
             <Paper sx={{ p: 2, mb: 3 }}>
@@ -321,7 +460,28 @@ const AdminUsersPage = () => {
                             </Select>
                         </FormControl>
                     </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} md={2}>
+                        <FormControl fullWidth>
+                            <InputLabel>Sắp xếp theo</InputLabel>
+                            <Select
+                                value={sortBy}
+                                label="Sắp xếp theo"
+                                onChange={(e) => setSortBy(e.target.value)}
+                            >
+                                <MenuItem value="createdAt">Ngày tạo</MenuItem>
+                                <MenuItem value="fullName">Tên</MenuItem>
+                                <MenuItem value="email">Email</MenuItem>
+                                <MenuItem value="postCount">Số bài viết</MenuItem>
+                                <MenuItem value="warnings.length">Số cảnh báo</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={12} md={1}>
+                        <IconButton onClick={() => setSortOrder(sortOrder === '1' ? '-1' : '1')}>
+                            {sortOrder === '1' ? <ArrowUpwardIcon /> : <ArrowDownwardIcon />}
+                        </IconButton>
+                    </Grid>
+                    <Grid item xs={12} md={3} sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                         <Button
                             variant="outlined"
                             startIcon={<RefreshIcon />}
@@ -329,19 +489,48 @@ const AdminUsersPage = () => {
                                 setSearchTerm('');
                                 setRoleFilter('');
                                 setStatusFilter('');
+                                setSortBy('createdAt');
+                                setSortOrder('-1');
                                 fetchUsers();
                             }}
                         >
                             Làm mới
                         </Button>
+                        <Button
+                            variant="contained"
+                            color="success"
+                            startIcon={<GetAppIcon />}
+                            onClick={handleExportExcel}
+                        >
+                            Xuất Excel
+                        </Button>
                     </Grid>
                 </Grid>
             </Paper>
 
+            {/* Time period selector */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 3 }}>
+                <FormControl size="small" sx={{ minWidth: 150, mr: 2 }}>
+                    <InputLabel>Thời gian</InputLabel>
+                    <Select
+                        value={timePeriod}
+                        label="Thời gian"
+                        onChange={(e) => setTimePeriod(e.target.value)}
+                    >
+                        <MenuItem value={'yesterday'}>Hôm qua</MenuItem>
+                        <MenuItem value={'last_week'}>Tuần trước</MenuItem>
+                        <MenuItem value={'last_month'}>Tháng trước</MenuItem>
+                        <MenuItem value={'last_year'}>Năm qua</MenuItem>
+                        <MenuItem value={'all_time'}>Tất cả</MenuItem>
+                    </Select>
+                </FormControl>
+                
+            </Box>
+
             {/* Users Table */}
-            <Paper>
+            <Paper sx={{ mx: 'auto', maxWidth: 'lg' }}>
                 <TableContainer>
-                    <Table>
+                    <Table size="small">
                         <TableHead>
                             <TableRow>
                                 <TableCell>Avatar</TableCell>
@@ -349,6 +538,7 @@ const AdminUsersPage = () => {
                                 <TableCell>Email</TableCell>
                                 <TableCell>Vai trò</TableCell>
                                 <TableCell>Trạng thái</TableCell>
+                                <TableCell>Bài viết</TableCell>
                                 <TableCell>Cảnh báo</TableCell>
                                 <TableCell>Ngày tạo</TableCell>
                                 <TableCell>Hành động</TableCell>
@@ -371,20 +561,30 @@ const AdminUsersPage = () => {
                                 users.map((user) => (
                                     <TableRow key={user._id}>
                                         <TableCell>
-                                            <Avatar
-                                                src={constructUrl(user.avatarUrl)}
-                                                alt={user.fullName}
-                                                sx={{ width: 40, height: 40 }}
-                                            >
-                                                {user.fullName?.charAt(0)?.toUpperCase()}
-                                            </Avatar>
+                                            {user.isAvatarBlocked ? (
+                                                <Avatar sx={{ width: 40, height: 40 }}>
+                                                    <BlockIcon />
+                                                </Avatar>
+                                            ) : (
+                                                <Avatar
+                                                    src={constructUrl(user.avatarUrl)}
+                                                    alt={user.fullName}
+                                                    sx={{ width: 40, height: 40, cursor: 'pointer' }}
+                                                    onClick={() => {
+                                                        setZoomImage(constructUrl(user.avatarUrl));
+                                                        setZoomOpen(true);
+                                                    }}
+                                                >
+                                                    {user.fullName?.charAt(0)?.toUpperCase()}
+                                                </Avatar>
+                                            )}
                                         </TableCell>
                                         <TableCell>{user.fullName || 'N/A'}</TableCell>
                                         <TableCell>{user.email}</TableCell>
                                         <TableCell>
                                             <Chip
                                                 label={user.role}
-                                                color={getRoleColor(user.role)}
+                                                style={{ backgroundColor: getRoleColor(user.role), color: 'white' }}
                                                 size="small"
                                             />
                                         </TableCell>
@@ -396,7 +596,8 @@ const AdminUsersPage = () => {
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell align="center">{user.postCount || 0}</TableCell>
+                                        <TableCell align="center">
                                             <Chip
                                                 label={user.warnings?.length || 0}
                                                 color={user.warnings?.length > 0 ? 'warning' : 'default'}
@@ -418,6 +619,22 @@ const AdminUsersPage = () => {
                                                     <ViewIcon />
                                                 </IconButton>
                                             </Tooltip>
+
+                                            {user.role !== 'admin' && (
+                                                <Tooltip title="Xóa">
+                                                    <IconButton
+                                                        size="small"
+                                                        color="error"
+                                                        onClick={() => {
+                                                            setSelectedUser(user);
+                                                            setActionType('delete');
+                                                            setActionDialogOpen(true);
+                                                        }}
+                                                    >
+                                                        <DeleteIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
 
                                             {user.role !== 'admin' && (
                                                 <>
@@ -528,7 +745,7 @@ const AdminUsersPage = () => {
                                 <Box sx={{ mb: 2 }}>
                                     <Typography><strong>Tên:</strong> {selectedUser.fullName || 'N/A'}</Typography>
                                     <Typography><strong>Email:</strong> {selectedUser.email}</Typography>
-                                    <Typography><strong>Số điện thoại:</strong> {selectedUser.phone || 'N/A'}</Typography>
+                                    <Typography><strong>Số điện thoại:</strong> {selectedUser.phoneNumber || 'Trống'}</Typography>
                                     <Typography><strong>Địa chỉ:</strong> {selectedUser.address || 'N/A'}</Typography>
                                     <Typography><strong>Vai trò:</strong> {selectedUser.role}</Typography>
                                     <Typography><strong>Trạng thái:</strong> {selectedUser.status}</Typography>
@@ -575,17 +792,6 @@ const AdminUsersPage = () => {
                                     </Alert>
                                 </Grid>
                             )}
-
-                            {selectedUser.banInfo && (
-                                <Grid item xs={12}>
-                                    <Alert severity="error">
-                                        <Typography variant="subtitle2">Thông tin cấm</Typography>
-                                        <Typography><strong>Lý do:</strong> {selectedUser.banInfo.reason}</Typography>
-                                        <Typography><strong>Ngày cấm:</strong> {new Date(selectedUser.banInfo.bannedAt).toLocaleString('vi-VN')}</Typography>
-                                        <Typography><strong>Vĩnh viễn:</strong> {selectedUser.banInfo.isPermanent ? 'Có' : 'Không'}</Typography>
-                                    </Alert>
-                                </Grid>
-                            )}
                         </Grid>
                     )}
                 </DialogContent>
@@ -609,6 +815,7 @@ const AdminUsersPage = () => {
                     {actionType === 'ban' && 'Cấm tài khoản'}
                     {actionType === 'activate' && 'Kích hoạt tài khoản'}
                     {actionType === 'updateRole' && 'Thay đổi vai trò'}
+                    {actionType === 'delete' && 'Xóa người dùng'}
                 </DialogTitle>
                 <DialogContent>
                     {selectedUser && (
@@ -617,9 +824,9 @@ const AdminUsersPage = () => {
                                 <strong>Người dùng:</strong> {selectedUser.fullName} ({selectedUser.email})
                             </Typography>
 
-                            {actionType === 'activate' ? (
+                            {actionType === 'activate' || actionType === 'delete' || actionType === 'unblockAvatar' || actionType === 'unblockCoverPhoto' ? (
                                 <Typography>
-                                    Bạn có chắc chắn muốn kích hoạt lại tài khoản này?
+                                    Bạn có chắc chắn muốn {getActionText(actionType)} tài khoản này?
                                 </Typography>
                             ) : actionType === 'updateRole' ? (
                                 <FormControl fullWidth sx={{ mt: 2 }}>
@@ -647,7 +854,7 @@ const AdminUsersPage = () => {
                                         required
                                     />
 
-                                    {actionType === 'suspend' && (
+                                    {(actionType === 'suspend') && (
                                         <TextField
                                             fullWidth
                                             label="Khóa đến (tùy chọn)"
@@ -672,7 +879,7 @@ const AdminUsersPage = () => {
                         variant="contained"
                         color={actionType === 'ban' || actionType === 'suspend' ? 'error' : 'primary'}
                         disabled={
-                            (actionType !== 'activate' && actionType !== 'updateRole' && !actionData.reason) ||
+                            (actionType !== 'activate' && actionType !== 'updateRole' && actionType !== 'unblockAvatar' && actionType !== 'unblockCoverPhoto' && !actionData.reason) ||
                             (actionType === 'updateRole' && !actionData.role)
                         }
                     >
@@ -695,7 +902,28 @@ const AdminUsersPage = () => {
                     {snackbar.message}
                 </Alert>
             </Snackbar>
-        </Container>
+
+
+            {/* Image Zoom Dialog */}
+            <Dialog
+                open={zoomOpen}
+                onClose={() => setZoomOpen(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>Xem ảnh</DialogTitle>
+                <DialogContent sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <img
+                        src={zoomImage}
+                        alt="Zoomed"
+                        style={{ maxWidth: '100%', height: 'auto', display: 'block', margin: 'auto' }}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setZoomOpen(false)}>Đóng</Button>
+                </DialogActions>
+            </Dialog>
+        </Box>
     );
 };
 

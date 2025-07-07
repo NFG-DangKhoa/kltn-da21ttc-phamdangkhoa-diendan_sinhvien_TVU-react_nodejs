@@ -271,7 +271,7 @@ const PostForm = ({
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                     <Avatar
-                        src={constructUrl(user?.avatarUrl) || '/default-avatar.png'}
+                        src={user?.avatarUrl && !user?.isAvatarBlocked ? constructUrl(user?.avatarUrl) : '/default-avatar.png'}
                         alt={user?.fullName || 'Người dùng'}
                         sx={{
                             width: 56,
@@ -280,7 +280,7 @@ const PostForm = ({
                             boxShadow: theme.shadows[4]
                         }}
                     >
-                        {!user?.avatarUrl && (user?.fullName?.[0] || 'U')}
+                        {(!user?.avatarUrl || user?.isAvatarBlocked) && (user?.fullName?.[0] || 'U')}
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
                         <Typography variant="h6" fontWeight="600" color="text.primary">

@@ -1,18 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middlewares/authMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 const notificationController = require('../controllers/notificationController');
 
 // User notification routes
-router.get('/', auth, notificationController.getNotifications);
-router.get('/unread-count', auth, notificationController.getUnreadCount);
-router.put('/:notificationId/read', auth, notificationController.markAsRead);
-router.put('/mark-all-read', auth, notificationController.markAllAsRead);
-router.delete('/:notificationId', auth, notificationController.deleteNotification);
+router.get('/', protect, notificationController.getNotifications);
+router.get('/unread-count', protect, notificationController.getUnreadCount);
+router.put('/:notificationId/read', protect, notificationController.markAsRead);
+router.put('/mark-all-read', protect, notificationController.markAllAsRead);
+router.delete('/:notificationId', protect, notificationController.deleteNotification);
 
 // Admin notification routes
-router.post('/broadcast', auth, notificationController.createBroadcastNotification);
-router.post('/user', auth, notificationController.createUserNotification);
-router.get('/stats', auth, notificationController.getNotificationStats);
+router.post('/broadcast', protect, admin, notificationController.createBroadcastNotification);
+router.post('/user', protect, admin, notificationController.createUserNotification);
+router.get('/stats', protect, admin, notificationController.getNotificationStats);
 
 module.exports = router;

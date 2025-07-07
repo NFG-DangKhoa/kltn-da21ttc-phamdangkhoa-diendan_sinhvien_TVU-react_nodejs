@@ -12,6 +12,16 @@ const userSchema = new mongoose.Schema({
     address: String,
     avatarUrl: { type: String, default: '' },
     coverPhotoUrl: { type: String, default: '' }, // New field for cover photo
+    isAvatarBlocked: { type: Boolean, default: false },
+    isCoverPhotoBlocked: { type: Boolean, default: false },
+    avatarBlockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    coverPhotoBlockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    avatarBlockedAt: { type: Date },
+    coverPhotoBlockedAt: { type: Date },
+    avatarBlockReason: { type: String },
+    coverPhotoBlockReason: { type: String },
+    avatarBlockedUntil: { type: Date },
+    coverPhotoBlockedUntil: { type: Date },
     role: { type: String, enum: ['user', 'editor', 'admin'], default: 'user' },
 
     // Google OAuth fields

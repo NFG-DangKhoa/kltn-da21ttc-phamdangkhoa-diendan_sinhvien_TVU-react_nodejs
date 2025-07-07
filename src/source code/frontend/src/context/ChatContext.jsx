@@ -44,7 +44,6 @@ const CHAT_ACTIONS = {
     SET_CONNECTED: 'SET_CONNECTED',
     SET_HEARTBEAT_INTERVAL: 'SET_HEARTBEAT_INTERVAL',
     CLEAR_CHAT: 'CLEAR_CHAT',
-    SET_CURRENT_CONVERSATION: 'SET_CURRENT_CONVERSATION',
     SET_PENDING_MESSAGES: 'SET_PENDING_MESSAGES',
     ADD_PENDING_MESSAGE: 'ADD_PENDING_MESSAGE',
     REMOVE_PENDING_MESSAGE: 'REMOVE_PENDING_MESSAGE',
@@ -238,12 +237,6 @@ function chatReducer(state, action) {
                 clearInterval(state.heartbeatInterval);
             }
             return { ...initialState };
-
-        case CHAT_ACTIONS.SET_CURRENT_CONVERSATION:
-            return {
-                ...state,
-                currentConversation: action.payload
-            };
 
         case CHAT_ACTIONS.SET_PENDING_MESSAGES:
             return {

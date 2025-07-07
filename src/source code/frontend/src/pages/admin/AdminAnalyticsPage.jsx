@@ -22,7 +22,8 @@ import {
     Divider,
     Tab,
     Tabs,
-    Button
+    Button,
+    TextField
 } from '@mui/material';
 import {
     TrendingUp as TrendingUpIcon,
@@ -32,9 +33,10 @@ import {
     Comment as CommentIcon,
     Favorite as FavoriteIcon,
     Search as SearchIcon,
-    Visibility as VisibilityIcon,
-    Schedule as ScheduleIcon,
-    Refresh as RefreshIcon
+    Star as StarIcon,
+    Event as EventIcon,
+    Refresh as RefreshIcon,
+    DateRange as DateRangeIcon
 } from '@mui/icons-material';
 import {
     LineChart,
@@ -68,6 +70,9 @@ import {
 } from 'chart.js';
 import { Doughnut, Radar, PolarArea } from 'react-chartjs-2';
 import axios from 'axios';
+import { DateRangePicker } from 'react-date-range';
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
 
 // Register Chart.js components
 ChartJS.register(
@@ -87,24 +92,30 @@ const AdminAnalyticsPage = () => {
     // State management
     const [loading, setLoading] = useState(false);
     const [selectedTab, setSelectedTab] = useState(0);
-    const [timePeriod, setTimePeriod] = useState(30);
+    const [timePeriod, setTimePeriod] = useState('last_month');
     const [overviewData, setOverviewData] = useState(null);
-    const [userActivityData, setUserActivityData] = useState(null);
+    const [ratingData, setRatingData] = useState(null);
+    const [topicData, setTopicData] = useState(null);
     const [popularContentData, setPopularContentData] = useState(null);
     const [searchAnalyticsData, setSearchAnalyticsData] = useState(null);
-    const [growthTrendsData, setGrowthTrendsData] = useState(null);
+    const [communityData, setCommunityData] = useState(null);
     const [error, setError] = useState(null);
+    const [customDateRange, setCustomDateRange] = useState([
+        {
+            startDate: new Date(),
+            endDate: new Date(),
+            key: 'selection'
+        }
+    ]);
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     // API base URL
     const API_BASE_URL = 'http://localhost:5000/api';
 
     // Get auth token
     const getAuthToken = () => {
-        // Try to get token from localStorage directly first
         const token = localStorage.getItem('token');
         if (token) return token;
-
-        // Fallback to user.token for backward compatibility
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         return user.token;
     };
@@ -112,13 +123,22 @@ const AdminAnalyticsPage = () => {
     // Colors for charts
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
-    // Fetch overview data
+    // Fetch overview data with new API structure
     const fetchOverviewData = async () => {
         try {
             const token = getAuthToken();
+            const params = {
+                period: timePeriod
+            };
+
+            if (timePeriod === 'custom') {
+                params.customStartDate = customDateRange[0].startDate.toISOString();
+                params.customEndDate = customDateRange[0].endDate.toISOString();
+            }
+
             const response = await axios.get(`${API_BASE_URL}/admin/analytics/overview`, {
                 headers: { Authorization: `Bearer ${token}` },
-                params: { days: timePeriod }
+                params
             });
 
             if (response.data.success) {
@@ -130,21 +150,57 @@ const AdminAnalyticsPage = () => {
         }
     };
 
-    // Fetch user activity data
-    const fetchUserActivityData = async () => {
+    // Fetch rating analytics data
+    const fetchRatingData = async () => {
         try {
             const token = getAuthToken();
-            const response = await axios.get(`${API_BASE_URL}/admin/analytics/user-activity`, {
+            const params = {
+                period: timePeriod
+            };
+
+            if (timePeriod === 'custom') {
+                params.customStartDate = customDateRange[0].startDate.toISOString();
+                params.customEndDate = customDateRange[0].endDate.toISOString();
+            }
+
+            const response = await axios.get(`${API_BASE_URL}/admin/analytics/ratings`, {
                 headers: { Authorization: `Bearer ${token}` },
-                params: { days: timePeriod }
+                params
             });
 
             if (response.data.success) {
-                setUserActivityData(response.data.data);
+                setRatingData(response.data.data);
             }
         } catch (error) {
-            console.error('Error fetching user activity data:', error);
-            setError('Lỗi khi tải dữ liệu hoạt động người dùng');
+            console.error('Error fetching rating data:', error);
+            setError('Lỗi khi tải dữ liệu đánh giá');
+        }
+    };
+
+    // Fetch topic analytics data
+    const fetchTopicData = async () => {
+        try {
+            const token = getAuthToken();
+            const params = {
+                period: timePeriod
+            };
+
+            if (timePeriod === 'custom') {
+                params.customStartDate = customDateRange[0].startDate.toISOString();
+                params.customEndDate = customDateRange[0].endDate.toISOString();
+            }
+
+            const response = await axios.get(`${API_BASE_URL}/admin/analytics/topics`, {
+                headers: { Authorization: `Bearer ${token}` },
+                params
+            });
+
+            if (response.data.success) {
+                setTopicData(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching topic data:', error);
+            setError('Lỗi khi tải dữ liệu chủ đề');
         }
     };
 
@@ -154,7 +210,7 @@ const AdminAnalyticsPage = () => {
             const token = getAuthToken();
             const response = await axios.get(`${API_BASE_URL}/admin/analytics/popular-content`, {
                 headers: { Authorization: `Bearer ${token}` },
-                params: { days: timePeriod }
+                params: { days: 30 }
             });
 
             if (response.data.success) {
@@ -172,7 +228,7 @@ const AdminAnalyticsPage = () => {
             const token = getAuthToken();
             const response = await axios.get(`${API_BASE_URL}/admin/analytics/search-analytics`, {
                 headers: { Authorization: `Bearer ${token}` },
-                params: { days: timePeriod }
+                params: { days: 30 }
             });
 
             if (response.data.success) {
@@ -184,244 +240,480 @@ const AdminAnalyticsPage = () => {
         }
     };
 
-    // Fetch growth trends data
-    const fetchGrowthTrendsData = async () => {
+    // Fetch community stats data
+    const fetchCommunityData = async () => {
         try {
             const token = getAuthToken();
-            const response = await axios.get(`${API_BASE_URL}/admin/analytics/growth-trends`, {
+            const params = {
+                period: timePeriod
+            };
+
+            if (timePeriod === 'custom') {
+                params.customStartDate = customDateRange[0].startDate.toISOString();
+                params.customEndDate = customDateRange[0].endDate.toISOString();
+            }
+
+            const response = await axios.get(`${API_BASE_URL}/admin/analytics/community`, {
                 headers: { Authorization: `Bearer ${token}` },
-                params: { days: timePeriod }
+                params
             });
 
             if (response.data.success) {
-                setGrowthTrendsData(response.data.data);
+                setCommunityData(response.data.data);
             }
         } catch (error) {
-            console.error('Error fetching growth trends data:', error);
-            setError('Lỗi khi tải dữ liệu xu hướng tăng trưởng');
+            console.error('Error fetching community data:', error);
+            setError('Lỗi khi tải dữ liệu cộng đồng');
         }
     };
 
-    // Fetch all data
-    const fetchAllData = async () => {
+    // Load all data
+    const loadAllData = async () => {
         setLoading(true);
         setError(null);
-
         try {
             await Promise.all([
                 fetchOverviewData(),
-                fetchUserActivityData(),
+                fetchRatingData(),
+                fetchTopicData(),
                 fetchPopularContentData(),
                 fetchSearchAnalyticsData(),
-                fetchGrowthTrendsData()
+                fetchCommunityData()
             ]);
         } catch (error) {
-            console.error('Error fetching analytics data:', error);
-            setError('Lỗi khi tải dữ liệu thống kê');
+            console.error('Error loading data:', error);
+            setError('Lỗi khi tải dữ liệu');
         } finally {
             setLoading(false);
         }
     };
 
-    // Format number with K, M suffix
-    const formatNumber = (num) => {
-        if (num >= 1000000) {
-            return (num / 1000000).toFixed(1) + 'M';
-        }
-        if (num >= 1000) {
-            return (num / 1000).toFixed(1) + 'K';
-        }
-        return num.toString();
-    };
-
-    // Format date for charts
-    const formatDate = (dateStr) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' });
-    };
-
-    // Handle tab change
-    const handleTabChange = (event, newValue) => {
-        setSelectedTab(newValue);
-    };
+    // Effect to load data on component mount and when time period changes
+    useEffect(() => {
+        loadAllData();
+    }, [timePeriod]);
 
     // Handle time period change
     const handleTimePeriodChange = (event) => {
         setTimePeriod(event.target.value);
+        if (event.target.value !== 'custom') {
+            setShowDatePicker(false);
+        }
     };
 
-    // Effects
-    useEffect(() => {
-        fetchAllData();
-    }, [timePeriod]);
+    // Handle custom date range change
+    const handleDateRangeChange = (ranges) => {
+        setCustomDateRange([ranges.selection]);
+    };
 
-    // Tab panel component
-    const TabPanel = ({ children, value, index, ...other }) => (
-        <div
-            role="tabpanel"
-            hidden={value !== index}
-            id={`analytics-tabpanel-${index}`}
-            aria-labelledby={`analytics-tab-${index}`}
-            {...other}
-        >
-            {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-        </div>
-    );
+    // Apply custom date range
+    const applyCustomDateRange = () => {
+        setShowDatePicker(false);
+        loadAllData();
+    };
 
-    if (loading && !overviewData) {
+    // Tab change handler
+    const handleTabChange = (event, newValue) => {
+        setSelectedTab(newValue);
+    };
+
+    // Render overview stats cards
+    const renderOverviewCards = () => {
+        if (!overviewData) return null;
+
+        const { totals, periodStats, ratingAnalytics } = overviewData;
+
         return (
-            <Container maxWidth="xl">
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-                    <CircularProgress />
-                </Box>
-            </Container>
+            <Grid container spacing={3}>
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box display="flex" alignItems="center">
+                                <PeopleIcon color="primary" sx={{ mr: 2 }} />
+                                <Box>
+                                    <Typography variant="h6">{totals.users}</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Tổng người dùng
+                                    </Typography>
+                                    <Typography variant="caption" color="primary">
+                                        +{periodStats.users} trong kỳ
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box display="flex" alignItems="center">
+                                <ArticleIcon color="success" sx={{ mr: 2 }} />
+                                <Box>
+                                    <Typography variant="h6">{totals.posts}</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Tổng bài viết
+                                    </Typography>
+                                    <Typography variant="caption" color="success">
+                                        {totals.featuredPosts} nổi bật
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box display="flex" alignItems="center">
+                                <TopicIcon color="warning" sx={{ mr: 2 }} />
+                                <Box>
+                                    <Typography variant="h6">{totals.topics}</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Tổng chủ đề
+                                    </Typography>
+                                    <Typography variant="caption" color="warning">
+                                        {totals.featuredTopics} nổi bật
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box display="flex" alignItems="center">
+                                <StarIcon color="error" sx={{ mr: 2 }} />
+                                <Box>
+                                    <Typography variant="h6">{totals.ratings}</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Tổng đánh giá
+                                    </Typography>
+                                    <Typography variant="caption" color="error">
+                                        {ratingAnalytics.usersWhoRated} người tham gia
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box display="flex" alignItems="center">
+                                <CommentIcon color="info" sx={{ mr: 2 }} />
+                                <Box>
+                                    <Typography variant="h6">{totals.comments}</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Tổng bình luận
+                                    </Typography>
+                                    <Typography variant="caption" color="info">
+                                        +{periodStats.comments} trong kỳ
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box display="flex" alignItems="center">
+                                <FavoriteIcon color="secondary" sx={{ mr: 2 }} />
+                                <Box>
+                                    <Typography variant="h6">{totals.likes}</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Tổng lượt thích
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={6}>
+                    <Card>
+                        <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                                Thống kê đánh giá
+                            </Typography>
+                            <Box display="flex" justifyContent="space-between" alignItems="center">
+                                <Box>
+                                    <Typography variant="h4" color="primary">
+                                        {ratingAnalytics.averageRating?.toFixed(1) || 0}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Điểm trung bình
+                                    </Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6">
+                                        {ratingAnalytics.totalRatings}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Tổng đánh giá
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
         );
-    }
+    };
 
+    // Render rating distribution chart
+    const renderRatingChart = () => {
+        if (!ratingData) return null;
+
+        const chartData = Object.entries(ratingData.ratingDistribution).map(([star, count]) => ({
+            star: `${star} sao`,
+            count
+        }));
+
+        return (
+            <Card>
+                <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                        Phân bố đánh giá theo sao
+                    </Typography>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="star" />
+                            <YAxis />
+                            <Tooltip />
+                            <Bar dataKey="count" fill="#8884d8" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+        );
+    };
+
+    // Render topic statistics
+    const renderTopicStats = () => {
+        if (!topicData) return null;
+
+        const { overview, categoryStats, topicsByPosts } = topicData;
+
+        return (
+            <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                    <Card>
+                        <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                                Tổng quan chủ đề
+                            </Typography>
+                            <Grid container spacing={2}>
+                                <Grid item xs={6}>
+                                    <Typography variant="h4" color="primary">
+                                        {overview.totalTopics}
+                                    </Typography>
+                                    <Typography variant="body2">Tổng chủ đề</Typography>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <Typography variant="h4" color="warning">
+                                        {overview.featuredTopics}
+                                    </Typography>
+                                    <Typography variant="body2">Chủ đề nổi bật</Typography>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <Typography variant="h4" color="success">
+                                        {overview.activeTopics}
+                                    </Typography>
+                                    <Typography variant="body2">Chủ đề hoạt động</Typography>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <Typography variant="h4" color="info">
+                                        {overview.periodTopics}
+                                    </Typography>
+                                    <Typography variant="body2">Chủ đề trong kỳ</Typography>
+                                </Grid>
+                            </Grid>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                    <Card>
+                        <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                                Thống kê theo danh mục
+                            </Typography>
+                            <List>
+                                {categoryStats.slice(0, 5).map((category, index) => (
+                                    <ListItem key={index}>
+                                        <ListItemText
+                                            primary={category._id || 'Không phân loại'}
+                                            secondary={`${category.topicCount} chủ đề, ${category.featuredCount} nổi bật`}
+                                        />
+                                        <Chip
+                                            label={category.totalViews}
+                                            size="small"
+                                            color="primary"
+                                        />
+                                    </ListItem>
+                                ))}
+                            </List>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12}>
+                    <Card>
+                        <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                                Top chủ đề theo số bài viết
+                            </Typography>
+                            <List>
+                                {topicsByPosts.slice(0, 10).map((topic, index) => (
+                                    <ListItem key={topic._id}>
+                                        <ListItemAvatar>
+                                            <Avatar sx={{ bgcolor: COLORS[index % COLORS.length] }}>
+                                                {index + 1}
+                                            </Avatar>
+                                        </ListItemAvatar>
+                                        <ListItemText
+                                            primary={topic.name}
+                                            secondary={
+                                                <Box>
+                                                    <Typography variant="body2">
+                                                        {topic.description}
+                                                    </Typography>
+                                                    <Box display="flex" gap={1} mt={1}>
+                                                        <Chip
+                                                            label={`${topic.postCount} bài viết`}
+                                                            size="small"
+                                                            color="primary"
+                                                        />
+                                                        <Chip
+                                                            label={`${topic.recentPostCount} gần đây`}
+                                                            size="small"
+                                                            color="secondary"
+                                                        />
+                                                        {topic.trending && (
+                                                            <Chip
+                                                                label="Nổi bật"
+                                                                size="small"
+                                                                color="warning"
+                                                            />
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                            }
+                                        />
+                                    </ListItem>
+                                ))}
+                            </List>
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
+        );
+    };
+
+    // Main render
     return (
-        <Container maxWidth="xl">
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h4" gutterBottom>
-                    Thống kê và Phân tích
+        <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                <Typography variant="h4" component="h1">
+                    Thống kê & Phân tích
                 </Typography>
+                <Button
+                    variant="outlined"
+                    startIcon={<RefreshIcon />}
+                    onClick={loadAllData}
+                    disabled={loading}
+                >
+                    Làm mới
+                </Button>
+            </Box>
 
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                        <InputLabel>Thời gian</InputLabel>
+            {/* Time Period Selection */}
+            <Paper sx={{ p: 2, mb: 3 }}>
+                <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
+                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                        <InputLabel>Khoảng thời gian</InputLabel>
                         <Select
                             value={timePeriod}
-                            label="Thời gian"
+                            label="Khoảng thời gian"
                             onChange={handleTimePeriodChange}
                         >
-                            <MenuItem value={7}>7 ngày</MenuItem>
-                            <MenuItem value={30}>30 ngày</MenuItem>
-                            <MenuItem value={90}>90 ngày</MenuItem>
-                            <MenuItem value={365}>1 năm</MenuItem>
+                            <MenuItem value="yesterday">Hôm qua</MenuItem>
+                            <MenuItem value="last_week">Tuần trước</MenuItem>
+                            <MenuItem value="previous_week">Tuần trước đó</MenuItem>
+                            <MenuItem value="last_month">Tháng trước</MenuItem>
+                            <MenuItem value="previous_month">Tháng trước đó</MenuItem>
+                            <MenuItem value="last_3_months">3 tháng qua</MenuItem>
+                            <MenuItem value="last_6_months">6 tháng qua</MenuItem>
+                            <MenuItem value="last_year">Năm qua</MenuItem>
+                            <MenuItem value="all_time">Tất cả</MenuItem>
+                            <MenuItem value="custom">Tùy chọn</MenuItem>
                         </Select>
                     </FormControl>
 
-                    <Button
-                        variant="outlined"
-                        startIcon={<RefreshIcon />}
-                        onClick={fetchAllData}
-                        disabled={loading}
-                    >
-                        Làm mới
-                    </Button>
+                    {timePeriod === 'custom' && (
+                        <Button
+                            variant="outlined"
+                            startIcon={<DateRangeIcon />}
+                            onClick={() => setShowDatePicker(!showDatePicker)}
+                        >
+                            Chọn ngày
+                        </Button>
+                    )}
                 </Box>
-            </Box>
 
+                {/* Custom Date Range Picker */}
+                {showDatePicker && timePeriod === 'custom' && (
+                    <Box mt={2}>
+                        <DateRangePicker
+                            ranges={customDateRange}
+                            onChange={handleDateRangeChange}
+                            showSelectionPreview={true}
+                            moveRangeOnFirstSelection={false}
+                            months={2}
+                            direction="horizontal"
+                        />
+                        <Box mt={2}>
+                            <Button
+                                variant="contained"
+                                onClick={applyCustomDateRange}
+                                sx={{ mr: 1 }}
+                            >
+                                Áp dụng
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                onClick={() => setShowDatePicker(false)}
+                            >
+                                Hủy
+                            </Button>
+                        </Box>
+                    </Box>
+                )}
+            </Paper>
+
+            {/* Error Display */}
             {error && (
                 <Alert severity="error" sx={{ mb: 3 }}>
                     {error}
                 </Alert>
             )}
 
-            {/* Overview Stats Cards */}
-            {overviewData && (
-                <Grid container spacing={3} sx={{ mb: 3 }}>
-                    <Grid item xs={12} sm={6} md={2.4}>
-                        <Card>
-                            <CardContent>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <PeopleIcon sx={{ mr: 2, color: 'primary.main', fontSize: 40 }} />
-                                    <Box>
-                                        <Typography color="textSecondary" gutterBottom>
-                                            Người dùng
-                                        </Typography>
-                                        <Typography variant="h5">
-                                            {formatNumber(overviewData.totals.users)}
-                                        </Typography>
-                                        <Typography variant="caption" color="success.main">
-                                            +{overviewData.period.newUsers} mới
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-
-                    <Grid item xs={12} sm={6} md={2.4}>
-                        <Card>
-                            <CardContent>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <ArticleIcon sx={{ mr: 2, color: 'info.main', fontSize: 40 }} />
-                                    <Box>
-                                        <Typography color="textSecondary" gutterBottom>
-                                            Bài viết
-                                        </Typography>
-                                        <Typography variant="h5">
-                                            {formatNumber(overviewData.totals.posts)}
-                                        </Typography>
-                                        <Typography variant="caption" color="success.main">
-                                            +{overviewData.period.newPosts} mới
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-
-                    <Grid item xs={12} sm={6} md={2.4}>
-                        <Card>
-                            <CardContent>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <TopicIcon sx={{ mr: 2, color: 'warning.main', fontSize: 40 }} />
-                                    <Box>
-                                        <Typography color="textSecondary" gutterBottom>
-                                            Chủ đề
-                                        </Typography>
-                                        <Typography variant="h5">
-                                            {formatNumber(overviewData.totals.topics)}
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-
-                    <Grid item xs={12} sm={6} md={2.4}>
-                        <Card>
-                            <CardContent>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <CommentIcon sx={{ mr: 2, color: 'secondary.main', fontSize: 40 }} />
-                                    <Box>
-                                        <Typography color="textSecondary" gutterBottom>
-                                            Bình luận
-                                        </Typography>
-                                        <Typography variant="h5">
-                                            {formatNumber(overviewData.totals.comments)}
-                                        </Typography>
-                                        <Typography variant="caption" color="success.main">
-                                            +{overviewData.period.newComments} mới
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-
-                    <Grid item xs={12} sm={6} md={2.4}>
-                        <Card>
-                            <CardContent>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <FavoriteIcon sx={{ mr: 2, color: 'error.main', fontSize: 40 }} />
-                                    <Box>
-                                        <Typography color="textSecondary" gutterBottom>
-                                            Lượt thích
-                                        </Typography>
-                                        <Typography variant="h5">
-                                            {formatNumber(overviewData.totals.likes)}
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                </Grid>
+            {/* Loading Indicator */}
+            {loading && (
+                <Box display="flex" justifyContent="center" my={4}>
+                    <CircularProgress />
+                </Box>
             )}
 
-            {/* Tabs for different analytics sections */}
+            {/* Tabs */}
             <Paper sx={{ mb: 3 }}>
                 <Tabs
                     value={selectedTab}
@@ -429,684 +721,63 @@ const AdminAnalyticsPage = () => {
                     variant="scrollable"
                     scrollButtons="auto"
                 >
-                    <Tab label="Xu hướng tăng trưởng" />
-                    <Tab label="Hoạt động người dùng" />
+                    <Tab label="Tổng quan" />
+                    <Tab label="Thống kê đánh giá" />
+                    <Tab label="Thống kê chủ đề" />
+                    <Tab label="Cộng đồng" />
                     <Tab label="Nội dung phổ biến" />
-                    <Tab label="Phân tích tìm kiếm" />
+                    <Tab label="Tìm kiếm" />
                 </Tabs>
+            </Paper>
 
-                {/* Tab Panel 0: Growth Trends */}
-                <TabPanel value={selectedTab} index={0}>
-                    {growthTrendsData && (
-                        <Grid container spacing={3}>
-                            <Grid item xs={12}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Xu hướng tăng trưởng theo thời gian
-                                    </Typography>
-                                    <ResponsiveContainer width="100%" height={400}>
-                                        <LineChart>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis
-                                                dataKey="date"
-                                                tickFormatter={formatDate}
-                                            />
-                                            <YAxis />
-                                            <Tooltip
-                                                labelFormatter={(value) => formatDate(value)}
-                                            />
-                                            <Legend />
-                                            <Line
-                                                type="monotone"
-                                                dataKey="count"
-                                                stroke="#8884d8"
-                                                strokeWidth={2}
-                                                dot={{ r: 4 }}
-                                                name="Người dùng mới"
-                                                data={growthTrendsData.userGrowth}
-                                            />
-                                            <Line
-                                                type="monotone"
-                                                dataKey="count"
-                                                stroke="#82ca9d"
-                                                strokeWidth={2}
-                                                dot={{ r: 4 }}
-                                                name="Bài viết mới"
-                                                data={growthTrendsData.postGrowth}
-                                            />
-                                            <Line
-                                                type="monotone"
-                                                dataKey="count"
-                                                stroke="#ffc658"
-                                                strokeWidth={2}
-                                                dot={{ r: 4 }}
-                                                name="Bình luận mới"
-                                                data={growthTrendsData.commentGrowth}
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </Paper>
-                            </Grid>
+            {/* Tab Content */}
+            {selectedTab === 0 && (
+                <Box>
+                    {renderOverviewCards()}
+                </Box>
+            )}
 
-                            {overviewData && (
-                                <Grid item xs={12} md={6}>
-                                    <Paper sx={{ p: 3 }}>
-                                        <Typography variant="h6" gutterBottom>
-                                            Tỷ lệ tăng trưởng
-                                        </Typography>
-                                        <Box sx={{ mt: 2 }}>
-                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                                                <Typography>Người dùng:</Typography>
-                                                <Chip
-                                                    label={`${overviewData.growth.userGrowthRate > 0 ? '+' : ''}${overviewData.growth.userGrowthRate}%`}
-                                                    color={overviewData.growth.userGrowthRate > 0 ? 'success' : 'error'}
-                                                    size="small"
-                                                />
-                                            </Box>
-                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                                                <Typography>Bài viết:</Typography>
-                                                <Chip
-                                                    label={`${overviewData.growth.postGrowthRate > 0 ? '+' : ''}${overviewData.growth.postGrowthRate}%`}
-                                                    color={overviewData.growth.postGrowthRate > 0 ? 'success' : 'error'}
-                                                    size="small"
-                                                />
-                                            </Box>
-                                        </Box>
-                                    </Paper>
-                                </Grid>
-                            )}
-
-                            {overviewData && (
-                                <Grid item xs={12} md={6}>
-                                    <Paper sx={{ p: 3 }}>
-                                        <Typography variant="h6" gutterBottom>
-                                            Hoạt động trong {timePeriod} ngày qua
-                                        </Typography>
-                                        <Box sx={{ mt: 2 }}>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Người dùng hoạt động: <strong>{overviewData.period.activeUsers}</strong>
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Bài viết mới: <strong>{overviewData.period.newPosts}</strong>
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Bình luận mới: <strong>{overviewData.period.newComments}</strong>
-                                            </Typography>
-                                        </Box>
-                                    </Paper>
-                                </Grid>
-                            )}
+            {selectedTab === 1 && (
+                <Box>
+                    <Grid container spacing={3}>
+                        <Grid item xs={12} md={8}>
+                            {renderRatingChart()}
                         </Grid>
-                    )}
-                </TabPanel>
-
-                {/* Tab Panel 1: User Activity */}
-                <TabPanel value={selectedTab} index={1}>
-                    {userActivityData && (
-                        <Grid container spacing={3}>
-                            <Grid item xs={12} md={8}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Hoạt động theo giờ trong ngày
-                                    </Typography>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart data={userActivityData.hourlyActivity}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="_id" />
-                                            <YAxis />
-                                            <Tooltip />
-                                            <Bar dataKey="count" fill="#8884d8" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12} md={4}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Loại hoạt động
-                                    </Typography>
-                                    <Box sx={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                        <Doughnut
-                                            data={{
-                                                labels: userActivityData.activityStats.map(item => item._id),
-                                                datasets: [{
-                                                    data: userActivityData.activityStats.map(item => item.count),
-                                                    backgroundColor: [
-                                                        '#FF6384',
-                                                        '#36A2EB',
-                                                        '#FFCE56',
-                                                        '#4BC0C0',
-                                                        '#9966FF',
-                                                        '#FF9F40'
-                                                    ],
-                                                    borderWidth: 2,
-                                                    borderColor: '#fff',
-                                                    hoverBorderWidth: 3,
-                                                    hoverBorderColor: '#fff'
-                                                }]
-                                            }}
-                                            options={{
-                                                responsive: true,
-                                                maintainAspectRatio: false,
-                                                plugins: {
-                                                    legend: {
-                                                        position: 'bottom',
-                                                        labels: {
-                                                            padding: 20,
-                                                            usePointStyle: true
-                                                        }
-                                                    },
-                                                    tooltip: {
-                                                        callbacks: {
-                                                            label: function (context) {
-                                                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                                                const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                                                return `${context.label}: ${context.parsed} (${percentage}%)`;
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }}
-                                        />
-                                    </Box>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Hoạt động theo ngày
-                                    </Typography>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <AreaChart data={userActivityData.dailyActivity}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis
-                                                dataKey="date"
-                                                tickFormatter={formatDate}
-                                            />
-                                            <YAxis />
-                                            <Tooltip
-                                                labelFormatter={(value) => formatDate(value)}
-                                            />
-                                            <Area
-                                                type="monotone"
-                                                dataKey="count"
-                                                stackId="1"
-                                                stroke="#8884d8"
-                                                fill="#8884d8"
-                                                name="Tổng hoạt động"
-                                            />
-                                            <Area
-                                                type="monotone"
-                                                dataKey="uniqueUserCount"
-                                                stackId="2"
-                                                stroke="#82ca9d"
-                                                fill="#82ca9d"
-                                                name="Người dùng duy nhất"
-                                            />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Top người dùng hoạt động nhất
-                                    </Typography>
-                                    <List>
-                                        {userActivityData.topActiveUsers.slice(0, 5).map((user, index) => (
-                                            <React.Fragment key={user._id._id}>
-                                                <ListItem>
+                        <Grid item xs={12} md={4}>
+                            {ratingData && (
+                                <Card>
+                                    <CardContent>
+                                        <Typography variant="h6" gutterBottom>
+                                            Top người đánh giá
+                                        </Typography>
+                                        <List>
+                                            {ratingData.topRaters?.slice(0, 5).map((rater, index) => (
+                                                <ListItem key={rater._id}>
                                                     <ListItemAvatar>
-                                                        <Avatar src={user._id.avatarUrl}>
-                                                            {user._id.fullName?.charAt(0)}
-                                                        </Avatar>
+                                                        <Avatar>{index + 1}</Avatar>
                                                     </ListItemAvatar>
                                                     <ListItemText
-                                                        primary={user._id.fullName || 'Người dùng ẩn danh'}
-                                                        secondary={`${user.activityCount} hoạt động`}
-                                                    />
-                                                    <Chip
-                                                        label={`#${index + 1}`}
-                                                        size="small"
-                                                        color="primary"
+                                                        primary={rater.username}
+                                                        secondary={`${rater.ratingCount} đánh giá`}
                                                     />
                                                 </ListItem>
-                                                {index < 4 && <Divider />}
-                                            </React.Fragment>
-                                        ))}
-                                    </List>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Phân tích thiết bị
-                                    </Typography>
-                                    <Box sx={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                        <PolarArea
-                                            data={{
-                                                labels: userActivityData.deviceStats?.map(item => item._id) || ['Desktop', 'Mobile', 'Tablet'],
-                                                datasets: [{
-                                                    data: userActivityData.deviceStats?.map(item => item.count) || [45, 35, 20],
-                                                    backgroundColor: [
-                                                        'rgba(255, 99, 132, 0.8)',
-                                                        'rgba(54, 162, 235, 0.8)',
-                                                        'rgba(255, 205, 86, 0.8)',
-                                                        'rgba(75, 192, 192, 0.8)',
-                                                        'rgba(153, 102, 255, 0.8)'
-                                                    ],
-                                                    borderColor: [
-                                                        'rgba(255, 99, 132, 1)',
-                                                        'rgba(54, 162, 235, 1)',
-                                                        'rgba(255, 205, 86, 1)',
-                                                        'rgba(75, 192, 192, 1)',
-                                                        'rgba(153, 102, 255, 1)'
-                                                    ],
-                                                    borderWidth: 2
-                                                }]
-                                            }}
-                                            options={{
-                                                responsive: true,
-                                                maintainAspectRatio: false,
-                                                plugins: {
-                                                    legend: {
-                                                        position: 'bottom',
-                                                        labels: {
-                                                            padding: 20
-                                                        }
-                                                    }
-                                                },
-                                                scales: {
-                                                    r: {
-                                                        beginAtZero: true,
-                                                        grid: {
-                                                            color: 'rgba(0, 0, 0, 0.1)'
-                                                        }
-                                                    }
-                                                }
-                                            }}
-                                        />
-                                    </Box>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Radar Chart - Hoạt động theo giờ
-                                    </Typography>
-                                    <Box sx={{ height: 400, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                        <Radar
-                                            data={{
-                                                labels: userActivityData.hourlyActivity?.slice(0, 12).map(item => `${item._id}h`) ||
-                                                    ['0h', '2h', '4h', '6h', '8h', '10h', '12h', '14h', '16h', '18h', '20h', '22h'],
-                                                datasets: [{
-                                                    label: 'Hoạt động',
-                                                    data: userActivityData.hourlyActivity?.slice(0, 12).map(item => item.count) ||
-                                                        [10, 5, 8, 15, 25, 30, 35, 40, 45, 35, 25, 15],
-                                                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                                                    borderColor: 'rgba(54, 162, 235, 1)',
-                                                    borderWidth: 2,
-                                                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
-                                                    pointBorderColor: '#fff',
-                                                    pointHoverBackgroundColor: '#fff',
-                                                    pointHoverBorderColor: 'rgba(54, 162, 235, 1)'
-                                                }]
-                                            }}
-                                            options={{
-                                                responsive: true,
-                                                maintainAspectRatio: false,
-                                                plugins: {
-                                                    legend: {
-                                                        position: 'top'
-                                                    }
-                                                },
-                                                scales: {
-                                                    r: {
-                                                        beginAtZero: true,
-                                                        grid: {
-                                                            color: 'rgba(0, 0, 0, 0.1)'
-                                                        },
-                                                        angleLines: {
-                                                            color: 'rgba(0, 0, 0, 0.1)'
-                                                        }
-                                                    }
-                                                }
-                                            }}
-                                        />
-                                    </Box>
-                                </Paper>
-                            </Grid>
+                                            ))}
+                                        </List>
+                                    </CardContent>
+                                </Card>
+                            )}
                         </Grid>
-                    )}
-                </TabPanel>
+                    </Grid>
+                </Box>
+            )}
 
-                {/* Tab Panel 2: Popular Content */}
-                <TabPanel value={selectedTab} index={2}>
-                    {popularContentData && (
-                        <Grid container spacing={3}>
-                            <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Bài viết phổ biến nhất
-                                    </Typography>
-                                    <List>
-                                        {popularContentData.popularPosts.slice(0, 10).map((post, index) => (
-                                            <React.Fragment key={post._id._id}>
-                                                <ListItem>
-                                                    <ListItemText
-                                                        primary={post._id.title}
-                                                        secondary={
-                                                            <Box>
-                                                                <Typography variant="caption" display="block">
-                                                                    Tác giả: {post._id.authorId?.fullName || 'Ẩn danh'}
-                                                                </Typography>
-                                                                <Typography variant="caption" display="block">
-                                                                    Chủ đề: {post._id.topicId?.name || 'Không xác định'}
-                                                                </Typography>
-                                                                <Box sx={{ mt: 1 }}>
-                                                                    <Chip label={`${post.viewCount} lượt xem`} size="small" sx={{ mr: 1 }} />
-                                                                    <Chip label={`${post.likeCount} thích`} size="small" color="error" sx={{ mr: 1 }} />
-                                                                    <Chip label={`${post.commentCount} bình luận`} size="small" color="info" />
-                                                                </Box>
-                                                            </Box>
-                                                        }
-                                                    />
-                                                    <Chip
-                                                        label={`#${index + 1}`}
-                                                        size="small"
-                                                        color="primary"
-                                                    />
-                                                </ListItem>
-                                                {index < 9 && <Divider />}
-                                            </React.Fragment>
-                                        ))}
-                                    </List>
-                                </Paper>
-                            </Grid>
+            {selectedTab === 2 && (
+                <Box>
+                    {renderTopicStats()}
+                </Box>
+            )}
 
-                            <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Chủ đề phổ biến nhất
-                                    </Typography>
-                                    <List>
-                                        {popularContentData.popularTopics.slice(0, 10).map((topic, index) => (
-                                            <React.Fragment key={topic._id}>
-                                                <ListItem>
-                                                    <ListItemText
-                                                        primary={topic.name}
-                                                        secondary={
-                                                            <Box>
-                                                                <Typography variant="caption" display="block">
-                                                                    Danh mục: {topic.category}
-                                                                </Typography>
-                                                                <Box sx={{ mt: 1 }}>
-                                                                    <Chip label={`${topic.postCount} bài viết`} size="small" sx={{ mr: 1 }} />
-                                                                    <Chip label={`${topic.viewCount} lượt xem`} size="small" color="info" sx={{ mr: 1 }} />
-                                                                    <Chip label={`${topic.recentPostCount} bài mới`} size="small" color="success" />
-                                                                </Box>
-                                                            </Box>
-                                                        }
-                                                    />
-                                                    <Chip
-                                                        label={`#${index + 1}`}
-                                                        size="small"
-                                                        color="primary"
-                                                    />
-                                                </ListItem>
-                                                {index < 9 && <Divider />}
-                                            </React.Fragment>
-                                        ))}
-                                    </List>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12} md={8}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Thống kê theo danh mục
-                                    </Typography>
-                                    <ResponsiveContainer width="100%" height={400}>
-                                        <BarChart data={popularContentData.categoryStats}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="_id" />
-                                            <YAxis />
-                                            <Tooltip />
-                                            <Legend />
-                                            <Bar dataKey="topicCount" fill="#8884d8" name="Số chủ đề" />
-                                            <Bar dataKey="totalPosts" fill="#82ca9d" name="Tổng bài viết" />
-                                            <Bar dataKey="totalViews" fill="#ffc658" name="Tổng lượt xem" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12} md={4}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Phân bố nội dung
-                                    </Typography>
-                                    <Box sx={{ height: 400, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                        <Doughnut
-                                            data={{
-                                                labels: popularContentData.categoryStats?.map(item => item._id) || ['Học tập', 'Nghiên cứu', 'Thực tập'],
-                                                datasets: [{
-                                                    data: popularContentData.categoryStats?.map(item => item.totalPosts) || [30, 25, 20],
-                                                    backgroundColor: [
-                                                        '#FF6384',
-                                                        '#36A2EB',
-                                                        '#FFCE56',
-                                                        '#4BC0C0',
-                                                        '#9966FF',
-                                                        '#FF9F40',
-                                                        '#FF6384',
-                                                        '#C9CBCF'
-                                                    ],
-                                                    borderWidth: 3,
-                                                    borderColor: '#fff',
-                                                    hoverBorderWidth: 4
-                                                }]
-                                            }}
-                                            options={{
-                                                responsive: true,
-                                                maintainAspectRatio: false,
-                                                cutout: '60%',
-                                                plugins: {
-                                                    legend: {
-                                                        position: 'bottom',
-                                                        labels: {
-                                                            padding: 15,
-                                                            usePointStyle: true,
-                                                            font: {
-                                                                size: 12
-                                                            }
-                                                        }
-                                                    },
-                                                    tooltip: {
-                                                        callbacks: {
-                                                            label: function (context) {
-                                                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                                                const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                                                return `${context.label}: ${context.parsed} bài viết (${percentage}%)`;
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }}
-                                        />
-                                    </Box>
-                                </Paper>
-                            </Grid>
-                        </Grid>
-                    )}
-                </TabPanel>
-
-                {/* Tab Panel 3: Search Analytics */}
-                <TabPanel value={selectedTab} index={3}>
-                    {searchAnalyticsData && (
-                        <Grid container spacing={3}>
-                            <Grid item xs={12} md={4}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Tổng quan tìm kiếm
-                                    </Typography>
-                                    <Box sx={{ mt: 2 }}>
-                                        <Typography variant="h4" color="primary.main">
-                                            {formatNumber(searchAnalyticsData.overview.totalSearches)}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                                            Tổng số lượt tìm kiếm
-                                        </Typography>
-
-                                        <Typography variant="h4" color="info.main">
-                                            {formatNumber(searchAnalyticsData.overview.uniqueQueries)}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                                            Từ khóa duy nhất
-                                        </Typography>
-
-                                        <Typography variant="h4" color="success.main">
-                                            {searchAnalyticsData.overview.avgProcessingTime.toFixed(0)}ms
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Thời gian xử lý trung bình
-                                        </Typography>
-                                    </Box>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12} md={8}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Xu hướng tìm kiếm theo ngày
-                                    </Typography>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <LineChart data={searchAnalyticsData.searchTrends}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis
-                                                dataKey="_id"
-                                                tickFormatter={(value) => `${value.day}/${value.month}`}
-                                            />
-                                            <YAxis />
-                                            <Tooltip />
-                                            <Legend />
-                                            <Line
-                                                type="monotone"
-                                                dataKey="searchCount"
-                                                stroke="#8884d8"
-                                                name="Số lượt tìm kiếm"
-                                            />
-                                            <Line
-                                                type="monotone"
-                                                dataKey="uniqueQueryCount"
-                                                stroke="#82ca9d"
-                                                name="Từ khóa duy nhất"
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Từ khóa tìm kiếm phổ biến
-                                    </Typography>
-                                    <List>
-                                        {searchAnalyticsData.popularSearches.slice(0, 10).map((search, index) => (
-                                            <React.Fragment key={search._id}>
-                                                <ListItem>
-                                                    <ListItemText
-                                                        primary={search.originalQuery}
-                                                        secondary={
-                                                            <Box>
-                                                                <Chip
-                                                                    label={`${search.count} lượt`}
-                                                                    size="small"
-                                                                    sx={{ mr: 1 }}
-                                                                />
-                                                                <Chip
-                                                                    label={`${(search.successRate * 100).toFixed(0)}% thành công`}
-                                                                    size="small"
-                                                                    color={search.successRate > 0.5 ? 'success' : 'warning'}
-                                                                />
-                                                            </Box>
-                                                        }
-                                                    />
-                                                    <Chip
-                                                        label={`#${index + 1}`}
-                                                        size="small"
-                                                        color="primary"
-                                                    />
-                                                </ListItem>
-                                                {index < 9 && <Divider />}
-                                            </React.Fragment>
-                                        ))}
-                                    </List>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Tìm kiếm thất bại
-                                    </Typography>
-                                    <List>
-                                        {searchAnalyticsData.failedSearches.slice(0, 10).map((search, index) => (
-                                            <React.Fragment key={search._id}>
-                                                <ListItem>
-                                                    <ListItemText
-                                                        primary={search.originalQuery}
-                                                        secondary={`${search.count} lần thất bại`}
-                                                    />
-                                                    <Chip
-                                                        label={search.count}
-                                                        size="small"
-                                                        color="error"
-                                                    />
-                                                </ListItem>
-                                                {index < 9 && <Divider />}
-                                            </React.Fragment>
-                                        ))}
-                                    </List>
-                                </Paper>
-                            </Grid>
-
-                            <Grid item xs={12}>
-                                <Paper sx={{ p: 3 }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Thống kê theo thiết bị
-                                    </Typography>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <PieChart>
-                                            <Pie
-                                                data={searchAnalyticsData.deviceStats}
-                                                cx="50%"
-                                                cy="50%"
-                                                labelLine={false}
-                                                label={({ _id, percent }) => `${_id} ${(percent * 100).toFixed(0)}%`}
-                                                outerRadius={80}
-                                                fill="#8884d8"
-                                                dataKey="count"
-                                            >
-                                                {searchAnalyticsData.deviceStats.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </Paper>
-                            </Grid>
-                        </Grid>
-                    )}
-                </TabPanel>
-            </Paper>
+            {/* Add other tab contents here */}
         </Container>
     );
 };

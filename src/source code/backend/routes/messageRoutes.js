@@ -4,7 +4,7 @@ const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
 const User = require('../models/User');
 const ChatService = require('../services/chatService');
-const auth = require('../middlewares/authMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
 
 // Middleware để khởi tạo ChatService
 const initChatService = (req, res, next) => {
@@ -15,7 +15,7 @@ const initChatService = (req, res, next) => {
 };
 
 // GET /api/messages/conversations - Lấy danh sách cuộc trò chuyện
-router.get('/conversations', auth, initChatService, async (req, res) => {
+router.get('/conversations', protect, initChatService, async (req, res) => {
     try {
         const { page = 1, limit = 20 } = req.query;
         const userId = req.user._id;
@@ -46,7 +46,7 @@ router.get('/conversations', auth, initChatService, async (req, res) => {
 });
 
 // GET /api/messages/conversations/:conversationId - Lấy tin nhắn trong cuộc trò chuyện
-router.get('/conversations/:conversationId', auth, initChatService, async (req, res) => {
+router.get('/conversations/:conversationId', protect, initChatService, async (req, res) => {
     try {
         const { conversationId } = req.params;
         const { page = 1, limit = 50 } = req.query;
@@ -79,7 +79,7 @@ router.get('/conversations/:conversationId', auth, initChatService, async (req, 
 });
 
 // POST /api/messages/send - Gửi tin nhắn
-router.post('/send', auth, initChatService, async (req, res) => {
+router.post('/send', protect, initChatService, async (req, res) => {
     try {
         const { receiverId, content, messageType = 'text', attachments = [] } = req.body;
         const senderId = req.user._id;
@@ -124,7 +124,7 @@ router.post('/send', auth, initChatService, async (req, res) => {
 });
 
 // PUT /api/messages/:messageId/read - Đánh dấu tin nhắn đã đọc
-router.put('/:messageId/read', auth, initChatService, async (req, res) => {
+router.put('/:messageId/read', protect, initChatService, async (req, res) => {
     try {
         const { messageId } = req.params;
         const userId = req.user._id;
@@ -147,7 +147,7 @@ router.put('/:messageId/read', auth, initChatService, async (req, res) => {
 });
 
 // GET /api/messages/unread-count - Lấy số tin nhắn chưa đọc
-router.get('/unread-count', auth, initChatService, async (req, res) => {
+router.get('/unread-count', protect, initChatService, async (req, res) => {
     try {
         const userId = req.user._id;
         const unreadCount = await req.chatService.getTotalUnreadCount(userId);
@@ -167,7 +167,7 @@ router.get('/unread-count', auth, initChatService, async (req, res) => {
 });
 
 // POST /api/messages/conversation/create - Tạo cuộc trò chuyện mới
-router.post('/conversation/create', auth, async (req, res) => {
+router.post('/conversation/create', protect, async (req, res) => {
     try {
         const { participantId } = req.body;
         const userId = req.user._id;
@@ -262,7 +262,7 @@ router.post('/conversation/create', auth, async (req, res) => {
 });
 
 // GET /api/messages/users/search - Tìm kiếm người dùng để chat
-router.get('/users/search', auth, async (req, res) => {
+router.get('/users/search', protect, async (req, res) => {
     try {
         const { q = '', page = 1, limit = 20 } = req.query;
         const userId = req.user._id;
@@ -306,7 +306,7 @@ router.get('/users/search', auth, async (req, res) => {
 });
 
 // DELETE /api/messages/:messageId/delete-for-me - Xóa tin nhắn cho riêng mình
-router.delete('/:messageId/delete-for-me', auth, initChatService, async (req, res) => {
+router.delete('/:messageId/delete-for-me', protect, initChatService, async (req, res) => {
     try {
         const { messageId } = req.params;
         const userId = req.user._id;
@@ -327,7 +327,7 @@ router.delete('/:messageId/delete-for-me', auth, initChatService, async (req, re
 });
 
 // DELETE /api/messages/:messageId/delete-for-all - Xóa tin nhắn cho tất cả (chỉ người gửi)
-router.delete('/:messageId/delete-for-all', auth, initChatService, async (req, res) => {
+router.delete('/:messageId/delete-for-all', protect, initChatService, async (req, res) => {
     try {
         const { messageId } = req.params;
         const userId = req.user._id;
@@ -349,7 +349,7 @@ router.delete('/:messageId/delete-for-all', auth, initChatService, async (req, r
 });
 
 // DELETE /api/messages/conversations/:conversationId/delete-all-for-me - Xóa tất cả tin nhắn trong cuộc trò chuyện cho riêng mình
-router.delete('/conversations/:conversationId/delete-all-for-me', auth, initChatService, async (req, res) => {
+router.delete('/conversations/:conversationId/delete-all-for-me', protect, initChatService, async (req, res) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user._id;

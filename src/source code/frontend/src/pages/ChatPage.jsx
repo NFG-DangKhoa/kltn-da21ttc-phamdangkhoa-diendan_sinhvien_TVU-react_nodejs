@@ -8,7 +8,7 @@ import {
     useTheme,
     useMediaQuery,
     Breadcrumbs,
-    Link,
+    Link as MuiLink,
     Divider,
     IconButton,
     Tabs,
@@ -24,7 +24,7 @@ import {
     Message as MessageIcon,
     Settings as SettingsIcon
 } from '@mui/icons-material';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'; // Added useLocation
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom'; // Added useLocation
 import axios from 'axios'; // Added axios import
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
@@ -32,6 +32,7 @@ import SimpleConversationList from '../components/Chat/SimpleConversationList';
 import ConversationView from '../components/Chat/ConversationView';
 import UserList from '../components/Chat/UserList';
 import ChatSettings from '../components/Chat/ChatSettings';
+import BreadcrumbNavigation from '../components/BreadcrumbNavigation';
 import '../styles/chat.css';
 
 const ChatPage = () => {
@@ -374,6 +375,55 @@ const ChatPage = () => {
                     }
                 }}
             />
+            <BreadcrumbNavigation
+                darkMode={theme.palette.mode === 'dark'}
+                customBreadcrumbs={[
+                    <Link
+                        key="home"
+                        to="/"
+                        style={{
+                            textDecoration: 'none',
+                            color: theme.palette.mode === 'dark' ? '#90caf9' : theme.palette.primary.main,
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '0.9rem',
+                            fontWeight: 600,
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            transition: 'all 0.2s ease',
+                            background: theme.palette.mode === 'dark'
+                                ? 'rgba(144, 202, 249, 0.1)'
+                                : 'rgba(25, 118, 210, 0.08)',
+                            border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.2)' : 'rgba(25, 118, 210, 0.15)'}`,
+                        }}
+                    >
+                        <HomeIcon sx={{ mr: 1, fontSize: 18 }} />
+                        Trang chủ
+                    </Link>,
+                    <Typography
+                        key="chat"
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: theme.palette.mode === 'dark' ? '#e4e6eb' : '#1c1e21',
+                            fontSize: '0.9rem',
+                            fontWeight: 700,
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            background: theme.palette.mode === 'dark'
+                                ? 'linear-gradient(135deg, #3a3b3c 0%, #2a2b2c 100%)'
+                                : 'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)',
+                            border: theme.palette.mode === 'dark' ? '1px solid #4a4b4c' : '1px solid #d0d0d0',
+                            boxShadow: theme.palette.mode === 'dark'
+                                ? 'inset 0 1px 3px rgba(0,0,0,0.3)'
+                                : 'inset 0 1px 3px rgba(0,0,0,0.1)',
+                        }}
+                    >
+                        <ChatIcon sx={{ mr: 1, fontSize: 18 }} />
+                        Tin nhắn
+                    </Typography>,
+                ]}
+            />
             <Container maxWidth={false} sx={{
                 py: 3,
                 px: { xs: 2, sm: 3, md: 3 },
@@ -382,7 +432,8 @@ const ChatPage = () => {
                 mx: 'auto',
                 background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
                 minHeight: '100vh',
-                position: 'relative'
+                position: 'relative',
+                pt: '84px'
             }}>
                 {/* Subtle background pattern */}
                 <Box sx={{
@@ -399,32 +450,7 @@ const ChatPage = () => {
                 }} />
 
                 {/* Content wrapper */}
-                <Box sx={{ position: 'relative', zIndex: 1, }}>
-                    {/* Breadcrumbs */}
-                    <Breadcrumbs sx={{
-                        mb: 2,
-                        '& .MuiBreadcrumbs-separator': { color: 'rgba(71, 85, 105, 0.6)' },
-                        '& a, & p': { color: 'rgba(71, 85, 105, 0.8)' }
-                    }}>
-                        <Link
-                            color="inherit"
-                            href="/"
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                textDecoration: 'none',
-                                '&:hover': { color: '#3b82f6' }
-                            }}
-                        >
-                            <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                            Trang chủ
-                        </Link>
-                        <Typography sx={{ display: 'flex', alignItems: 'center', color: '#475569', fontWeight: 500 }}>
-                            <ChatIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                            Tin nhắn
-                        </Typography>
-                    </Breadcrumbs>
-
+                <Box sx={{ position: 'relative', zIndex: 1 }}>
                     {/* Page Title */}
                     <Box sx={{ mb: 4, textAlign: 'center', position: 'relative' }}>
                         {/* Settings and Connection Status */}
@@ -510,274 +536,274 @@ const ChatPage = () => {
                             Trò chuyện với các thành viên và quản trị viên
                         </Typography>
                     </Box>
-                </Box>
 
-                {/* Chat Interface */}
-                <Paper
-                    className="chat-container"
-                    elevation={0}
-                    sx={{
-                        height: isMobile ? 'calc(100vh - 200px)' : 'calc(100vh - 180px)',
-                        minHeight: isMobile ? '600px' : '750px',
-                        display: 'flex',
-                        overflow: 'hidden',
-                        borderRadius: 3,
-                        background: '#ffffff',
-                        border: '1px solid rgba(226, 232, 240, 0.8)',
-                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                        position: 'relative',
-                        zIndex: 2,
-                        width: '100%',
-                        maxWidth: '100%'
-                    }}
-                >
-                    {isMobile ? (
-                        // Mobile Layout - Single Column
-                        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-                            {selectedConversation ? (
-                                // Show conversation
-                                <ConversationView
-                                    conversation={selectedConversation}
-                                    messages={messages}
-                                    onBack={handleBackToList}
-                                    onSendMessage={handleSendMessage}
-                                    currentUser={user}
-                                    isMobile={true}
-                                />
-                            ) : (
-                                // Show list view
-                                <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                                    {/* Tab Bar */}
-                                    <Tabs
-                                        value={activeTab}
-                                        onChange={handleTabChange}
-                                        sx={{ borderBottom: 1, borderColor: 'divider' }}
-                                    >
-                                        <Tab
-                                            icon={<MessageIcon />}
-                                            label="Cuộc trò chuyện"
-                                            sx={{ minHeight: 48 }}
-                                        />
-                                        <Tab
-                                            icon={<PeopleIcon />}
-                                            label="Tìm người dùng"
-                                            sx={{ minHeight: 48 }}
-                                        />
-                                    </Tabs>
-
-                                    {/* Tab Content */}
-                                    <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                                        {activeTab === 0 ? (
-                                            <SimpleConversationList
-                                                conversations={conversations}
-                                                onSelectConversation={handleSelectConversation}
-                                                loading={loading}
-                                                currentUser={user}
-                                            />
-                                        ) : (
-                                            <UserList
-                                                onStartChat={handleSelectConversation}
-                                                isMobile={true}
-                                            />
-                                        )}
-                                    </Box>
-                                </Box>
-                            )}
-                        </Box>
-                    ) : (
-                        // Desktop Layout - Two Columns
-                        <Box className="chat-content" sx={{ height: '100%', display: 'flex', width: '100%' }}>
-                            {/* Left Sidebar - Fixed width */}
-                            <Box
-                                className="chat-sidebar"
-                                sx={{
-                                    width: { md: '380px', lg: '400px' },
-                                    borderRight: '1px solid #e2e8f0',
-                                    flexShrink: 0,
-                                    minWidth: { md: '380px', lg: '400px' },
-                                    maxWidth: { md: '380px', lg: '400px' },
-                                    background: '#f8fafc',
-                                    position: 'relative'
-                                }}
-                            >
-                                <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                                    {/* Tab Headers */}
-                                    <Tabs
-                                        value={activeTab}
-                                        onChange={handleTabChange}
-                                        sx={{
-                                            borderBottom: '1px solid #e2e8f0',
-                                            background: '#ffffff',
-                                            '& .MuiTabs-indicator': {
-                                                background: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%)',
-                                                height: 2,
-                                                borderRadius: '2px 2px 0 0'
-                                            }
-                                        }}
-                                    >
-                                        <Tab
-                                            icon={<MessageIcon />}
-                                            label="Cuộc trò chuyện"
-                                            sx={{
-                                                minHeight: 56,
-                                                fontSize: '0.875rem',
-                                                fontWeight: 500,
-                                                textTransform: 'none',
-                                                color: '#64748b',
-                                                '&.Mui-selected': {
-                                                    color: '#3b82f6',
-                                                    fontWeight: 600
-                                                },
-                                                '&:hover': {
-                                                    color: '#3b82f6',
-                                                    background: 'rgba(59, 130, 246, 0.05)'
-                                                },
-                                                transition: 'all 0.2s ease'
-                                            }}
-                                        />
-                                        <Tab
-                                            icon={<PeopleIcon />}
-                                            label="Tìm người dùng"
-                                            sx={{
-                                                minHeight: 56,
-                                                fontSize: '0.875rem',
-                                                fontWeight: 500,
-                                                textTransform: 'none',
-                                                color: '#64748b',
-                                                '&.Mui-selected': {
-                                                    color: '#3b82f6',
-                                                    fontWeight: 600
-                                                },
-                                                '&:hover': {
-                                                    color: '#3b82f6',
-                                                    background: 'rgba(59, 130, 246, 0.05)'
-                                                },
-                                                transition: 'all 0.2s ease'
-                                            }}
-                                        />
-                                    </Tabs>
-
-                                    {/* Tab Content */}
-                                    <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                                        {activeTab === 0 ? (
-                                            <SimpleConversationList
-                                                conversations={conversations}
-                                                onSelectConversation={handleSelectConversation}
-                                                selectedConversation={selectedConversation}
-                                                loading={loading}
-                                                currentUser={user}
-                                            />
-                                        ) : (
-                                            <UserList
-                                                onStartChat={handleSelectConversation}
-                                                isMobile={false}
-                                            />
-                                        )}
-                                    </Box>
-                                </Box>
-                            </Box>
-
-                            {/* Right Content - Messages */}
-                            <Box
-                                className="chat-main"
-                                sx={{
-                                    flex: 1,
-                                    minWidth: 0, // Cho phép flex item co lại
-                                    width: '100%', // Đảm bảo sử dụng toàn bộ width
-                                    overflow: 'hidden',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    background: '#ffffff',
-                                    position: 'relative'
-                                }}
-                            >
+                    {/* Chat Interface */}
+                    <Paper
+                        className="chat-container"
+                        elevation={0}
+                        sx={{
+                            height: isMobile ? 'calc(100vh - 200px)' : 'calc(100vh - 180px)',
+                            minHeight: isMobile ? '600px' : '750px',
+                            display: 'flex',
+                            overflow: 'hidden',
+                            borderRadius: 3,
+                            background: '#ffffff',
+                            border: '1px solid rgba(226, 232, 240, 0.8)',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                            position: 'relative',
+                            zIndex: 2,
+                            width: '100%',
+                            maxWidth: '100%'
+                        }}
+                    >
+                        {isMobile ? (
+                            // Mobile Layout - Single Column
+                            <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
                                 {selectedConversation ? (
+                                    // Show conversation
                                     <ConversationView
                                         conversation={selectedConversation}
                                         messages={messages}
+                                        onBack={handleBackToList}
                                         onSendMessage={handleSendMessage}
                                         currentUser={user}
+                                        isMobile={true}
                                     />
                                 ) : (
-                                    <Box
-                                        sx={{
-                                            height: '100%',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            flexDirection: 'column',
-                                            color: 'text.secondary',
-                                            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%)',
-                                            position: 'relative',
-                                            '&::before': {
-                                                content: '""',
-                                                position: 'absolute',
-                                                top: '50%',
-                                                left: '50%',
-                                                transform: 'translate(-50%, -50%)',
-                                                width: '300px',
-                                                height: '300px',
-                                                background: 'radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%)',
-                                                borderRadius: '50%',
-                                                zIndex: 0
-                                            }
-                                        }}
-                                    >
-                                        <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-                                            <Box
-                                                sx={{
-                                                    width: 120,
-                                                    height: 120,
-                                                    borderRadius: '50%',
-                                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    mx: 'auto',
-                                                    mb: 3,
-                                                    boxShadow: '0 20px 40px rgba(102, 126, 234, 0.3)',
-                                                    animation: 'pulse 2s infinite'
-                                                }}
-                                            >
-                                                <ChatIcon sx={{ fontSize: 48, color: 'white' }} />
-                                            </Box>
-                                            <Typography
-                                                variant="h5"
-                                                gutterBottom
-                                                sx={{
-                                                    fontWeight: 600,
-                                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                                    backgroundClip: 'text',
-                                                    WebkitBackgroundClip: 'text',
-                                                    WebkitTextFillColor: 'transparent',
-                                                    mb: 2
-                                                }}
-                                            >
-                                                Chọn một cuộc trò chuyện
-                                            </Typography>
-                                            <Typography
-                                                variant="body1"
-                                                sx={{
-                                                    color: 'text.secondary',
-                                                    maxWidth: 400,
-                                                    lineHeight: 1.6
-                                                }}
-                                            >
-                                                Chọn cuộc trò chuyện từ danh sách bên trái hoặc tìm người dùng để bắt đầu chat mới
-                                            </Typography>
+                                    // Show list view
+                                    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                        {/* Tab Bar */}
+                                        <Tabs
+                                            value={activeTab}
+                                            onChange={handleTabChange}
+                                            sx={{ borderBottom: 1, borderColor: 'divider' }}
+                                        >
+                                            <Tab
+                                                icon={<MessageIcon />}
+                                                label="Cuộc trò chuyện"
+                                                sx={{ minHeight: 48 }}
+                                            />
+                                            <Tab
+                                                icon={<PeopleIcon />}
+                                                label="Tìm người dùng"
+                                                sx={{ minHeight: 48 }}
+                                            />
+                                        </Tabs>
+
+                                        {/* Tab Content */}
+                                        <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                                            {activeTab === 0 ? (
+                                                <SimpleConversationList
+                                                    conversations={conversations}
+                                                    onSelectConversation={handleSelectConversation}
+                                                    loading={loading}
+                                                    currentUser={user}
+                                                />
+                                            ) : (
+                                                <UserList
+                                                    onStartChat={handleSelectConversation}
+                                                    isMobile={true}
+                                                />
+                                            )}
                                         </Box>
                                     </Box>
                                 )}
                             </Box>
-                        </Box>
-                    )}
-                </Paper>
+                        ) : (
+                            // Desktop Layout - Two Columns
+                            <Box className="chat-content" sx={{ height: '100%', display: 'flex', width: '100%' }}>
+                                {/* Left Sidebar - Fixed width */}
+                                <Box
+                                    className="chat-sidebar"
+                                    sx={{
+                                        width: { md: '380px', lg: '400px' },
+                                        borderRight: '1px solid #e2e8f0',
+                                        flexShrink: 0,
+                                        minWidth: { md: '380px', lg: '400px' },
+                                        maxWidth: { md: '380px', lg: '400px' },
+                                        background: '#f8fafc',
+                                        position: 'relative'
+                                    }}
+                                >
+                                    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                        {/* Tab Headers */}
+                                        <Tabs
+                                            value={activeTab}
+                                            onChange={handleTabChange}
+                                            sx={{
+                                                borderBottom: '1px solid #e2e8f0',
+                                                background: '#ffffff',
+                                                '& .MuiTabs-indicator': {
+                                                    background: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%)',
+                                                    height: 2,
+                                                    borderRadius: '2px 2px 0 0'
+                                                }
+                                            }}
+                                        >
+                                            <Tab
+                                                icon={<MessageIcon />}
+                                                label="Cuộc trò chuyện"
+                                                sx={{
+                                                    minHeight: 56,
+                                                    fontSize: '0.875rem',
+                                                    fontWeight: 500,
+                                                    textTransform: 'none',
+                                                    color: '#64748b',
+                                                    '&.Mui-selected': {
+                                                        color: '#3b82f6',
+                                                        fontWeight: 600
+                                                    },
+                                                    '&:hover': {
+                                                        color: '#3b82f6',
+                                                        background: 'rgba(59, 130, 246, 0.05)'
+                                                    },
+                                                    transition: 'all 0.2s ease'
+                                                }}
+                                            />
+                                            <Tab
+                                                icon={<PeopleIcon />}
+                                                label="Tìm người dùng"
+                                                sx={{
+                                                    minHeight: 56,
+                                                    fontSize: '0.875rem',
+                                                    fontWeight: 500,
+                                                    textTransform: 'none',
+                                                    color: '#64748b',
+                                                    '&.Mui-selected': {
+                                                        color: '#3b82f6',
+                                                        fontWeight: 600
+                                                    },
+                                                    '&:hover': {
+                                                        color: '#3b82f6',
+                                                        background: 'rgba(59, 130, 246, 0.05)'
+                                                    },
+                                                    transition: 'all 0.2s ease'
+                                                }}
+                                            />
+                                        </Tabs>
 
-                {/* Chat Settings Dialog */}
-                <ChatSettings
-                    open={settingsOpen}
-                    onClose={() => setSettingsOpen(false)}
-                />
+                                        {/* Tab Content */}
+                                        <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                                            {activeTab === 0 ? (
+                                                <SimpleConversationList
+                                                    conversations={conversations}
+                                                    onSelectConversation={handleSelectConversation}
+                                                    selectedConversation={selectedConversation}
+                                                    loading={loading}
+                                                    currentUser={user}
+                                                />
+                                            ) : (
+                                                <UserList
+                                                    onStartChat={handleSelectConversation}
+                                                    isMobile={false}
+                                                />
+                                            )}
+                                        </Box>
+                                    </Box>
+                                </Box>
+
+                                {/* Right Content - Messages */}
+                                <Box
+                                    className="chat-main"
+                                    sx={{
+                                        flex: 1,
+                                        minWidth: 0, // Cho phép flex item co lại
+                                        width: '100%', // Đảm bảo sử dụng toàn bộ width
+                                        overflow: 'hidden',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        background: '#ffffff',
+                                        position: 'relative'
+                                    }}
+                                >
+                                    {selectedConversation ? (
+                                        <ConversationView
+                                            conversation={selectedConversation}
+                                            messages={messages}
+                                            onSendMessage={handleSendMessage}
+                                            currentUser={user}
+                                        />
+                                    ) : (
+                                        <Box
+                                            sx={{
+                                                height: '100%',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexDirection: 'column',
+                                                color: 'text.secondary',
+                                                background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%)',
+                                                position: 'relative',
+                                                '&::before': {
+                                                    content: '""',
+                                                    position: 'absolute',
+                                                    top: '50%',
+                                                    left: '50%',
+                                                    transform: 'translate(-50%, -50%)',
+                                                    width: '300px',
+                                                    height: '300px',
+                                                    background: 'radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%)',
+                                                    borderRadius: '50%',
+                                                    zIndex: 0
+                                                }
+                                            }}
+                                        >
+                                            <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+                                                <Box
+                                                    sx={{
+                                                        width: 120,
+                                                        height: 120,
+                                                        borderRadius: '50%',
+                                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        mx: 'auto',
+                                                        mb: 3,
+                                                        boxShadow: '0 20px 40px rgba(102, 126, 234, 0.3)',
+                                                        animation: 'pulse 2s infinite'
+                                                    }}
+                                                >
+                                                    <ChatIcon sx={{ fontSize: 48, color: 'white' }} />
+                                                </Box>
+                                                <Typography
+                                                    variant="h5"
+                                                    gutterBottom
+                                                    sx={{
+                                                        fontWeight: 600,
+                                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                        backgroundClip: 'text',
+                                                        WebkitBackgroundClip: 'text',
+                                                        WebkitTextFillColor: 'transparent',
+                                                        mb: 2
+                                                    }}
+                                                >
+                                                    Chọn một cuộc trò chuyện
+                                                </Typography>
+                                                <Typography
+                                                    variant="body1"
+                                                    sx={{
+                                                        color: 'text.secondary',
+                                                        maxWidth: 400,
+                                                        lineHeight: 1.6
+                                                    }}
+                                                >
+                                                    Chọn cuộc trò chuyện từ danh sách bên trái hoặc tìm người dùng để bắt đầu chat mới
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    )}
+                                </Box>
+                            </Box>
+                        )}
+                    </Paper>
+
+                    {/* Chat Settings Dialog */}
+                    <ChatSettings
+                        open={settingsOpen}
+                        onClose={() => setSettingsOpen(false)}
+                    />
+                </Box>
             </Container>
         </>
     );

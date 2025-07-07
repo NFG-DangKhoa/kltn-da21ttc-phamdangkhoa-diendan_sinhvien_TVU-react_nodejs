@@ -4,7 +4,7 @@ const Post = require('../models/Post');
 // Lấy danh sách tất cả chủ đề
 exports.getAllTopics = async (req, res) => {
     try {
-        const topics = await Topic.find();
+        const topics = await Topic.find({ status: 'active' });
         res.status(200).json(topics);
     } catch (error) {
         res.status(500).json({ message: 'Lỗi khi lấy danh sách chủ đề', error });
@@ -15,7 +15,7 @@ exports.getAllTopics = async (req, res) => {
 exports.getTopicsWithLatestPosts = async (req, res) => {
     try {
         // Lấy tất cả chủ đề
-        const topics = await Topic.find().sort({ createdAt: -1 });
+        const topics = await Topic.find({ status: 'active' }).sort({ createdAt: -1 });
 
         // Lấy thông tin bài viết gần nhất cho mỗi chủ đề
         const topicsWithLatestPosts = await Promise.all(
@@ -79,8 +79,8 @@ exports.getTopicById = async (req, res) => {
         // Tìm chủ đề theo ID
         const topic = await Topic.findById(topicId);
 
-        // Kiểm tra nếu không tìm thấy chủ đề
-        if (!topic) {
+        // Kiểm tra nếu không tìm thấy chủ đề hoặc chủ đề không hoạt động
+        if (!topic || topic.status !== 'active') {
             return res.status(404).json({ message: 'Không tìm thấy chủ đề' });
         }
 

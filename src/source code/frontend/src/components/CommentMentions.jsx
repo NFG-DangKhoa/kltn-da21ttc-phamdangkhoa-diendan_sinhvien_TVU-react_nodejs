@@ -254,7 +254,7 @@ const CommentMentions = ({
                                     >
                                         <ListItemAvatar>
                                             <Avatar
-                                                src={constructUrl(user.avatarUrl || user.avatar)}
+                                                src={user.avatarUrl && !user.isAvatarBlocked ? constructUrl(user.avatarUrl || user.avatar) : undefined}
                                                 sx={{ width: 32, height: 32 }}
                                             >
                                                 {user.fullName?.[0] || user.username?.[0] || '?'}

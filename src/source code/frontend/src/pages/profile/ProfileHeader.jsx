@@ -307,7 +307,7 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                     setShowImagePreview(true);
                 }}
             >
-                {userData.coverPhotoUrl && (
+                {userData.coverPhotoUrl && !userData.isCoverPhotoBlocked && (
                     <Box
                         key={constructUrl(userData.coverPhotoUrl)}
                         component="img"
@@ -370,7 +370,7 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                     <Avatar
                         key={constructUrl(userData.avatarUrl)}
                         alt={userData.fullName}
-                        src={constructUrl(userData.avatarUrl) || '/admin-avatar.png'}
+                        src={userData.avatarUrl && !userData.isAvatarBlocked ? constructUrl(userData.avatarUrl) : '/admin-avatar.png'}
                         sx={{
                             width: { xs: 140, sm: 160, md: 180 },
                             height: { xs: 140, sm: 160, md: 180 },

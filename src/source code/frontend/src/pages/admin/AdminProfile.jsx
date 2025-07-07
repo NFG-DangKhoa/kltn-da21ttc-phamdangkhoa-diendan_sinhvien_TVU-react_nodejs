@@ -281,7 +281,7 @@ const AdminProfile = () => {
                                         bgcolor: 'primary.main',
                                         fontSize: '3rem'
                                     }}
-                                    src={constructUrl(user.avatarUrl)}
+                                    src={user.avatarUrl && !user.isAvatarBlocked ? constructUrl(user.avatarUrl) : undefined}
                                 >
                                     {profileData.fullName.charAt(0)}
                                 </Avatar>

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middlewares/authMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 const postController = require('../controllers/postController');
 
 module.exports = (io) => {
@@ -14,11 +14,11 @@ module.exports = (io) => {
     router.get('/recent', postController.getRecentPosts);
 
     // Base route để lấy tất cả bài viết hoặc lọc theo authorId
-    router.get('/', auth, postController.getPosts);
+    router.get('/', protect, postController.getPosts);
 
     // Tạo bài viết mới
-    router.post('/cr', auth, postController.createPost);
-    router.post('/crr', auth, postController.createPostWithImages);
+    router.post('/cr', protect, postController.createPost);
+    router.post('/crr', protect, postController.createPostWithImages);
 
     // Lấy bài viết theo topic
     router.get('/topic/:topicId', postController.getPostsByTopic);
@@ -45,8 +45,8 @@ module.exports = (io) => {
 
     // CRUD operations cho bài viết
     router.get('/:id', postController.getPostById);
-    router.put('/:id', auth, postController.updatePost);
-    router.delete('/:id', auth, postController.deletePost);
+    router.put('/:id', protect, postController.updatePost);
+    router.delete('/:id', protect, postController.deletePost);
     router.put('/:id/view', postController.incrementViews);
 
     // Route đặc biệt cho topic details

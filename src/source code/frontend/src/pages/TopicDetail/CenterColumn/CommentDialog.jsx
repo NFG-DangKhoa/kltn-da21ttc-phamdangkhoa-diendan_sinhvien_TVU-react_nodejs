@@ -47,7 +47,7 @@ const LikerDialog = ({ open, onClose, likers, darkMode }) => {
                     {likers.map((liker) => (
                         <ListItem key={liker._id} button onClick={() => handleUserClick(liker._id)}>
                             <ListItemAvatar>
-                                <Avatar src={constructUrl(liker.avatarUrl)}>
+                                <Avatar src={liker.avatarUrl && !liker.isAvatarBlocked ? constructUrl(liker.avatarUrl) : undefined}>
                                     {liker.fullName?.charAt(0)}
                                 </Avatar>
                             </ListItemAvatar>
@@ -325,7 +325,7 @@ const CommentDialog = ({ open, onClose, post, user, onCommentActionSuccess }) =>
                 )}
 
                 <Avatar
-                    src={constructUrl(comment.authorId?.avatarUrl)}
+                    src={comment.authorId?.avatarUrl && !comment.authorId?.isAvatarBlocked ? constructUrl(comment.authorId?.avatarUrl) : undefined}
                     sx={{ width: avatarSize, height: avatarSize, mr: 1.5 }}
                 >
                     {comment.authorId?.fullName?.charAt(0)}

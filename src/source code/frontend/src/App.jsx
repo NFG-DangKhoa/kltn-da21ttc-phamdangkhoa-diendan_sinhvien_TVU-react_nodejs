@@ -120,6 +120,10 @@ const AppContent = () => {
   const location = useLocation();
   // Xác định xem có phải là route admin hay không
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isAuthRoute = ['/login', '/register', '/forgot-password'].includes(location.pathname);
+  const isMemberListRoute = location.pathname === '/MembersList';
+  const shouldShowMarquee = !isAdminRoute && !isAuthRoute;
+  const paddingTopValue = isMemberListRoute ? '104px' : '144px';
 
   // Lấy trạng thái loading từ AuthContext
   const { loadingAuth } = useContext(AuthContext); // <--- Đã thêm dòng này
@@ -134,9 +138,9 @@ const AppContent = () => {
       {/* Hiển thị Header chỉ khi không phải là trang admin */}
       {!isAdminRoute && <Header />}
 
-      <div style={{ paddingTop: '100px' }}>
+      <div style={{ paddingTop: paddingTopValue }}>
         {/* Marquee will be displayed below the header */}
-        {!isAdminRoute && <Marquee />}
+        {shouldShowMarquee && <Marquee isMemberList={isMemberListRoute} />}
 
         {/* Định tuyến các trang */}
         <main>

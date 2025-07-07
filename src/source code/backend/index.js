@@ -35,6 +35,8 @@ const adminDataRoutes = require('./routes/adminDataRoutes');
 const forumRulesRoutes = require('./routes/forumRulesRoutes');
 const adminContactRoutes = require('./routes/adminContactRoutes');
 const marqueeRoutes = require('./routes/marqueeRoutes');
+const adminRatingRoutes = require('./routes/adminRatingRoutes');
+const adminLikeRoutes = require('./routes/adminLikeRoutes');
 
 // Import middleware
 const updateUserActivity = require('./middlewares/updateUserActivity');
@@ -122,6 +124,8 @@ app.use('/api/admin/data', adminDataRoutes);
 app.use('/api/forum-rules', forumRulesRoutes);
 app.use('/api/admin', adminContactRoutes);
 app.use('/api/marquee', marqueeRoutes);
+app.use('/api/admin/ratings', adminRatingRoutes);
+app.use('/api/admin/likes', adminLikeRoutes);
 
 // Socket.IO connection handler
 io.on('connection', (socket) => {

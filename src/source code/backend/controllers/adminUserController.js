@@ -48,14 +48,42 @@ exports.getAllUsers = async (req, res) => {
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         // Thực hiện query
-        const users = await User.find(query)
-            .select('-password') // Không trả về password
-            .sort(sortOptions)
-            .skip(skip)
-            .limit(parseInt(limit))
-            .populate('warnings.createdBy', 'fullName email')
-            .populate('suspensionInfo.suspendedBy', 'fullName email')
-            .populate('banInfo.bannedBy', 'fullName email');
+        const users = await User.aggregate([
+            { $match: query },
+            { $sort: sortOptions },
+            { $skip: skip },
+            { $limit: parseInt(limit) },
+            {
+                $lookup: {
+                    from: 'posts',
+                    localField: '_id',
+                    foreignField: 'authorId',
+                    as: 'posts'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'comments',
+                    localField: '_id',
+                    foreignField: 'authorId',
+                    as: 'comments'
+                }
+            },
+            {
+                $addFields: {
+                    postCount: { $size: '$posts' },
+                    likesReceived: { $sum: '$posts.likeCount' },
+                    commentsReceived: { $sum: '$posts.commentCount' }
+                }
+            },
+            {
+                $project: {
+                    password: 0, // không trả về password
+                    posts: 0, // không trả về mảng posts
+                    comments: 0 // không trả về mảng comments
+                }
+            }
+        ]);
 
         // Đếm tổng số documents
         const totalUsers = await User.countDocuments(query);
@@ -539,6 +567,228 @@ exports.getUserStats = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Lỗi server khi lấy thống kê người dùng',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * @route PUT /api/admin/users/:id/block-avatar
+ * @desc Tạm khóa ảnh đại diện của người dùng
+ * @access Private (Admin Only)
+ */
+exports.blockAvatar = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason, suspendedUntil } = req.body;
+        const adminId = req.user._id;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'ID người dùng không hợp lệ'
+            });
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy người dùng'
+            });
+        }
+
+        // Không cho phép khóa ảnh của admin khác
+        if (user.role === 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Không thể khóa ảnh của admin khác'
+            });
+        }
+
+        // Cập nhật trạng thái khóa ảnh đại diện
+        user.isAvatarBlocked = true;
+        user.avatarBlockedBy = adminId;
+        user.avatarBlockedAt = new Date();
+        user.avatarBlockReason = reason || 'Không phù hợp';
+        user.avatarBlockedUntil = suspendedUntil ? new Date(suspendedUntil) : null;
+        user.updatedAt = new Date();
+
+        await user.save();
+        await user.populate('avatarBlockedBy', 'fullName email');
+
+        res.status(200).json({
+            success: true,
+            message: 'Đã tạm khóa ảnh đại diện thành công',
+            data: user
+        });
+
+    } catch (error) {
+        console.error('Lỗi khi tạm khóa ảnh đại diện:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi tạm khóa ảnh đại diện',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * @route PUT /api/admin/users/:id/unblock-avatar
+ * @desc Bỏ tạm khóa ảnh đại diện của người dùng
+ * @access Private (Admin Only)
+ */
+exports.unblockAvatar = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'ID người dùng không hợp lệ'
+            });
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy người dùng'
+            });
+        }
+
+        // Bỏ khóa ảnh đại diện
+        user.isAvatarBlocked = false;
+        user.avatarBlockedBy = null;
+        user.avatarBlockedAt = null;
+        user.avatarBlockReason = null;
+        user.avatarBlockedUntil = null;
+        user.updatedAt = new Date();
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Đã bỏ tạm khóa ảnh đại diện thành công',
+            data: user
+        });
+
+    } catch (error) {
+        console.error('Lỗi khi bỏ tạm khóa ảnh đại diện:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi bỏ tạm khóa ảnh đại diện',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * @route PUT /api/admin/users/:id/block-cover-photo
+ * @desc Tạm khóa ảnh bìa của người dùng
+ * @access Private (Admin Only)
+ */
+exports.blockCoverPhoto = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason, suspendedUntil } = req.body;
+        const adminId = req.user._id;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'ID người dùng không hợp lệ'
+            });
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy người dùng'
+            });
+        }
+
+        // Không cho phép khóa ảnh của admin khác
+        if (user.role === 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Không thể khóa ảnh của admin khác'
+            });
+        }
+
+        // Cập nhật trạng thái khóa ảnh bìa
+        user.isCoverPhotoBlocked = true;
+        user.coverPhotoBlockedBy = adminId;
+        user.coverPhotoBlockedAt = new Date();
+        user.coverPhotoBlockReason = reason || 'Không phù hợp';
+        user.coverPhotoBlockedUntil = suspendedUntil ? new Date(suspendedUntil) : null;
+        user.updatedAt = new Date();
+
+        await user.save();
+        await user.populate('coverPhotoBlockedBy', 'fullName email');
+
+        res.status(200).json({
+            success: true,
+            message: 'Đã tạm khóa ảnh bìa thành công',
+            data: user
+        });
+
+    } catch (error) {
+        console.error('Lỗi khi tạm khóa ảnh bìa:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi tạm khóa ảnh bìa',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * @route PUT /api/admin/users/:id/unblock-cover-photo
+ * @desc Bỏ tạm khóa ảnh bìa của người dùng
+ * @access Private (Admin Only)
+ */
+exports.unblockCoverPhoto = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'ID người dùng không hợp lệ'
+            });
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy người dùng'
+            });
+        }
+
+        // Bỏ khóa ảnh bìa
+        user.isCoverPhotoBlocked = false;
+        user.coverPhotoBlockedBy = null;
+        user.coverPhotoBlockedAt = null;
+        user.coverPhotoBlockReason = null;
+        user.coverPhotoBlockedUntil = null;
+        user.updatedAt = new Date();
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Đã bỏ tạm khóa ảnh bìa thành công',
+            data: user
+        });
+
+    } catch (error) {
+        console.error('Lỗi khi bỏ tạm khóa ảnh bìa:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi bỏ tạm khóa ảnh bìa',
             error: error.message
         });
     }

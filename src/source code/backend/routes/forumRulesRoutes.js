@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const forumRulesController = require('../controllers/forumRulesController');
-const auth = require('../middlewares/authMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 const isAdminMiddleware = require('../middlewares/isAdminMiddleware');
 
 /**
@@ -16,27 +16,27 @@ router.get('/', forumRulesController.getCurrentRules);
  * @desc Cập nhật quy định diễn đàn
  * @access Admin
  */
-router.put('/', auth, isAdminMiddleware, forumRulesController.updateRules);
+router.put('/', protect, isAdminMiddleware, forumRulesController.updateRules);
 
 /**
  * @route GET /api/forum-rules/history
  * @desc Lấy lịch sử các phiên bản quy định
  * @access Admin
  */
-router.get('/history', auth, isAdminMiddleware, forumRulesController.getRulesHistory);
+router.get('/history', protect, isAdminMiddleware, forumRulesController.getRulesHistory);
 
 /**
  * @route POST /api/forum-rules/agree
  * @desc User đồng ý với quy định diễn đàn
  * @access Private
  */
-router.post('/agree', auth, forumRulesController.agreeToRules);
+router.post('/agree', protect, forumRulesController.agreeToRules);
 
 /**
  * @route GET /api/forum-rules/check-agreement
  * @desc Kiểm tra user đã đồng ý quy định chưa
  * @access Private
  */
-router.get('/check-agreement', auth, forumRulesController.checkRulesAgreement);
+router.get('/check-agreement', protect, forumRulesController.checkRulesAgreement);
 
 module.exports = router;

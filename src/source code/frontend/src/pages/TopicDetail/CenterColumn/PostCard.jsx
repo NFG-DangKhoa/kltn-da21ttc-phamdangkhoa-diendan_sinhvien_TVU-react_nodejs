@@ -213,7 +213,7 @@ const PostCard = ({
                         <Link to={`/profile/${post.authorId._id}`} style={{ textDecoration: 'none' }}>
                             <Box sx={{ position: 'relative' }}>
                                 <Avatar
-                                    src={post.authorId?.avatarUrl ? constructUrl(post.authorId.avatarUrl) : undefined}
+                                    src={post.authorId?.avatarUrl && !post.authorId?.isAvatarBlocked ? constructUrl(post.authorId.avatarUrl) : undefined}
                                     sx={{
                                         width: 40,
                                         height: 40,

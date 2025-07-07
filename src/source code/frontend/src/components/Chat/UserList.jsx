@@ -221,7 +221,7 @@ const UserList = ({ onStartChat, isMobile = false, isFullscreen = false }) => {
                                                 showTooltip={true}
                                             >
                                                 <Avatar
-                                                    src={constructUrl(searchUser.avatarUrl)}
+                                                    src={searchUser.avatarUrl && !searchUser.isAvatarBlocked ? constructUrl(searchUser.avatarUrl) : undefined}
                                                     sx={{
                                                         width: 48,
                                                         height: 48,
@@ -233,7 +233,7 @@ const UserList = ({ onStartChat, isMobile = false, isFullscreen = false }) => {
                                                         border: searchUser.role === 'admin' ? '2px solid #ff4757' : '2px solid #667eea'
                                                     }}
                                                 >
-                                                    {!searchUser.avatarUrl ?
+                                                    {!searchUser.avatarUrl || searchUser.isAvatarBlocked ?
                                                         (searchUser.fullName?.charAt(0)?.toUpperCase() || <PersonIcon />) :
                                                         null
                                                     }

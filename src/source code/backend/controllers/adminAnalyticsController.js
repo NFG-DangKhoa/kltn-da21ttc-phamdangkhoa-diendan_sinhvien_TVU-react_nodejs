@@ -1,4 +1,3 @@
-// File: backend/controllers/adminAnalyticsController.js
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Topic = require('../models/Topic');
@@ -6,19 +5,74 @@ const UserActivity = require('../models/UserActivity');
 const SearchLog = require('../models/SearchLog');
 const Comment = require('../models/Comment');
 const Like = require('../models/Like');
-const mongoose = require('mongoose');
+const Rating = require('../models/Rating');
+
+
+const getPeriodDates = (period) => {
+    const endDate = new Date();
+    let startDate = new Date();
+
+    switch (period) {
+        case 'today':
+            break;
+        case 'yesterday':
+            startDate.setDate(startDate.getDate() - 1);
+            endDate.setDate(endDate.getDate() - 1);
+            break;
+        case 'this_week':
+            startDate.setDate(startDate.getDate() - startDate.getDay() + (startDate.getDay() === 0 ? -6 : 1)); // Monday of current week
+            break;
+        case 'last_7_days':
+            startDate.setDate(startDate.getDate() - 7);
+            break;
+        case 'this_month':
+            startDate.setDate(1);
+            break;
+        case 'last_30_days':
+            startDate.setDate(startDate.getDate() - 30);
+            break;
+        case 'last_month':
+            startDate.setMonth(startDate.getMonth() - 1, 1);
+            endDate.setMonth(endDate.getMonth(), 0);
+            break;
+        case 'this_year':
+            startDate.setMonth(0, 1);
+            break;
+        case 'last_year':
+            startDate.setFullYear(startDate.getFullYear() - 1, 0, 1);
+            endDate.setFullYear(endDate.getFullYear() - 1, 11, 31);
+            break;
+        default: // 'all_time' or invalid
+            return { startDate: null, endDate: null };
+    }
+
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+    return { startDate, endDate };
+};
+
 
 /**
  * @route GET /api/admin/analytics/overview
- * @desc Lấy tổng quan thống kê
+ * @desc Lấy tổng quan thống kê với tùy chọn thời gian linh hoạt
  * @access Private (Admin Only)
  */
 exports.getOverviewStats = async (req, res) => {
     try {
-        const { days = 30 } = req.query;
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(days));
-        const endDate = new Date();
+        const { period = 'all_time', customStartDate, customEndDate } = req.query;
+
+        let startDate, endDate;
+
+        if (period === 'custom' && customStartDate && customEndDate) {
+            startDate = new Date(customStartDate);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(customEndDate);
+            endDate.setHours(23, 59, 59, 999);
+        } else {
+            ({ startDate, endDate } = getPeriodDates(period));
+        }
+
+        const dateFilter = startDate && endDate ? { createdAt: { $gte: startDate, $lte: endDate } } : {};
 
         // Thống kê tổng quan
         const totalUsers = await User.countDocuments();
@@ -26,113 +80,74 @@ exports.getOverviewStats = async (req, res) => {
         const totalTopics = await Topic.countDocuments();
         const totalComments = await Comment.countDocuments();
         const totalLikes = await Like.countDocuments();
+        const totalRatings = await Rating.countDocuments();
 
-        // Thống kê trong khoảng thời gian
-        const newUsers = await User.countDocuments({
-            createdAt: { $gte: startDate, $lte: endDate }
-        });
+        // Thống kê bài viết nổi bật
+        const featuredPosts = await Post.countDocuments({ featured: true });
 
-        const newPosts = await Post.countDocuments({
-            createdAt: { $gte: startDate, $lte: endDate }
-        });
+        // Thống kê chủ đề nổi bật
+        const featuredTopics = await Topic.countDocuments({ trending: true });
 
-        const newComments = await Comment.countDocuments({
-            createdAt: { $gte: startDate, $lte: endDate }
-        });
+        // Thống kê trong khoảng thời gian được chọn
+        const periodUsers = await User.countDocuments(dateFilter);
+        const periodPosts = await Post.countDocuments(dateFilter);
+        const periodComments = await Comment.countDocuments(dateFilter);
+        const periodRatings = await Rating.countDocuments(dateFilter);
 
-        // Người dùng hoạt động
-        const activeUsers = await UserActivity.distinct('userId', {
-            timestamp: { $gte: startDate, $lte: endDate }
-        });
+        // Thống kê đánh giá chi tiết
+        const ratingStats = await Rating.aggregate([
+            { $match: dateFilter },
+            {
+                $group: {
+                    _id: null,
+                    totalRatings: { $sum: 1 },
+                    averageRating: { $avg: '$rating' },
+                    ratingDistribution: {
+                        $push: '$rating'
+                    }
+                }
+            }
+        ]);
 
-        // Tỷ lệ tăng trưởng
-        const prevStartDate = new Date(startDate);
-        prevStartDate.setDate(prevStartDate.getDate() - parseInt(days));
-
-        const prevNewUsers = await User.countDocuments({
-            createdAt: { $gte: prevStartDate, $lt: startDate }
-        });
-
-        const prevNewPosts = await Post.countDocuments({
-            createdAt: { $gte: prevStartDate, $lt: startDate }
-        });
-
-        const userGrowthRate = prevNewUsers > 0 ?
-            ((newUsers - prevNewUsers) / prevNewUsers * 100).toFixed(2) : 0;
-
-        const postGrowthRate = prevNewPosts > 0 ?
-            ((newPosts - prevNewPosts) / prevNewPosts * 100).toFixed(2) : 0;
-
-        // Calculate daily growth for last 7 days
-        const dailyGrowth = [];
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date();
-            date.setDate(date.getDate() - i);
-            const dayStart = new Date(date.setHours(0, 0, 0, 0));
-            const dayEnd = new Date(date.setHours(23, 59, 59, 999));
-
-            const [dayUsers, dayPosts, dayComments, dayLikes] = await Promise.all([
-                User.countDocuments({ createdAt: { $gte: dayStart, $lte: dayEnd } }),
-                Post.countDocuments({ createdAt: { $gte: dayStart, $lte: dayEnd } }),
-                Comment.countDocuments({ createdAt: { $gte: dayStart, $lte: dayEnd } }),
-                Like.countDocuments({ createdAt: { $gte: dayStart, $lte: dayEnd } })
-            ]);
-
-            dailyGrowth.push({
-                date: dayStart.toISOString().split('T')[0],
-                users: dayUsers,
-                posts: dayPosts,
-                comments: dayComments,
-                likes: dayLikes
+        // Phân bố đánh giá theo sao
+        const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        if (ratingStats[0]?.ratingDistribution) {
+            ratingStats[0].ratingDistribution.forEach(rating => {
+                ratingDistribution[rating]++;
             });
         }
 
-        // Calculate hourly activity pattern for today
-        const hourlyActivity = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        for (let hour = 0; hour < 24; hour++) {
-            const hourStart = new Date(today);
-            hourStart.setHours(hour, 0, 0, 0);
-            const hourEnd = new Date(today);
-            hourEnd.setHours(hour, 59, 59, 999);
-
-            const [hourPosts, hourComments, hourLikes] = await Promise.all([
-                Post.countDocuments({ createdAt: { $gte: hourStart, $lte: hourEnd } }),
-                Comment.countDocuments({ createdAt: { $gte: hourStart, $lte: hourEnd } }),
-                Like.countDocuments({ createdAt: { $gte: hourStart, $lte: hourEnd } })
-            ]);
-
-            hourlyActivity.push({
-                hour: `${hour}h`,
-                activity: hourPosts + hourComments + hourLikes
-            });
-        }
+        // Người dùng đã tham gia đánh giá
+        const usersWhoRated = await Rating.distinct('userId', dateFilter);
 
         res.status(200).json({
             success: true,
             data: {
+                period,
+                startDate,
+                endDate,
                 totals: {
                     users: totalUsers,
                     posts: totalPosts,
                     topics: totalTopics,
                     comments: totalComments,
-                    likes: totalLikes
+                    likes: totalLikes,
+                    ratings: totalRatings,
+                    featuredPosts,
+                    featuredTopics
                 },
-                period: {
-                    days: parseInt(days),
-                    newUsers,
-                    newPosts,
-                    newComments,
-                    activeUsers: activeUsers.length
+                periodStats: {
+                    users: periodUsers,
+                    posts: periodPosts,
+                    comments: periodComments,
+                    ratings: periodRatings
                 },
-                growth: {
-                    userGrowthRate: parseFloat(userGrowthRate),
-                    postGrowthRate: parseFloat(postGrowthRate)
-                },
-                dailyGrowth,
-                hourlyActivity
+                ratingAnalytics: {
+                    totalRatings: ratingStats[0]?.totalRatings || 0,
+                    averageRating: ratingStats[0]?.averageRating || 0,
+                    ratingDistribution,
+                    usersWhoRated: usersWhoRated.length
+                }
             }
         });
     } catch (error) {
@@ -146,81 +161,368 @@ exports.getOverviewStats = async (req, res) => {
 };
 
 /**
- * @route GET /api/admin/analytics/user-activity
- * @desc Lấy thống kê hoạt động người dùng
+ * @route GET /api/admin/analytics/users
+ * @desc Lấy thống kê chi tiết về người dùng
  * @access Private (Admin Only)
  */
-exports.getUserActivityStats = async (req, res) => {
+exports.getUserStats = async (req, res) => {
     try {
-        const { days = 30 } = req.query;
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(days));
-        const endDate = new Date();
+        const { period = 'all_time', customStartDate, customEndDate } = req.query;
 
-        // Hoạt động theo loại
-        const activityStats = await UserActivity.getActivityStats(startDate, endDate);
+        let startDate, endDate;
 
-        // Hoạt động theo giờ
-        const hourlyActivity = await UserActivity.getUserActivityByHour(startDate, endDate);
+        if (period === 'custom' && customStartDate && customEndDate) {
+            startDate = new Date(customStartDate);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(customEndDate);
+            endDate.setHours(23, 59, 59, 999);
+        } else {
+            ({ startDate, endDate } = getPeriodDates(period));
+        }
 
-        // Hoạt động theo ngày
-        const dailyActivity = await UserActivity.aggregate([
-            {
-                $match: {
-                    timestamp: { $gte: startDate, $lte: endDate }
-                }
-            },
+        const dateFilter = startDate && endDate ? { createdAt: { $gte: startDate, $lte: endDate } } : {};
+
+        // Thống kê tổng quan người dùng
+        const totalUsers = await User.countDocuments();
+        const periodUsers = await User.countDocuments(dateFilter);
+
+        // Phân bố vai trò
+        const roleDistribution = await User.aggregate([
             {
                 $group: {
-                    _id: {
-                        year: { $year: '$timestamp' },
-                        month: { $month: '$timestamp' },
-                        day: { $dayOfMonth: '$timestamp' }
-                    },
-                    count: { $sum: 1 },
-                    uniqueUsers: { $addToSet: '$userId' }
+                    _id: '$role',
+                    count: { $sum: 1 }
                 }
-            },
-            {
-                $addFields: {
-                    date: {
-                        $dateFromParts: {
-                            year: '$_id.year',
-                            month: '$_id.month',
-                            day: '$_id.day'
-                        }
-                    },
-                    uniqueUserCount: { $size: '$uniqueUsers' }
-                }
-            },
-            {
-                $sort: { date: 1 }
             }
         ]);
 
-        // Người dùng hoạt động nhất
-        const topActiveUsers = await UserActivity.getActiveUsers(startDate, endDate);
+        // Người dùng hoạt động nhiều nhất (dựa trên số bài viết)
+        const topActiveUsers = await User.find()
+            .sort({ postCount: -1 })
+            .limit(10)
+            .select('fullName email postCount');
 
-        // Populate thông tin user
-        const populatedTopUsers = await User.populate(topActiveUsers.slice(0, 10), {
+        res.status(200).json({
+            success: true,
+            data: {
+                period,
+                startDate,
+                endDate,
+                totals: {
+                    users: totalUsers,
+                },
+                periodStats: {
+                    newUsers: periodUsers,
+                },
+                roleDistribution,
+                topActiveUsers,
+            }
+        });
+    } catch (error) {
+        console.error('Lỗi khi lấy thống kê người dùng:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi lấy thống kê người dùng',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * @route GET /api/admin/analytics/community
+ * @desc Lấy thống kê cộng đồng (bài viết, chủ đề, đánh giá)
+ * @access Private (Admin Only)
+ */
+exports.getCommunityStats = async (req, res) => {
+    try {
+        const { period = 'all_time', customStartDate, customEndDate } = req.query;
+
+        let startDate, endDate;
+
+        if (period === 'custom' && customStartDate && customEndDate) {
+            startDate = new Date(customStartDate);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(customEndDate);
+            endDate.setHours(23, 59, 59, 999);
+        } else {
+            ({ startDate, endDate } = getPeriodDates(period));
+        }
+
+        const dateFilter = startDate && endDate ? { createdAt: { $gte: startDate, $lte: endDate } } : {};
+
+        // Post stats với thống kê chi tiết hơn
+        const postStats = await Post.aggregate([
+            { $match: dateFilter },
+            {
+                $group: {
+                    _id: null,
+                    totalPosts: { $sum: 1 },
+                    featuredPosts: { $sum: { $cond: ['$featured', 1, 0] } },
+                    totalViews: { $sum: '$views' },
+                    totalComments: { $sum: '$commentCount' },
+                    averageViews: { $avg: '$views' },
+                    averageComments: { $avg: '$commentCount' }
+                }
+            }
+        ]);
+
+        // Top bài viết nổi bật gần đây
+        const recentFeaturedPosts = await Post.find({
+            ...dateFilter,
+            featured: true
+        })
+            .populate('authorId', 'fullName')
+            .populate('topicId', 'name')
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .select('title views commentCount createdAt');
+
+        // Topic stats
+        const topicStats = await Topic.aggregate([
+            { $match: dateFilter },
+            {
+                $group: {
+                    _id: null,
+                    totalTopics: { $sum: 1 },
+                    featuredTopics: { $sum: { $cond: ['$trending', 1, 0] } }
+                }
+            }
+        ]);
+
+        // Rating stats
+        const ratingStats = await Rating.aggregate([
+            { $match: dateFilter },
+            {
+                $group: {
+                    _id: null,
+                    totalRatings: { $sum: 1 },
+                    averageRating: { $avg: '$rating' }
+                }
+            }
+        ]);
+
+        const ratingsWithUserDetails = await Rating.find(dateFilter)
+            .populate('userId', 'fullName email')
+            .populate('postId', 'title')
+            .sort({ createdAt: -1 })
+            .limit(20);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                period,
+                startDate,
+                endDate,
+                posts: {
+                    stats: postStats[0] || { totalPosts: 0, featuredPosts: 0, totalViews: 0, totalComments: 0, averageViews: 0, averageComments: 0 },
+                    recentFeatured: recentFeaturedPosts
+                },
+                topics: topicStats[0] || { totalTopics: 0, featuredTopics: 0 },
+                ratings: {
+                    stats: ratingStats[0] || { totalRatings: 0, averageRating: 0 },
+                    latestRatings: ratingsWithUserDetails
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Lỗi khi lấy thống kê cộng đồng:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi lấy thống kê cộng đồng',
+            error: error.message
+        });
+    }
+};
+
+
+/**
+ * @route GET /api/admin/analytics/ratings
+ * @desc Lấy thống kê chi tiết về đánh giá
+ * @access Private (Admin Only)
+ */
+exports.getRatingStats = async (req, res) => {
+    try {
+        const { period = 'all_time', customStartDate, customEndDate } = req.query;
+
+        let startDate, endDate;
+
+        if (period === 'custom' && customStartDate && customEndDate) {
+            startDate = new Date(customStartDate);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(customEndDate);
+            endDate.setHours(23, 59, 59, 999);
+        } else {
+            ({ startDate, endDate } = getPeriodDates(period));
+        }
+
+        const dateFilter = startDate && endDate ? { createdAt: { $gte: startDate, $lte: endDate } } : {};
+
+        // Thống kê tổng quan đánh giá
+        const ratingOverview = await Rating.aggregate([
+            { $match: dateFilter },
+            {
+                $group: {
+                    _id: null,
+                    totalRatings: { $sum: 1 },
+                    averageRating: { $avg: '$rating' },
+                    ratingDistribution: {
+                        $push: '$rating'
+                    }
+                }
+            }
+        ]);
+
+        // Phân bố đánh giá theo sao
+        const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        if (ratingOverview[0]?.ratingDistribution) {
+            ratingOverview[0].ratingDistribution.forEach(rating => {
+                ratingDistribution[rating]++;
+            });
+        }
+
+        // Top người dùng đánh giá nhiều nhất
+        const topRaters = await Rating.aggregate([
+            { $match: dateFilter },
+            {
+                $group: {
+                    _id: '$userId',
+                    ratingCount: { $sum: 1 },
+                    averageRating: { $avg: '$rating' }
+                }
+            },
+            { $sort: { ratingCount: -1 } },
+            { $limit: 10 }
+        ]);
+
+        // Populate thông tin user cho top raters
+        const populatedTopRaters = await User.populate(topRaters, {
             path: '_id',
             select: 'fullName email avatarUrl'
+        });
+
+        // Bài viết được đánh giá cao nhất
+        const topRatedPosts = await Rating.aggregate([
+            { $match: dateFilter },
+            {
+                $group: {
+                    _id: '$postId',
+                    ratingCount: { $sum: 1 },
+                    averageRating: { $avg: '$rating' }
+                }
+            },
+            { $match: { ratingCount: { $gte: 3 } } }, // Ít nhất 3 đánh giá
+            { $sort: { averageRating: -1, ratingCount: -1 } },
+            { $limit: 10 }
+        ]);
+
+        // Populate thông tin post cho top rated posts
+        const populatedTopRatedPosts = await Post.populate(topRatedPosts, {
+            path: '_id',
+            select: 'title authorId topicId views createdAt',
+            populate: [
+                { path: 'authorId', select: 'fullName' },
+                { path: 'topicId', select: 'name' }
+            ]
         });
 
         res.status(200).json({
             success: true,
             data: {
-                activityStats,
-                hourlyActivity,
-                dailyActivity,
-                topActiveUsers: populatedTopUsers
+                period,
+                startDate,
+                endDate,
+                overview: ratingOverview[0] || { totalRatings: 0, averageRating: 0 },
+                ratingDistribution,
+                topRaters: populatedTopRaters,
+                topRatedPosts: populatedTopRatedPosts
             }
         });
     } catch (error) {
-        console.error('Lỗi khi lấy thống kê hoạt động người dùng:', error);
+        console.error('Lỗi khi lấy thống kê đánh giá:', error);
         res.status(500).json({
             success: false,
-            message: 'Lỗi server khi lấy thống kê hoạt động người dùng',
+            message: 'Lỗi server khi lấy thống kê đánh giá',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * @route GET /api/admin/analytics/topics
+ * @desc Lấy thống kê chi tiết về chủ đề
+ * @access Private (Admin Only)
+ */
+exports.getTopicStats = async (req, res) => {
+    try {
+        const { period = 'all_time', customStartDate, customEndDate } = req.query;
+
+        let startDate, endDate;
+
+        if (period === 'custom' && customStartDate && customEndDate) {
+            startDate = new Date(customStartDate);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(customEndDate);
+            endDate.setHours(23, 59, 59, 999);
+        } else {
+            ({ startDate, endDate } = getPeriodDates(period));
+        }
+
+        const dateFilter = startDate && endDate ? { createdAt: { $gte: startDate, $lte: endDate } } : {};
+
+        // --- Thống kê tổng quan ---
+        const totalTopics = await Topic.countDocuments();
+        const totalActiveTopics = await Topic.countDocuments({ status: 'active' });
+        const totalCategories = (await Topic.distinct('category')).length;
+
+        // --- Thống kê theo khoảng thời gian ---
+        const periodTopics = await Topic.countDocuments(dateFilter);
+
+        // Chủ đề có bài viết mới trong khoảng thời gian
+        const topicsWithNewPosts = await Post.distinct('topicId', dateFilter);
+
+        // Top chủ đề theo số lượng bài viết (tổng thể)
+        const topicsByPosts = await Topic.find({ status: 'active' })
+            .sort({ postCount: -1 })
+            .limit(10)
+            .select('name postCount color');
+
+        // Thống kê theo danh mục
+        const categoryStats = await Topic.aggregate([
+            { $match: { status: 'active' } },
+            {
+                $group: {
+                    _id: '$category',
+                    topicCount: { $sum: 1 },
+                }
+            },
+            { $sort: { topicCount: -1 } }
+        ]);
+
+
+        res.status(200).json({
+            success: true,
+            data: {
+                period,
+                startDate,
+                endDate,
+                totals: {
+                    topics: totalTopics,
+                    activeTopics: totalActiveTopics,
+                    categories: totalCategories,
+                },
+                periodStats: {
+                    topics: periodTopics,
+                    topicsWithNewPosts: topicsWithNewPosts.length,
+                },
+                topicsByPosts, // Top 10 chủ đề nhiều bài viết nhất
+                categoryStats, // Thống kê theo danh mục
+            }
+        });
+    } catch (error) {
+        console.error('Lỗi khi lấy thống kê chủ đề:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi lấy thống kê chủ đề',
             error: error.message
         });
     }
@@ -385,134 +687,6 @@ exports.getSearchAnalytics = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Lỗi server khi lấy thống kê tìm kiếm',
-            error: error.message
-        });
-    }
-};
-
-/**
- * @route GET /api/admin/analytics/growth-trends
- * @desc Lấy xu hướng tăng trưởng
- * @access Private (Admin Only)
- */
-exports.getGrowthTrends = async (req, res) => {
-    try {
-        const { days = 30 } = req.query;
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(days));
-
-        // Tăng trưởng người dùng theo ngày
-        const userGrowth = await User.aggregate([
-            {
-                $match: {
-                    createdAt: { $gte: startDate }
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        year: { $year: '$createdAt' },
-                        month: { $month: '$createdAt' },
-                        day: { $dayOfMonth: '$createdAt' }
-                    },
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $addFields: {
-                    date: {
-                        $dateFromParts: {
-                            year: '$_id.year',
-                            month: '$_id.month',
-                            day: '$_id.day'
-                        }
-                    }
-                }
-            },
-            {
-                $sort: { date: 1 }
-            }
-        ]);
-
-        // Tăng trưởng bài viết theo ngày
-        const postGrowth = await Post.aggregate([
-            {
-                $match: {
-                    createdAt: { $gte: startDate }
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        year: { $year: '$createdAt' },
-                        month: { $month: '$createdAt' },
-                        day: { $dayOfMonth: '$createdAt' }
-                    },
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $addFields: {
-                    date: {
-                        $dateFromParts: {
-                            year: '$_id.year',
-                            month: '$_id.month',
-                            day: '$_id.day'
-                        }
-                    }
-                }
-            },
-            {
-                $sort: { date: 1 }
-            }
-        ]);
-
-        // Tăng trưởng comments theo ngày
-        const commentGrowth = await Comment.aggregate([
-            {
-                $match: {
-                    createdAt: { $gte: startDate }
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        year: { $year: '$createdAt' },
-                        month: { $month: '$createdAt' },
-                        day: { $dayOfMonth: '$createdAt' }
-                    },
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $addFields: {
-                    date: {
-                        $dateFromParts: {
-                            year: '$_id.year',
-                            month: '$_id.month',
-                            day: '$_id.day'
-                        }
-                    }
-                }
-            },
-            {
-                $sort: { date: 1 }
-            }
-        ]);
-
-        res.status(200).json({
-            success: true,
-            data: {
-                userGrowth,
-                postGrowth,
-                commentGrowth
-            }
-        });
-    } catch (error) {
-        console.error('Lỗi khi lấy xu hướng tăng trưởng:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Lỗi server khi lấy xu hướng tăng trưởng',
             error: error.message
         });
     }

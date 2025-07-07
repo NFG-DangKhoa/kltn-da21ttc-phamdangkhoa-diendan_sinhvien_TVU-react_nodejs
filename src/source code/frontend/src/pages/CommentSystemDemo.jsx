@@ -11,10 +11,10 @@ import CommentMentions, { useMentions } from '../components/CommentMentions';
 const CommentSystemDemo = () => {
     const { mode } = useContext(ThemeContext);
     const darkMode = mode === 'dark';
-    
+
     const textFieldRef = useRef(null);
     const { text, mentions, handleTextChange, handleMention } = useMentions();
-    
+
     const [comments, setComments] = useState([
         {
             _id: '1',
@@ -57,12 +57,12 @@ const CommentSystemDemo = () => {
             likeCount: 4
         }
     ]);
-    
+
     const [replyingTo, setReplyingTo] = useState(null);
 
     const handleSubmitComment = () => {
         if (!text.trim()) return;
-        
+
         const newComment = {
             _id: Date.now().toString(),
             content: text,
@@ -80,7 +80,7 @@ const CommentSystemDemo = () => {
             likeCount: 0,
             mentions: mentions
         };
-        
+
         setComments(prev => [newComment, ...prev]);
         handleTextChange('');
         setReplyingTo(null);
@@ -91,17 +91,17 @@ const CommentSystemDemo = () => {
             if (comment._id === commentId) {
                 const newReactions = { ...comment.reactions };
                 const currentUserReaction = comment.userReaction;
-                
+
                 // Remove previous reaction
                 if (currentUserReaction && newReactions[currentUserReaction]) {
                     newReactions[currentUserReaction] = Math.max(0, newReactions[currentUserReaction] - 1);
                 }
-                
+
                 // Add new reaction
                 if (reactionType && reactionType !== currentUserReaction) {
                     newReactions[reactionType] = (newReactions[reactionType] || 0) + 1;
                 }
-                
+
                 return {
                     ...comment,
                     reactions: newReactions,
@@ -113,10 +113,10 @@ const CommentSystemDemo = () => {
     };
 
     const renderComment = (comment) => (
-        <Card 
-            key={comment._id} 
-            sx={{ 
-                mb: 2, 
+        <Card
+            key={comment._id}
+            sx={{
+                mb: 2,
                 ml: comment.level * 3,
                 backgroundColor: darkMode ? '#2d2d2d' : '#fff',
                 border: `1px solid ${darkMode ? '#555' : '#ddd'}`
@@ -125,7 +125,7 @@ const CommentSystemDemo = () => {
             <CardContent>
                 <Box display="flex" alignItems="center" mb={1}>
                     <Avatar
-                        src={comment.authorId.avatarUrl}
+                        src={comment.authorId.avatarUrl && !comment.authorId.isAvatarBlocked ? comment.authorId.avatarUrl : undefined}
                         sx={{ width: 32, height: 32, mr: 1 }}
                     >
                         {comment.authorId.fullName[0]}
@@ -142,11 +142,11 @@ const CommentSystemDemo = () => {
                         <Chip label={`Cấp ${comment.level}`} size="small" variant="outlined" />
                     )}
                 </Box>
-                
+
                 <Typography variant="body2" sx={{ mb: 2 }}>
                     {comment.content}
                 </Typography>
-                
+
                 {comment.mentions && comment.mentions.length > 0 && (
                     <Box sx={{ mb: 1 }}>
                         <Typography variant="caption" color="textSecondary">
@@ -165,7 +165,7 @@ const CommentSystemDemo = () => {
                         </Stack>
                     </Box>
                 )}
-                
+
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                     <CommentReactions
                         commentId={comment._id}
@@ -174,7 +174,7 @@ const CommentSystemDemo = () => {
                         onReact={handleReaction}
                         size="small"
                     />
-                    
+
                     <Button
                         size="small"
                         onClick={() => setReplyingTo(comment)}
@@ -192,9 +192,9 @@ const CommentSystemDemo = () => {
             <Typography variant="h4" gutterBottom sx={{ color: darkMode ? '#fff' : '#000' }}>
                 🚀 Comment System Demo
             </Typography>
-            
+
             <Typography variant="body1" sx={{ mb: 4, color: darkMode ? '#b0b3b8' : 'text.secondary' }}>
-                Demo các tính năng mới của hệ thống bình luận: Rich text editor, Emoji picker, 
+                Demo các tính năng mới của hệ thống bình luận: Rich text editor, Emoji picker,
                 Mentions, Reactions, và nhiều tính năng khác.
             </Typography>
 
@@ -217,7 +217,7 @@ const CommentSystemDemo = () => {
                         </CardContent>
                     </Card>
                 </Grid>
-                
+
                 <Grid item xs={12} md={6}>
                     <Card sx={{ backgroundColor: darkMode ? '#2d2d2d' : '#fff' }}>
                         <CardContent>
@@ -242,14 +242,14 @@ const CommentSystemDemo = () => {
                 <Typography variant="h6" gutterBottom>
                     💬 Rich Comment Editor
                 </Typography>
-                
+
                 <CommentMentions
                     text={text}
                     onTextChange={handleTextChange}
                     onMention={handleMention}
                     textFieldRef={textFieldRef}
                 />
-                
+
                 <RichCommentEditor
                     ref={textFieldRef}
                     value={text}
@@ -263,7 +263,7 @@ const CommentSystemDemo = () => {
                     showMention={true}
                     maxLength={1000}
                 />
-                
+
                 {mentions.length > 0 && (
                     <Box sx={{ mt: 2 }}>
                         <Typography variant="caption" color="textSecondary">
@@ -290,18 +290,18 @@ const CommentSystemDemo = () => {
                 <Typography variant="h6" gutterBottom>
                     💭 Comments ({comments.length})
                 </Typography>
-                
+
                 <Divider sx={{ mb: 3 }} />
-                
+
                 {comments.map(renderComment)}
-                
+
                 {comments.length === 0 && (
-                    <Typography 
-                        variant="body2" 
-                        sx={{ 
-                            textAlign: 'center', 
-                            py: 4, 
-                            color: darkMode ? '#b0b3b8' : 'text.secondary' 
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            textAlign: 'center',
+                            py: 4,
+                            color: darkMode ? '#b0b3b8' : 'text.secondary'
                         }}
                     >
                         Chưa có bình luận nào. Hãy là người đầu tiên bình luận!

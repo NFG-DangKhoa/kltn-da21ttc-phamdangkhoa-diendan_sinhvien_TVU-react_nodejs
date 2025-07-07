@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Conversation = require('../models/Conversation');
-const auth = require('../middlewares/authMiddleware');
+const { protect: auth } = require('../middlewares/authMiddleware');
 
 // GET /api/conversations/:conversationId/settings - Lấy cài đặt cuộc trò chuyện
 router.get('/:conversationId/settings', auth, async (req, res) => {

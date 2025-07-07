@@ -1,27 +1,22 @@
 // src/pages/admin/AdminMainContent.jsx (Updated with new header)
 import React from 'react';
-import { Box, Toolbar } from '@mui/material';
-import { styled } from '@mui/system';
-import AdminHeader from './AdminHeader';
+import { Box } from '@mui/material';
 
-const MainContentArea = styled('main')(({ theme }) => ({
-    flexGrow: 1,
-    padding: theme.spacing(3),
-    backgroundColor: theme.palette.background.default,
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-}));
+import AdminHeader from './AdminHeader';
 
 const AdminMainContent = ({ children, toggleColorMode, mode }) => {
     return (
-        <Box sx={{ flexGrow: 1 }}>
+        <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
             <AdminHeader toggleColorMode={toggleColorMode} mode={mode} />
-            <MainContentArea>
-                <Toolbar /> {/* Space for fixed header */}
+            <Box
+                component="main"
+                sx={{
+                    flexGrow: 1,
+                    backgroundColor: (theme) => theme.palette.background.default,
+                }}
+            >
                 {children}
-            </MainContentArea>
+            </Box>
         </Box>
     );
 };

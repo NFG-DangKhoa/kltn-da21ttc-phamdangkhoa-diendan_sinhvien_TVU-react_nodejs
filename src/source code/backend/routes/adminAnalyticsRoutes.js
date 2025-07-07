@@ -4,8 +4,7 @@ const router = express.Router();
 const adminAnalyticsController = require('../controllers/adminAnalyticsController');
 
 // Import middleware
-const authMiddleware = require('../middlewares/authMiddleware');
-const isAdminMiddleware = require('../middlewares/isAdminMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 
 // Routes công khai (không cần admin)
 /**
@@ -13,7 +12,7 @@ const isAdminMiddleware = require('../middlewares/isAdminMiddleware');
  * @desc Ghi log hoạt động người dùng
  * @access Private (User logged in)
  */
-router.post('/log-activity', authMiddleware, adminAnalyticsController.logUserActivity);
+router.post('/log-activity', protect, adminAnalyticsController.logUserActivity);
 
 /**
  * @route POST /api/admin/analytics/log-search
@@ -23,8 +22,8 @@ router.post('/log-activity', authMiddleware, adminAnalyticsController.logUserAct
 router.post('/log-search', adminAnalyticsController.logSearch);
 
 // Áp dụng middleware xác thực và phân quyền admin cho các route còn lại
-router.use(authMiddleware);
-router.use(isAdminMiddleware);
+router.use(protect);
+router.use(admin);
 
 // Routes cho admin analytics
 
@@ -36,11 +35,18 @@ router.use(isAdminMiddleware);
 router.get('/overview', adminAnalyticsController.getOverviewStats);
 
 /**
- * @route GET /api/admin/analytics/user-activity
- * @desc Lấy thống kê hoạt động người dùng
+ * @route GET /api/admin/analytics/ratings
+ * @desc Lấy thống kê chi tiết về đánh giá
  * @access Private (Admin Only)
  */
-router.get('/user-activity', adminAnalyticsController.getUserActivityStats);
+router.get('/ratings', adminAnalyticsController.getRatingStats);
+
+/**
+ * @route GET /api/admin/analytics/topics
+ * @desc Lấy thống kê chi tiết về chủ đề
+ * @access Private (Admin Only)
+ */
+router.get('/topics', adminAnalyticsController.getTopicStats);
 
 /**
  * @route GET /api/admin/analytics/popular-content
@@ -57,10 +63,17 @@ router.get('/popular-content', adminAnalyticsController.getPopularContentStats);
 router.get('/search-analytics', adminAnalyticsController.getSearchAnalytics);
 
 /**
- * @route GET /api/admin/analytics/growth-trends
- * @desc Lấy xu hướng tăng trưởng
+ * @route GET /api/admin/analytics/community
+ * @desc Lấy thống kê cộng đồng (bài viết, chủ đề, đánh giá)
  * @access Private (Admin Only)
  */
-router.get('/growth-trends', adminAnalyticsController.getGrowthTrends);
+router.get('/community', adminAnalyticsController.getCommunityStats);
+
+/**
+ * @route GET /api/admin/analytics/users
+ * @desc Lấy thống kê chi tiết về người dùng
+ * @access Private (Admin Only)
+ */
+router.get('/users', adminAnalyticsController.getUserStats);
 
 module.exports = router;

@@ -3,8 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const AdminDataController = require('../controllers/adminDataController');
-const authenticateToken = require('../middlewares/authMiddleware');
-const requireAdmin = require('../middlewares/isAdminMiddleware');
+const { protect, admin } = require('../middlewares/authMiddleware');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -44,8 +43,8 @@ const upload = multer({
 const dataController = new AdminDataController();
 
 // Apply authentication middleware
-router.use(authenticateToken);
-router.use(requireAdmin);
+router.use(protect);
+router.use(admin);
 
 // Routes for data management
 
