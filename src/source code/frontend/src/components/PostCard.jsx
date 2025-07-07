@@ -7,14 +7,19 @@ import {
     Button,
     Chip,
     Stack,
-    useTheme // Import useTheme
+    useTheme,
+    Box,
+    Rating
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { ChatBubbleOutline, ThumbUpAltOutlined } from '@mui/icons-material';
 
 // Thêm prop isDarkMode vào component
 const PostCard = ({ post, isDarkMode }) => {
     const navigate = useNavigate();
     const theme = useTheme(); // Lấy theme object hiện tại
+
+    const averageRating = post.averageRating || 0;
 
     return (
         <Card
@@ -63,13 +68,40 @@ const PostCard = ({ post, isDarkMode }) => {
                         />
                     ))}
                 </Stack>
-                <Typography
-                    variant="caption"
-                    // Sử dụng text.secondary cho thông tin lượt xem/ngày đăng
-                    color={theme.palette.text.secondary}
-                >
-                    Lượt xem: {post.views} - Ngày đăng: {new Date(post.createdAt).toLocaleDateString()}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <ChatBubbleOutline sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
+                            <Typography variant="body2" color={theme.palette.text.secondary}>
+                                {post.commentCount || 0}
+                            </Typography>
+                        </Stack>
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <ThumbUpAltOutlined sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
+                            <Typography variant="body2" color={theme.palette.text.secondary}>
+                                {post.likeCount || 0}
+                            </Typography>
+                        </Stack>
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <Rating
+                                name="read-only"
+                                value={averageRating}
+                                readOnly
+                                precision={0.5}
+                                size="small"
+                            />
+                            <Typography variant="body2" color={theme.palette.text.secondary}>
+                                ({post.ratingCount || 0})
+                            </Typography>
+                        </Stack>
+                    </Stack>
+                    <Typography
+                        variant="caption"
+                        color={theme.palette.text.secondary}
+                    >
+                        {new Date(post.createdAt).toLocaleDateString()}
+                    </Typography>
+                </Box>
             </CardContent>
             <CardActions>
                 <Button

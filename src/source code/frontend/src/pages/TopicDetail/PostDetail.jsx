@@ -152,6 +152,9 @@ const PostDetail = () => {
     const [anchorEl, setAnchorEl] = useState(null);
     const [postToEditOrDelete, setPostToEditOrDelete] = useState(null);
 
+    const [anchorElRelated, setAnchorElRelated] = useState(null);
+    const [postToEditOrDeleteRelated, setPostToEditOrDeleteRelated] = useState(null);
+
     // Handle opening the menu for edit/delete
     const handleClickMenu = useCallback((event) => {
         setAnchorEl(event.currentTarget);
@@ -208,6 +211,48 @@ const PostDetail = () => {
         setIsEditingPost(false);
         setCurrentEditingPost(null);
     }, []);
+
+    // Handle opening the menu for related posts
+    const handleClickMenuRelated = useCallback((event, post) => {
+        event.stopPropagation(); // Prevent card click
+        setAnchorElRelated(event.currentTarget);
+        setPostToEditOrDeleteRelated(post);
+    }, []);
+
+    // Handle closing the menu for related posts
+    const handleCloseMenuRelated = useCallback(() => {
+        setAnchorElRelated(null);
+        setPostToEditOrDeleteRelated(null);
+    }, []);
+
+    // Handle deleting a related post
+    const handleDeleteClickRelated = useCallback(async () => {
+        if (!postToEditOrDeleteRelated) return;
+        const success = await handleDeletePost(postToEditOrDeleteRelated.id);
+        if (success) {
+            handleCloseMenuRelated();
+            // Remove the deleted post from relatedPosts state
+            setRelatedPosts(prev => prev.filter(p => p.id !== postToEditOrDeleteRelated.id));
+            alert('Bài viết liên quan đã được xóa thành công!');
+        }
+    }, [postToEditOrDeleteRelated, handleDeletePost, handleCloseMenuRelated]);
+
+    // Handle editing a related post
+    const handleEditPostRelated = useCallback(async () => {
+        handleCloseMenuRelated();
+        if (postToEditOrDeleteRelated) {
+            try {
+                // Fetch full post details before editing
+                const response = await axios.get(`http://localhost:5000/api/posts/${postToEditOrDeleteRelated.id}`);
+                const fullPostDetails = response.data.post; // Assuming the API returns { post: {...} }
+                setCurrentEditingPost(fullPostDetails);
+                setIsEditingPost(true);
+            } catch (error) {
+                console.error('Error fetching full post details for editing:', error);
+                alert('Không thể tải chi tiết bài viết để chỉnh sửa.');
+            }
+        }
+    }, [postToEditOrDeleteRelated, handleCloseMenuRelated]);
 
     const toggleReplies = (commentId) => {
         setShowReplies((prev) => ({
@@ -311,6 +356,7 @@ const PostDetail = () => {
                         title: post.title,
                         excerpt: post.content ? post.content.replace(/<[^>]*>/g, '').substring(0, 100) + '...' : '',
                         author: post.authorId?.fullName || 'Ẩn danh',
+                        authorId: post.authorId, // Thêm authorId vào đây
                         publishDate: new Date(post.createdAt).toLocaleDateString('vi-VN'),
                         likes: post.likeCount || 0,
                         comments: post.commentCount || 0,
@@ -601,7 +647,8 @@ const PostDetail = () => {
                                         background: darkMode
                                             ? 'linear-gradient(135deg, #242526 0%, #2d2e30 100%)'
                                             : 'linear-gradient(135deg, #fff 0%, #f8f9fa 100%)',
-                                        borderBottom: `1px solid ${darkMode ? '#3a3b3c' : '#e0e0e0'}`
+                                        borderBottom: `1px solid ${darkMode ? '#3a3b3c' : '#e0e0e0'}`,
+                                        position: 'relative' // Thêm thuộc tính này
                                     }}>
                                         {/* Article Title - Larger and More Prominent */}
                                         <Typography
@@ -619,6 +666,47 @@ const PostDetail = () => {
                                         >
                                             {postDetail.title}
                                         </Typography>
+
+                                        {/* Edit Button for Author */}
+                                        {user && (user._id === postDetail.authorId?._id || user.role === 'admin') && (
+                                            <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
+                                                <IconButton
+                                                    aria-label="more"
+                                                    aria-controls="long-menu"
+                                                    aria-haspopup="true"
+                                                    onClick={handleClickMenu}
+                                                    sx={{ color: darkMode ? '#e4e6eb' : '#1c1e21' }}
+                                                >
+                                                    <MoreVertIcon />
+                                                </IconButton>
+                                                <Menu
+                                                    id="long-menu"
+                                                    anchorEl={anchorEl}
+                                                    open={Boolean(anchorEl) && postToEditOrDelete?._id === postDetail._id}
+                                                    onClose={handleCloseMenu}
+                                                    PaperProps={{
+                                                        style: {
+                                                            maxHeight: 48 * 4.5,
+                                                            width: '20ch',
+                                                            backgroundColor: darkMode ? '#3a3b3c' : '#ffffff',
+                                                            color: darkMode ? '#e4e6eb' : '#1c1e21',
+                                                        },
+                                                    }}
+                                                >
+                                                    <MenuItem onClick={handleEditPost} sx={{
+                                                        '&:hover': { backgroundColor: darkMode ? '#555' : '#f0f0f0' }
+                                                    }}>
+                                                        Chỉnh sửa
+                                                    </MenuItem>
+                                                    <MenuItem onClick={handleDeleteClick} sx={{
+                                                        color: 'red',
+                                                        '&:hover': { backgroundColor: darkMode ? '#555' : '#f0f0f0' }
+                                                    }}>
+                                                        Xóa
+                                                    </MenuItem>
+                                                </Menu>
+                                            </Box>
+                                        )}
 
                                         {/* Article Meta - Enhanced */}
                                         <Box display="flex" alignItems="center" justifyContent="space-between" mb={4}>
@@ -670,60 +758,10 @@ const PostDetail = () => {
                                                                 color: darkMode ? '#b0b3b8' : 'text.secondary'
                                                             }}
                                                         />
-                                                        <Chip
-                                                            label={`${estimatedReadTime} phút đọc`}
-                                                            size="small"
-                                                            variant="outlined"
-                                                            sx={{
-                                                                borderColor: darkMode ? '#3a3b3c' : '#ddd',
-                                                                color: darkMode ? '#b0b3b8' : 'text.secondary'
-                                                            }}
-                                                        />
-                                                        <Chip
-                                                            icon={<VisibilityIcon />}
-                                                            label={`${postDetail.views || 0} lượt xem`}
-                                                            size="small"
-                                                            variant="outlined"
-                                                            sx={{
-                                                                borderColor: darkMode ? '#3a3b3c' : '#ddd',
-                                                                color: darkMode ? '#b0b3b8' : 'text.secondary'
-                                                            }}
-                                                        />
                                                     </Box>
                                                 </Box>
                                             </Box>
 
-                                            {/* Action Buttons */}
-                                            <Box display="flex" alignItems="center" gap={1}>
-                                                <Tooltip title={isBookmarked ? "Bỏ lưu" : "Lưu bài viết"}>
-                                                    <IconButton onClick={handleBookmark} size="large">
-                                                        {isBookmarked ?
-                                                            <BookmarkIcon sx={{ color: theme.palette.primary.main }} /> :
-                                                            <BookmarkBorderIcon />
-                                                        }
-                                                    </IconButton>
-                                                </Tooltip>
-                                                <Tooltip title="Chia sẻ">
-                                                    <IconButton onClick={handleShare} size="large">
-                                                        <ShareIcon />
-                                                    </IconButton>
-                                                </Tooltip>
-                                                <Menu
-                                                    anchorEl={shareMenuAnchor}
-                                                    open={Boolean(shareMenuAnchor)}
-                                                    onClose={handleCloseShareMenu}
-                                                >
-                                                    <MenuItem onClick={handleCopyLink}>
-                                                        Sao chép liên kết
-                                                    </MenuItem>
-                                                    <MenuItem onClick={handleCloseShareMenu}>
-                                                        Chia sẻ lên Facebook
-                                                    </MenuItem>
-                                                    <MenuItem onClick={handleCloseShareMenu}>
-                                                        Chia sẻ lên Twitter
-                                                    </MenuItem>
-                                                </Menu>
-                                            </Box>
                                         </Box>
 
                                         {/* Tags and Image Controls */}
@@ -973,7 +1011,7 @@ const PostDetail = () => {
                                             </Button>
                                         </Box>
                                         {/* Edit Button for Author */}
-                                        {user && user._id === postDetail.authorId?._id && (
+                                        {user && (user._id === postDetail.authorId?._id || user.role === 'admin') && (
                                             <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
                                                 <IconButton
                                                     aria-label="more"
@@ -1098,6 +1136,7 @@ const PostDetail = () => {
                                                             border: darkMode ? '1px solid #3a3b3c' : '1px solid #e0e0e0',
                                                             transition: 'all 0.2s ease',
                                                             backgroundColor: darkMode ? '#2a2b2c' : '#fafafa',
+                                                            position: 'relative',
                                                             '&:hover': {
                                                                 backgroundColor: darkMode ? '#3a3b3c' : '#f0f0f0',
                                                                 borderColor: theme.palette.primary.main,
@@ -1107,6 +1146,7 @@ const PostDetail = () => {
                                                         }}
                                                         onClick={() => window.location.href = relatedPost.link}
                                                     >
+                                                        {/* Removed the MoreVertIcon and Menu for related posts */}
                                                         <Box display="flex" alignItems="center">
                                                             {/* Thumbnail from content or placeholder */}
                                                             {relatedPost.thumbnail ? (
@@ -1189,12 +1229,6 @@ const PostDetail = () => {
                                                                         <ThumbUpIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
                                                                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
                                                                             {relatedPost.likes}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                    <Box display="flex" alignItems="center" gap={0.5}>
-                                                                        <VisibilityIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
-                                                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                                                                            {relatedPost.views}
                                                                         </Typography>
                                                                     </Box>
                                                                     <Box display="flex" alignItems="center" gap={0.5}>

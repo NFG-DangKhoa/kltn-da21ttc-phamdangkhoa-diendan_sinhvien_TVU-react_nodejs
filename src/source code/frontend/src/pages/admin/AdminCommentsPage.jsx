@@ -92,8 +92,8 @@ const AdminCommentsPage = () => {
                     Authorization: `Bearer ${token}`,
                 },
             });
-            setComments(res.data.comments);
-            setTotalPages(res.data.totalPages);
+            setComments(res.data.comments || []);
+            setTotalPages(res.data.totalPages || 1);
         } catch (err) {
             console.error('Error fetching comments:', err);
             showSnackbar('Lỗi khi tải bình luận', 'error');

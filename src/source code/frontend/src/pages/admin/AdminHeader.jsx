@@ -24,7 +24,8 @@ import {
     Search,
     Help,
     Security,
-    Person
+    Person,
+    ChatBubbleOutline as ChatIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { styled } from '@mui/system';
@@ -121,13 +122,6 @@ const AdminHeader = ({ toggleColorMode, mode }) => {
                 </Typography>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {/* Search Button */}
-                    <Tooltip title="Tìm kiếm">
-                        <IconButton color="inherit" size="large">
-                            <Search />
-                        </IconButton>
-                    </Tooltip>
-
                     {/* Theme Toggle */}
                     <Tooltip title={mode === 'light' ? 'Chế độ tối' : 'Chế độ sáng'}>
                         <IconButton color="inherit" onClick={toggleColorMode} size="large">
@@ -135,10 +129,10 @@ const AdminHeader = ({ toggleColorMode, mode }) => {
                         </IconButton>
                     </Tooltip>
 
-                    {/* Help Button */}
-                    <Tooltip title="Trợ giúp">
-                        <IconButton color="inherit" size="large">
-                            <Help />
+                    {/* Chat Button */}
+                    <Tooltip title="Chat">
+                        <IconButton color="inherit" onClick={() => navigate('/chat')} size="large">
+                            <ChatIcon />
                         </IconButton>
                     </Tooltip>
 

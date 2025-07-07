@@ -5,6 +5,7 @@ const adminPostController = require('../controllers/adminPostController');
 const { protect, admin } = require('../middlewares/authMiddleware');
 
 // Lấy danh sách bài viết (có phân trang, tìm kiếm, lọc)
+router.get('/export', protect, admin, adminPostController.exportPosts);
 router.get('/', protect, admin, adminPostController.getAllPostsForAdmin);
 router.get('/:id', protect, admin, adminPostController.getPostByIdForAdmin);
 router.post('/', protect, admin, adminPostController.createPostByAdmin);

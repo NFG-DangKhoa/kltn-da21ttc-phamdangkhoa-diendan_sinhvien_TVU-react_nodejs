@@ -61,10 +61,21 @@ const PostActivityCard = ({ post }) => {
     const sanitizedContent = useMemo(() => DOMPurify.sanitize(post.content, { USE_PROFILES: { html: true } }), [post.content]);
     const plainTextContent = useMemo(() => {
         const parsed = parse(sanitizedContent);
-        if (typeof parsed === 'string') return parsed;
-        if (Array.isArray(parsed)) return parsed.map(p => p.props.children).join(' ');
-        if (parsed.props && parsed.props.children) return parsed.props.children.toString();
-        return '';
+
+        const getTextFromNode = (node) => {
+            if (typeof node === 'string') {
+                return node;
+            }
+            if (Array.isArray(node)) {
+                return node.map(getTextFromNode).join('');
+            }
+            if (node && node.props && node.props.children) {
+                return getTextFromNode(node.props.children);
+            }
+            return '';
+        };
+
+        return getTextFromNode(parsed);
     }, [sanitizedContent]);
 
 

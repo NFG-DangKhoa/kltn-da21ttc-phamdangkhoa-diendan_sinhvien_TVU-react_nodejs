@@ -507,6 +507,13 @@ exports.createPost = async (req, res) => {
         }
 
         // 2. Tạo bài viết với content đã được process
+        const newPost = new Post({
+            authorId,
+            title,
+            content: finalContent, // Use finalContent here
+            topicId,
+            tags,
+        });
         const savedPost = await newPost.save();
 
         // Update user's post count
@@ -865,16 +872,29 @@ exports.deletePost = async (req, res) => {
     try {
         const postId = req.params.id; // Changed from req.params.postId for consistency with other functions
         const userId = req.user._id; // Assuming req.user._id is available from authentication middleware
+        const userRole = req.user.role; // Get user role
 
         const post = await Post.findById(postId);
         if (!post) {
             console.warn(`Bài viết ${postId} không tìm thấy.`);
             return res.status(404).json({ message: 'Bài viết không tìm thấy' });
         }
-        if (post.authorId.toString() !== userId) {
-            console.warn(`Người dùng ${userId} không có quyền xóa bài viết ${postId}`);
+
+        console.log(`DEBUG: deletePost - Request received for postId: ${postId}`);
+        console.log(`DEBUG: deletePost - Authenticated userId: ${userId}, userRole: ${userRole}`);
+        console.log(`DEBUG: deletePost - Post authorId: ${post.authorId.toString()}`);
+
+        // Check if the user is the author or an admin
+        const isAuthor = post.authorId.toString() === userId.toString();
+        const isAdmin = userRole === 'admin';
+
+        console.log(`DEBUG: deletePost - Is author: ${isAuthor}, Is admin: ${isAdmin}`);
+
+        if (!isAuthor && !isAdmin) {
+            console.warn(`Người dùng ${userId} không có quyền xóa bài viết ${postId}. Vai trò: ${userRole}`);
             return res.status(403).json({ message: 'Bạn không có quyền xóa bài viết này' });
         }
+        console.log(`DEBUG: deletePost - User ${userId} is authorized to delete post ${postId}.`);
 
         // 1. Trích xuất URL ảnh từ nội dung bài viết trước khi xóa bài viết khỏi DB
         const imageUrlsToDeletePhysical = extractImageUrls(post.content || '');

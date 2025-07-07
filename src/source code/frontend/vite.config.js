@@ -2,19 +2,13 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-            plugins: [
+    plugins: [
         react({
             babel: {
                 plugins: ['@emotion/babel-plugin'],
             },
         }),
     ],
-        babel: {
-            plugins: [
-                '@emotion/babel-plugin',
-            ],
-        },
-    })],
     // Fix global variable for Draft.js
     define: {
         global: 'globalThis',

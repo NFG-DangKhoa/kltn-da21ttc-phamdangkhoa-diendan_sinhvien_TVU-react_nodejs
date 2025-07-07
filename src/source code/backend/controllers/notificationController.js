@@ -185,7 +185,7 @@ exports.createBroadcastNotification = async (req, res) => {
 // ADMIN: Gửi thông báo cho user cụ thể
 exports.createUserNotification = async (req, res) => {
     try {
-        const { userId, title, message, type = 'announcement', priority = 'normal' } = req.body;
+        const { userId, title, message, type = 'announcement', priority = 'normal', relatedData = {}, actionUrl = null } = req.body;
         const adminId = req.user._id;
 
         // Kiểm tra quyền admin
@@ -206,7 +206,9 @@ exports.createUserNotification = async (req, res) => {
             message,
             priority,
             icon: 'admin_panel_settings',
-            color: '#f44336'
+            color: '#f44336',
+            relatedData,
+            actionUrl
         });
 
         await notification.save();
@@ -221,7 +223,9 @@ exports.createUserNotification = async (req, res) => {
             icon: notification.icon,
             color: notification.color,
             timeAgo: 'Vừa xong',
-            createdAt: notification.createdAt
+            createdAt: notification.createdAt,
+            actionUrl: notification.actionUrl,
+            relatedData: notification.relatedData
         });
 
         res.json({

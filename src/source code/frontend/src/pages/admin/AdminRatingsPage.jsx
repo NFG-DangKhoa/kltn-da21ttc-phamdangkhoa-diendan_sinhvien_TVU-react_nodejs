@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Container,
     Typography,
     Box,
     Paper,
@@ -11,31 +10,26 @@ import {
     TableHead,
     TableRow,
     TablePagination,
-    IconButton,
-    Tooltip,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
     Button,
     Snackbar,
-    Alert
+    Alert,
+    Chip
 } from '@mui/material';
 import {
-    Delete as DeleteIcon,
     Refresh as RefreshIcon,
     Star as StarIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import AdminRatingDialog from './AdminRatingDialog';
 
 const AdminRatingsPage = () => {
-    const [ratings, setRatings] = useState([]);
+    const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
-    const [totalRatings, setTotalRatings] = useState(0);
-    const [selectedRating, setSelectedRating] = useState(null);
-    const [dialogOpen, setDialogOpen] = useState(false);
+    const [totalPosts, setTotalPosts] = useState(0);
+    const [selectedPost, setSelectedPost] = useState(null);
+    const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
     const API_BASE_URL = 'http://localhost:5000/api';
@@ -52,11 +46,11 @@ const AdminRatingsPage = () => {
         return null;
     };
 
-    const fetchRatings = async () => {
+    const fetchPostsWithRatings = async () => {
         setLoading(true);
         try {
             const token = getAuthToken();
-            const response = await axios.get(`${API_BASE_URL}/admin/ratings`, {
+            const response = await axios.get(`${API_BASE_URL}/admin/posts`, {
                 headers: { Authorization: `Bearer ${token}` },
                 params: {
                     page: page + 1,
@@ -64,42 +58,27 @@ const AdminRatingsPage = () => {
                 }
             });
 
-            if (response.data.success) {
-                setRatings(response.data.data.ratings);
-                setTotalRatings(response.data.data.pagination.totalRatings);
-            }
+            setPosts(response.data.posts);
+            setTotalPosts(response.data.totalPosts);
         } catch (error) {
-            console.error('Error fetching ratings:', error);
-            showSnackbar('Lỗi khi tải danh sách đánh giá', 'error');
+            console.error('Error fetching posts:', error);
+            showSnackbar('Lỗi khi tải danh sách bài viết', 'error');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleShowRatings = (post) => {
+        setSelectedPost(post);
+        setRatingDialogOpen(true);
     };
 
     const showSnackbar = (message, severity = 'success') => {
         setSnackbar({ open: true, message, severity });
     };
 
-    const handleDeleteRating = async () => {
-        if (!selectedRating) return;
-
-        try {
-            const token = getAuthToken();
-            await axios.delete(`${API_BASE_URL}/admin/ratings/${selectedRating._id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            showSnackbar('Đã xóa đánh giá thành công');
-            setDialogOpen(false);
-            fetchRatings();
-        } catch (error) {
-            console.error('Error deleting rating:', error);
-            showSnackbar('Lỗi khi xóa đánh giá', 'error');
-        }
-    };
-
     useEffect(() => {
-        fetchRatings();
+        fetchPostsWithRatings();
     }, [page, rowsPerPage]);
 
     return (
@@ -113,7 +92,7 @@ const AdminRatingsPage = () => {
                     <Button
                         variant="outlined"
                         startIcon={<RefreshIcon />}
-                        onClick={fetchRatings}
+                        onClick={fetchPostsWithRatings}
                     >
                         Làm mới
                     </Button>
@@ -125,52 +104,37 @@ const AdminRatingsPage = () => {
                     <Table size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell>Bài viết</TableCell>
-                                <TableCell>Người đánh giá</TableCell>
-                                <TableCell>Điểm</TableCell>
-                                <TableCell>Ngày tạo</TableCell>
-                                <TableCell>Hành động</TableCell>
+                                <TableCell>Tên bài viết</TableCell>
+                                <TableCell>Đánh giá</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} align="center">
+                                    <TableCell colSpan={2} align="center">
                                         Đang tải...
                                     </TableCell>
                                 </TableRow>
-                            ) : ratings.length === 0 ? (
+                            ) : posts.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} align="center">
-                                        Không có đánh giá nào
+                                    <TableCell colSpan={2} align="center">
+                                        Không có bài viết nào
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                ratings.map((rating) => (
-                                    <TableRow key={rating._id}>
-                                        <TableCell>{rating.post?.title || 'Bài viết không tồn tại'}</TableCell>
-                                        <TableCell>{rating.user?.fullName || 'Người dùng không tồn tại'}</TableCell>
+                                posts.map((post) => (
+                                    <TableRow key={post._id}>
+                                        <TableCell>{post.title}</TableCell>
                                         <TableCell>
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                {rating.rating} <StarIcon sx={{ color: 'gold', ml: 0.5 }} />
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell>
-                                            {new Date(rating.createdAt).toLocaleDateString('vi-VN')}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Tooltip title="Xóa">
-                                                <IconButton
-                                                    size="small"
-                                                    color="error"
-                                                    onClick={() => {
-                                                        setSelectedRating(rating);
-                                                        setDialogOpen(true);
-                                                    }}
-                                                >
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            </Tooltip>
+                                            <Chip
+                                                icon={<StarIcon />}
+                                                label={post.ratingCount || 0}
+                                                onClick={() => handleShowRatings(post)}
+                                                clickable
+                                                color="primary"
+                                                variant="outlined"
+                                                sx={{ cursor: 'pointer' }}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -181,9 +145,9 @@ const AdminRatingsPage = () => {
 
                 <TablePagination
                     component="div"
-                    count={totalRatings}
+                    count={totalPosts}
                     page={page}
-                    onPageChange={(event, newPage) => setPage(newPage)}
+                    onPageChange={(_, newPage) => setPage(newPage)}
                     rowsPerPage={rowsPerPage}
                     onRowsPerPageChange={(event) => {
                         setRowsPerPage(parseInt(event.target.value, 10));
@@ -196,29 +160,13 @@ const AdminRatingsPage = () => {
                 />
             </Paper>
 
-            <Dialog
-                open={dialogOpen}
-                onClose={() => setDialogOpen(false)}
-                maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle>Xóa Đánh giá</DialogTitle>
-                <DialogContent>
-                    <Typography>
-                        Bạn có chắc chắn muốn xóa đánh giá này?
-                    </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDialogOpen(false)}>Hủy</Button>
-                    <Button
-                        onClick={handleDeleteRating}
-                        variant="contained"
-                        color="error"
-                    >
-                        Xác nhận
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            {selectedPost && (
+                <AdminRatingDialog
+                    open={ratingDialogOpen}
+                    onClose={() => setRatingDialogOpen(false)}
+                    postId={selectedPost._id}
+                />
+            )}
 
             <Snackbar
                 open={snackbar.open}

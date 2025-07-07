@@ -45,6 +45,20 @@ exports.getAllRatings = async (req, res) => {
     }
 };
 
+// Get all ratings for a specific post
+exports.getRatingsByPost = async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const ratings = await Rating.find({ postId })
+            .populate('userId', 'fullName avatar') // Populate user details
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({ success: true, data: ratings });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi máy chủ: ' + error.message });
+    }
+};
+
 // Delete a rating
 exports.deleteRating = async (req, res) => {
     try {

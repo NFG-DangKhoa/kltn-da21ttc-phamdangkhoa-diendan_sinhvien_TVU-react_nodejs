@@ -4,6 +4,7 @@ import React, { useEffect, useState, useContext } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
+import { ThemeContext } from "../../context/ThemeContext";
 import {
     Box,
     CircularProgress,
@@ -25,10 +26,13 @@ import ProfileHeader from "./ProfileHeader";
 import ProfileInfo from "./ProfileInfo";
 import UserActivity from "./UserActivity";
 import ActivityVisibilitySettings from "./ActivityVisibilitySettings";
+import BreadcrumbNavigation from "../../components/BreadcrumbNavigation/BreadcrumbNavigation";
 
 const ProfilePage = () => {
     const { userId } = useParams(); // Lấy userId từ URL
     const { user: currentUser } = useContext(AuthContext); // Lấy người dùng đang đăng nhập từ context
+    const { mode } = useContext(ThemeContext);
+    const isDarkMode = mode === 'dark';
 
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -121,108 +125,114 @@ const ProfilePage = () => {
     if (!userData) return null;
 
     return (
-        <Container maxWidth="lg" sx={{ mb: 4 }}> {/* Giữ nguyên mt: 12 vì ProfilePage cần khoảng cách lớn hơn */}
-            <Fade in={true} timeout={800}>
-                <Box>
-                    {/* Profile Header */}
-                    <ProfileHeader
-                        userData={userData}
-                        isCurrentUser={isCurrentUser}
-                        onProfileUpdate={handleProfileUpdate}
-                        currentUser={currentUser}
-                    />
+        <>
+            <BreadcrumbNavigation
+                userName={userData?.fullName}
+                darkMode={isDarkMode}
+            />
+            <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+                <Fade in={true} timeout={800}>
+                    <Box>
+                        {/* Profile Header */}
+                        <ProfileHeader
+                            userData={userData}
+                            isCurrentUser={isCurrentUser}
+                            onProfileUpdate={handleProfileUpdate}
+                            currentUser={currentUser}
+                        />
 
-                    {/* Navigation Tabs */}
-                    <Paper
-                        elevation={0}
-                        sx={{
-                            mt: 3,
-                            borderRadius: 3,
-                            overflow: 'hidden',
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        }}
-                    >
-                        <Tabs
-                            value={currentTab}
-                            onChange={handleTabChange}
-                            centered
+                        {/* Navigation Tabs */}
+                        <Paper
+                            elevation={0}
                             sx={{
-                                '& .MuiTab-root': {
-                                    color: 'rgba(255, 255, 255, 0.7)',
-                                    fontWeight: 600,
-                                    fontSize: '1rem',
-                                    textTransform: 'none',
-                                    minHeight: 64,
-                                    '&.Mui-selected': {
-                                        color: 'white',
-                                    }
-                                },
-                                '& .MuiTabs-indicator': {
-                                    backgroundColor: 'white',
-                                    height: 3,
-                                    borderRadius: '3px 3px 0 0'
-                                }
+                                mt: 3,
+                                borderRadius: 3,
+                                overflow: 'hidden',
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                             }}
                         >
-                            <Tab
-                                icon={<PersonIcon />}
-                                label="Thông tin cá nhân"
-                                iconPosition="start"
-                                sx={{ gap: 1 }}
-                            />
-                            <Tab
-                                icon={<TimelineIcon />}
-                                label="Hoạt động"
-                                iconPosition="start"
-                                sx={{ gap: 1 }}
-                            />
-                            {isCurrentUser && (
+                            <Tabs
+                                value={currentTab}
+                                onChange={handleTabChange}
+                                centered
+                                sx={{
+                                    '& .MuiTab-root': {
+                                        color: 'rgba(255, 255, 255, 0.7)',
+                                        fontWeight: 600,
+                                        fontSize: '1rem',
+                                        textTransform: 'none',
+                                        minHeight: 64,
+                                        '&.Mui-selected': {
+                                            color: 'white',
+                                        }
+                                    },
+                                    '& .MuiTabs-indicator': {
+                                        backgroundColor: 'white',
+                                        height: 3,
+                                        borderRadius: '3px 3px 0 0'
+                                    }
+                                }}
+                            >
                                 <Tab
-                                    icon={<SettingsIcon />}
-                                    label="Cài đặt"
+                                    icon={<PersonIcon />}
+                                    label="Thông tin cá nhân"
                                     iconPosition="start"
                                     sx={{ gap: 1 }}
                                 />
+                                <Tab
+                                    icon={<TimelineIcon />}
+                                    label="Hoạt động"
+                                    iconPosition="start"
+                                    sx={{ gap: 1 }}
+                                />
+                                {isCurrentUser && (
+                                    <Tab
+                                        icon={<SettingsIcon />}
+                                        label="Cài đặt"
+                                        iconPosition="start"
+                                        sx={{ gap: 1 }}
+                                    />
+                                )}
+                            </Tabs>
+                        </Paper>
+
+                        {/* Tab Content */}
+                        <Box sx={{ mt: 3 }}>
+                            {currentTab === 0 && (
+                                <Fade in={currentTab === 0} timeout={500}>
+                                    <Box>
+                                        <ProfileInfo userData={userData} isCurrentUser={isCurrentUser} />
+                                    </Box>
+                                </Fade>
                             )}
-                        </Tabs>
-                    </Paper>
 
-                    {/* Tab Content */}
-                    <Box sx={{ mt: 3 }}>
-                        {currentTab === 0 && (
-                            <Fade in={currentTab === 0} timeout={500}>
-                                <Box>
-                                    <ProfileInfo userData={userData} isCurrentUser={isCurrentUser} />
-                                </Box>
-                            </Fade>
-                        )}
+                            {currentTab === 1 && (
+                                <Fade in={currentTab === 1} timeout={500}>
+                                    <Box>
+                                        <UserActivity
+                                            userId={userData._id}
+                                            currentUser={currentUser}
+                                            activityVisibility={userData.activityVisibility}
+                                        />
+                                    </Box>
+                                </Fade>
+                            )}
 
-                        {currentTab === 1 && (
-                            <Fade in={currentTab === 1} timeout={500}>
-                                <Box>
-                                    <UserActivity
-                                        userId={userData._id}
-                                        currentUser={currentUser}
-                                        activityVisibility={userData.activityVisibility}
-                                    />
-                                </Box>
-                            </Fade>
-                        )}
-
-                        {isCurrentUser && currentTab === 2 && (
-                            <Fade in={currentTab === 2} timeout={500}>
-                                <Box>
-                                    <ActivityVisibilitySettings
-                                        initialSettings={userData.activityVisibility}
-                                        onSettingsChange={handleVisibilityChange}
-                                    />
-                                </Box>
-                            </Fade>
-                        )}
+                            {isCurrentUser && currentTab === 2 && (
+                                <Fade in={currentTab === 2} timeout={500}>
+                                    <Box>
+                                        <ActivityVisibilitySettings
+                                            initialSettings={userData.activityVisibility}
+                                            onSettingsChange={handleVisibilityChange}
+                                        />
+                                    </Box>
+                                </Fade>
+                            )}
+                        </Box>
                     </Box>
-                </Box>
-            </Fade>
-        </Container>
+                </Fade>
+            </Container>
+        </>
     );
 };
 

@@ -26,56 +26,54 @@ const Footer = () => {
             <Grid container spacing={4} sx={{ maxWidth: '1200px', mx: 'auto', ml: 30, position: 'relative', zIndex: 1 }}>
                 {/* Cột 1 */}
                 <Grid item xs={12} md={3}>
-                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#FFD700', mb: 2 }}>Tvu_forum.vn</Typography>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Trang nhất</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Diễn đàn</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Hỗ trợ - hướng dẫn</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Thư viện</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Khuyến mãi</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Sự kiện</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>TVU_FORUM.VN RSS</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Liên hệ quảng cáo</Link>
+                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#FFD700', mb: 2 }}>Diễn đàn TVU</Typography>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Trang chủ</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Diễn đàn chính</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Hướng dẫn sử dụng</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Tài liệu học tập</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Thông báo & Sự kiện</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Hoạt động sinh viên</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Liên hệ hỗ trợ</Link>
                 </Grid>
 
                 {/* Cột 2 */}
                 <Grid item xs={12} md={3}>
-                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#FFD700', mb: 2 }}>Diễn đàn</Typography>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Thông tin</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Máy tính</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Điện thoại</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Camera</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Xe</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Khoa học công nghệ</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Diễn đàn</Link>
+                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#FFD700', mb: 2 }}>Chủ đề nổi bật</Typography>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Học tập & Nghiên cứu</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Đời sống Sinh viên</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Tuyển dụng & Việc làm</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Sự kiện & Hoạt động</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Thắc mắc & Giải đáp</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Kỹ năng mềm</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Tình nguyện</Link>
                 </Grid>
 
                 {/* Cột 3 */}
                 <Grid item xs={12} md={3}>
-                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#FFD700', mb: 2 }}>Mua bán</Typography>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Mua bán điện thoại</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Mua bán máy tính</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Mua bán máy tính bảng</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Mua bán camera</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Mua bán đồ công nghệ</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Mua bán xe</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Mua bán điện máy</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Mua bán sim, sim 3G</Link>
+                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#FFD700', mb: 2 }}>Chuyên mục</Typography>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Thông tin tuyển sinh</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Học bổng</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Thực tập & Việc làm</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Câu lạc bộ</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Góc thư giãn</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Chia sẻ kinh nghiệm</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Góp ý & Đề xuất</Link>
                 </Grid>
 
                 {/* Cột 4 */}
                 <Grid item xs={12} md={3}>
-                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#FFD700', mb: 2 }}>Liên hệ</Typography>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Liên hệ quảng cáo</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Hỗ trợ - Hướng dẫn</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Diễn Đàn</Link>
-                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Thảo luận</Link>
+                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#FFD700', mb: 2 }}>Thông tin liên hệ</Typography>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Email: support@tvuforum.vn</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Điện thoại: 0123 456 789</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Địa chỉ: 126 Nguyễn Thiện Thành, Trà Vinh</Link>
+                    <Link href="#" underline="hover" color="inherit" display="block" sx={{ py: 0.5, transition: 'all 0.3s ease', '&:hover': { color: '#FFD700', transform: 'translateX(5px)' } }}>Fanpage Facebook</Link>
                 </Grid>
             </Grid>
 
             <Box sx={{ mt: 6, borderTop: '1px solid rgba(255, 255, 255, 0.2)', pt: 3, position: 'relative', zIndex: 1 }}>
                 <Typography variant="body2" color="rgba(255, 255, 255, 0.8)" align="center" lineHeight={1.8}>
-                    Media embeds by s9e | Chịu trách nhiệm nội dung: Phạm Đăng Khôi • © 2025 Công ty Cổ phần DD DK<br />
-                    Địa chỉ: 120, Đại Thôn A, H. Châu Thành, T. Trà Vinh • SĐT: 0345476413<br />
+                    © 2025 Diễn đàn Sinh viên TVU. Tất cả quyền được bảo lưu.<br />
+                    Địa chỉ: 126 Nguyễn Thiện Thành, Phường 5, TP. Trà Vinh, Tỉnh Trà Vinh<br />
                     Giấy phép thiết lập MXH số 11/GP-BTTTT, ký ngày: 08/01/2025
                 </Typography>
             </Box>

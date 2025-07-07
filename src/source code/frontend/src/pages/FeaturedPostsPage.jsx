@@ -293,12 +293,6 @@ const FeaturedPostsPage = () => {
                                                         {post.likeCount || post.likes || 0}
                                                     </Typography>
                                                 </Box>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                                                    <VisibilityIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
-                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                                        {formatNumber(post.views || 0)}
-                                                    </Typography>
-                                                </Box>
                                                 {/* Rating Stars */}
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
                                                     <Box sx={{ display: 'flex', alignItems: 'center' }}>

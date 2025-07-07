@@ -2,11 +2,13 @@ const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const Rating = require('../models/Rating');
 const Like = require('../models/Like');
-const Image = require('../models/Image'); // Model để lưu trữ thông tin ảnh trong DB
+const Image = require('../models/Image');
+const User = require('../models/User'); // Import User model
+const json2csv = require('json2csv').parse;
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios'); // Cần axios để tải ảnh từ URL
-const { JSDOM } = require('jsdom'); // Cần cài đặt: npm install jsdom
+const axios = require('axios');
+const { JSDOM } = require('jsdom');
 
 // Socket.IO instance (cần được thiết lập từ server.js)
 let io;
@@ -186,7 +188,7 @@ async function processContentImages(htmlContent, req) {
  */
 exports.getAllPostsForAdmin = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search = '', status = '', authorId = '', topicId = '', sortBy = 'createdAt', sortOrder = '-1' } = req.query;
+        const { page = 1, limit = 10, search = '', status = '', authorId = '', authorName = '', topicId = '', sortBy = 'createdAt', sortOrder = '-1' } = req.query;
 
         const query = {};
         if (search) {
@@ -199,11 +201,29 @@ exports.getAllPostsForAdmin = async (req, res) => {
         if (status) {
             query.status = status;
         }
-        if (authorId) {
-            query.authorId = authorId;
-        }
         if (topicId) {
             query.topicId = topicId;
+        }
+
+        // Handle author search by name
+        let finalAuthorId = authorId;
+        if (authorName) {
+            const authorUser = await User.findOne({ fullName: { $regex: authorName, $options: 'i' } });
+            if (authorUser) {
+                finalAuthorId = authorUser._id;
+            } else {
+                // If authorName is provided but no user is found, return empty posts
+                return res.status(200).json({
+                    posts: [],
+                    totalPosts: 0,
+                    totalPages: 0,
+                    currentPage: parseInt(page, 10),
+                });
+            }
+        }
+
+        if (finalAuthorId) {
+            query.authorId = finalAuthorId;
         }
 
         const sortOptions = {};
@@ -223,16 +243,54 @@ exports.getAllPostsForAdmin = async (req, res) => {
         const result = await Post.paginate(query, options); // Post.paginate yêu cầu mongoose-paginate-v2
 
         if (!result || result.docs.length === 0) {
-            return res.status(200).json({ message: 'Không tìm thấy bài viết nào phù hợp.', posts: [], totalDocs: 0, totalPages: 0 });
+            return res.status(200).json({
+                success: true,
+                message: 'Không tìm thấy bài viết nào phù hợp.',
+                data: {
+                    posts: [],
+                    pagination: {
+                        totalPosts: 0,
+                        totalPages: 0,
+                        currentPage: parseInt(page, 10)
+                    }
+                }
+            });
         }
 
+        // Thêm số lượt thích, bình luận và thông tin đánh giá cho mỗi bài viết
+        const postsWithCountsAndRatings = await Promise.all(result.docs.map(async (post) => {
+            const likesCount = await Like.countDocuments({ postId: post._id });
+            const commentsCount = await Comment.countDocuments({ postId: post._id });
+
+            // Calculate average rating and total ratings
+            const ratings = await Rating.aggregate([
+                { $match: { postId: post._id } },
+                {
+                    $group: {
+                        _id: null,
+                        averageRating: { $avg: '$rating' },
+                        totalRatings: { $sum: 1 }
+                    }
+                }
+            ]);
+
+            const averageRating = ratings.length > 0 ? ratings[0].averageRating : 0;
+            const totalRatings = ratings.length > 0 ? ratings[0].totalRatings : 0;
+
+            return {
+                ...post,
+                likesCount,
+                commentsCount,
+                averageRating: parseFloat(averageRating.toFixed(1)), // Format to one decimal place
+                totalRatings
+            };
+        }));
+
         res.status(200).json({
-            posts: result.docs,
+            posts: postsWithCountsAndRatings,
             totalPosts: result.totalDocs,
             totalPages: result.totalPages,
             currentPage: result.page,
-            hasNextPage: result.hasNextPage,
-            hasPrevPage: result.hasPrevPage
         });
 
     } catch (err) {
@@ -524,5 +582,82 @@ exports.updatePostStatus = async (req, res) => {
     } catch (error) {
         console.error('Lỗi Admin cập nhật trạng thái bài viết:', error);
         res.status(500).json({ message: 'Lỗi server khi Admin cập nhật trạng thái bài viết.', error: error.message });
+    }
+};
+
+/**
+ * @route GET /api/admin/posts/export
+ * @desc Export posts data to CSV
+ * @access Private (Admin Only)
+ */
+exports.exportPosts = async (req, res) => {
+    try {
+        const posts = await Post.find({})
+            .populate('authorId', 'fullName email')
+            .populate('topicId', 'name')
+            .lean();
+
+        // Thêm số lượt thích và bình luận cho mỗi bài viết
+        const postsWithCounts = await Promise.all(posts.map(async (post) => {
+            const likesCount = await Like.countDocuments({ postId: post._id });
+            const commentsCount = await Comment.countDocuments({ postId: post._id });
+
+            // Calculate average rating and total ratings for export
+            const ratings = await Rating.aggregate([
+                { $match: { postId: post._id } },
+                {
+                    $group: {
+                        _id: null,
+                        averageRating: { $avg: '$rating' },
+                        totalRatings: { $sum: 1 }
+                    }
+                }
+            ]);
+
+            const averageRating = ratings.length > 0 ? ratings[0].averageRating : 0;
+            const totalRatings = ratings.length > 0 ? ratings[0].totalRatings : 0;
+
+            return {
+                id: post._id,
+                title: post.title,
+                author: post.authorId?.fullName || 'N/A',
+                authorEmail: post.authorId?.email || 'N/A',
+                topic: post.topicId?.name || 'N/A',
+                status: post.status,
+                likesCount,
+                commentsCount,
+                averageRating: parseFloat(averageRating.toFixed(1)), // Format to one decimal place
+                totalRatings,
+                createdAt: new Date(post.createdAt).toLocaleDateString('vi-VN'),
+                updatedAt: new Date(post.updatedAt).toLocaleDateString('vi-VN'),
+                tags: Array.isArray(post.tags) ? post.tags.join(', ') : ''
+            };
+        }));
+
+        const fields = [
+            { label: 'ID', value: 'id' },
+            { label: 'Tiêu đề', value: 'title' },
+            { label: 'Tác giả', value: 'author' },
+            { label: 'Email tác giả', value: 'authorEmail' },
+            { label: 'Chủ đề', value: 'topic' },
+            { label: 'Trạng thái', value: 'status' },
+            { label: 'Lượt thích', value: 'likesCount' },
+            { label: 'Bình luận', value: 'commentsCount' },
+            { label: 'Đánh giá TB', value: 'averageRating' }, // New field
+            { label: 'Tổng đánh giá', value: 'totalRatings' }, // New field
+            { label: 'Ngày tạo', value: 'createdAt' },
+            { label: 'Ngày cập nhật', value: 'updatedAt' },
+            { label: 'Tags', value: 'tags' }
+        ];
+
+        const csv = json2csv(postsWithCountsAndRatings, { fields });
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename=posts_export_${new Date().toISOString().split('T')[0]}.csv`);
+        res.send('\uFEFF' + csv); // Add BOM for proper UTF-8 encoding in Excel
+
+    } catch (error) {
+        console.error('Error exporting posts:', error);
+        res.status(500).json({ message: 'Lỗi server khi xuất dữ liệu bài viết.', error: error.message });
     }
 };

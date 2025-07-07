@@ -45,7 +45,8 @@ const notificationSchema = new mongoose.Schema({
             // Broadcast notifications
             'announcement',
             'system_maintenance',
-            'feature_update'
+            'feature_update',
+            'admin_edit_post'
         ],
         required: true
     },
@@ -159,4 +160,3 @@ notificationSchema.virtual('timeAgo').get(function () {
 notificationSchema.set('toJSON', { virtuals: true });
 
 module.exports = mongoose.model('Notification', notificationSchema);
-

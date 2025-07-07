@@ -1,11 +1,13 @@
 // File này sẽ chứa phần "Bài Viết Nổi Bật" với các Card hiển thị theo chiều ngang.
 import React from 'react';
-import { Box, Typography, Card, CardContent, CardMedia, Button, useTheme } from '@mui/material';
-import { Star } from '@mui/icons-material';
+import { Box, Typography, Card, CardContent, CardMedia, Button, useTheme, Stack, Rating } from '@mui/material';
+import { Star, ChatBubbleOutline, ThumbUpAltOutlined } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 // Thay đổi prop 'darkMode' thành 'isDarkMode' để nhất quán với Home.js
 const FeaturedPosts = ({ featuredPosts, isDarkMode }) => {
     const theme = useTheme(); // Hook này đã truy cập được theme hiện tại (light/dark)
+    const navigate = useNavigate();
 
     return (
         <Box mb={6}>
@@ -112,13 +114,41 @@ const FeaturedPosts = ({ featuredPosts, isDarkMode }) => {
                                 variant="body2"
                                 // Sử dụng theme.palette.text.secondary
                                 color={theme.palette.text.secondary}
-                                sx={{ mt: 'auto' }}
                             >
                                 {post.author} - {new Date(post.date).toLocaleDateString()}
                             </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+                                <Stack direction="row" spacing={2} alignItems="center">
+                                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                                        <ChatBubbleOutline sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
+                                        <Typography variant="body2" color={theme.palette.text.secondary}>
+                                            {post.commentCount || 0}
+                                        </Typography>
+                                    </Stack>
+                                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                                        <ThumbUpAltOutlined sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
+                                        <Typography variant="body2" color={theme.palette.text.secondary}>
+                                            {post.likeCount || 0}
+                                        </Typography>
+                                    </Stack>
+                                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                                        <Rating
+                                            name="read-only"
+                                            value={post.averageRating || 0}
+                                            readOnly
+                                            precision={0.5}
+                                            size="small"
+                                        />
+                                        <Typography variant="body2" color={theme.palette.text.secondary}>
+                                            ({post.ratingCount || 0})
+                                        </Typography>
+                                    </Stack>
+                                </Stack>
+                            </Box>
                             <Button
                                 variant="outlined"
                                 size="small"
+                                onClick={() => navigate(`/posts/detail?topicId=${post.topicId}&postId=${post.id}`)}
                                 sx={{
                                     mt: 2,
                                     alignSelf: 'flex-end',

@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 
 const BACKEND_API_URL = 'http://localhost:5000/api/dialogflow-text-input';
+const WIDGET_SETTINGS_API_URL = 'http://localhost:5000/api/chatbot-widget-settings';
 
 const ChatbotWidget = () => {
     const [messages, setMessages] = useState([]);
@@ -23,6 +24,7 @@ const ChatbotWidget = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [suggestions, setSuggestions] = useState([]);
     const [showGreeting, setShowGreeting] = useState(false);
+    const [widgetSettings, setWidgetSettings] = useState(null); // New state for settings
 
     const messagesEndRef = useRef(null);
 
@@ -31,6 +33,28 @@ const ChatbotWidget = () => {
 
     const { mode } = useContext(ThemeContext);
     const darkMode = mode === 'dark';
+
+    // Fetch widget settings on component mount
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const response = await fetch(WIDGET_SETTINGS_API_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                setWidgetSettings(data.data);
+                // Apply autoOpen setting
+                if (data.data.autoOpen) {
+                    setIsOpen(true);
+                }
+            } catch (error) {
+                console.error('Error fetching widget settings:', error);
+                // Fallback to default settings or handle error gracefully
+            }
+        };
+        fetchSettings();
+    }, []);
 
     useEffect(() => {
         setSessionId(uuidv4());
@@ -48,19 +72,20 @@ const ChatbotWidget = () => {
         let cycleTimer;
 
         const startGreetingCycle = () => {
+            // Use widgetSettings.greetingDelay if available, otherwise default to 5000
+            const delay = widgetSettings?.greetingDelay || 5000;
             if (!isOpen && messages.length === 0) {
                 greetingShowTimer = setTimeout(() => {
                     setShowGreeting(true);
                     greetingHideTimer = setTimeout(() => {
                         setShowGreeting(false);
-                        // Sử dụng cycleTimer thay vì gọi lại startGreetingCycle
                         cycleTimer = setTimeout(() => {
                             if (!isOpen && messages.length === 0) {
                                 startGreetingCycle();
                             }
-                        }, 5000);
-                    }, 5000);
-                }, 5000);
+                        }, delay); // Use delay here
+                    }, delay); // Use delay here
+                }, delay); // Use delay here
             } else {
                 setShowGreeting(false);
                 clearTimeout(greetingShowTimer);
@@ -69,14 +94,18 @@ const ChatbotWidget = () => {
             }
         };
 
-        startGreetingCycle();
+        // Only start greeting cycle if settings are loaded and autoOpen is false
+        if (widgetSettings && !widgetSettings.autoOpen) {
+            startGreetingCycle();
+        }
+
 
         return () => {
             clearTimeout(greetingShowTimer);
             clearTimeout(greetingHideTimer);
             clearTimeout(cycleTimer);
         };
-    }, [isOpen, messages.length]);
+    }, [isOpen, messages.length, widgetSettings]); // Add widgetSettings to dependency array
 
     const sendSuggestion = (text) => {
         setInput(text);
@@ -100,7 +129,7 @@ const ChatbotWidget = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ message: userMessage.text, sessionId }),
+                body: JSON.stringify({ message: userMessage.text, sessionId, userId: user?._id }),
             });
 
             if (!response.ok) {
@@ -208,17 +237,66 @@ const ChatbotWidget = () => {
         }
     };
 
-    const toggleChatbot = () => {
-        setIsOpen(!isOpen);
+    const toggleChatbot = async () => {
+        const newState = !isOpen;
+        setIsOpen(newState);
         setShowGreeting(false);
+
+        // If the chatbot is being closed and there are messages in the current session
+        if (!newState && messages.length > 0 && sessionId) {
+            try {
+                await fetch('http://localhost:5000/api/end-chatbot-conversation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ sessionId }),
+                });
+                console.log('Chatbot conversation ended successfully.');
+                // Optionally, reset messages and sessionId for a fresh start next time
+                setMessages([]);
+                setSessionId(uuidv4()); // Generate a new session ID for the next conversation
+            } catch (error) {
+                console.error('Error ending chatbot conversation:', error);
+            }
+        }
     };
+
+    // Helper to get position styles
+    const getPositionStyles = (position) => {
+        switch (position) {
+            case 'top-left': return { top: 16, left: 16, bottom: 'auto', right: 'auto' };
+            case 'top-right': return { top: 16, right: 16, bottom: 'auto', left: 'auto' };
+            case 'bottom-left': return { bottom: 16, left: 16, top: 'auto', right: 'auto' };
+            case 'bottom-right':
+            default: return { bottom: 16, right: 16, top: 'auto', left: 'auto' };
+        }
+    };
+
+    // Helper to get size styles
+    const getSizeStyles = (size) => {
+        switch (size) {
+            case 'small': return { width: 300, height: 350 };
+            case 'large': return { width: 400, height: 500 };
+            case 'medium':
+            default: return { width: 350, height: 420 };
+        }
+    };
+
+    if (!widgetSettings) {
+        return null; // Or a loading spinner
+    }
+
+    const { primaryColor, secondaryColor, textColor, greetingMessage, position, size, showAvatar } = widgetSettings;
+
+    const currentPositionStyles = getPositionStyles(position);
+    const currentSizeStyles = getSizeStyles(size);
 
     return (
         <Box sx={{
             position: 'fixed',
-            bottom: 16,
-            right: 16,
-            zIndex: 1001, // Tăng zIndex để đảm bảo không bị che
+            zIndex: 1001,
+            ...currentPositionStyles, // Apply position styles
         }}>
             {showGreeting && (
                 <Typography
@@ -227,8 +305,8 @@ const ChatbotWidget = () => {
                         position: 'absolute',
                         bottom: 24,
                         right: 80,
-                        bgcolor: darkMode ? '#4a4b4c' : 'background.paper',
-                        color: darkMode ? '#e4e6eb' : 'text.primary',
+                        bgcolor: darkMode ? '#4a4b4c' : secondaryColor, // Use secondaryColor
+                        color: darkMode ? '#e4e6eb' : textColor, // Use textColor
                         p: 1,
                         borderRadius: '8px',
                         boxShadow: 3,
@@ -238,7 +316,7 @@ const ChatbotWidget = () => {
                         pointerEvents: 'none',
                     }}
                 >
-                    Hù, bạn cần hỗ trợ gì không nè!
+                    {greetingMessage}!
                 </Typography>
             )}
 
@@ -253,25 +331,26 @@ const ChatbotWidget = () => {
                     boxShadow: 6,
                     transform: isOpen ? 'scale(0)' : 'scale(1)',
                     transition: 'transform 0.3s ease-in-out',
-                    backgroundColor: darkMode ? '#1877F2' : '#2196F3',
+                    backgroundColor: primaryColor, // Use primaryColor
                     '&:hover': {
-                        backgroundColor: darkMode ? '#166FEF' : '#1976D2',
+                        backgroundColor: primaryColor, // Use primaryColor
                     },
                 }}
             >
-                <Avatar
-                    alt="Chatbot Icon"
-                    src={chatbotAvatar}
-                    sx={{ width: '100%', height: '100%', bgcolor: 'transparent' }}
-                />
+                {showAvatar && ( // Conditionally render avatar
+                    <Avatar
+                        alt="Chatbot Icon"
+                        src={chatbotAvatar}
+                        sx={{ width: '100%', height: '100%', bgcolor: 'transparent' }}
+                    />
+                )}
             </Fab>
 
             <Paper
                 elevation={6}
                 sx={{
                     mt: 20,
-                    width: 350,
-                    height: 420,
+                    ...currentSizeStyles, // Apply size styles
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 2,
@@ -284,15 +363,15 @@ const ChatbotWidget = () => {
                     position: 'absolute',
                     bottom: 40,
                     right: 0,
-                    backgroundColor: darkMode ? '#3a3b3c' : '#f0f2f5',
-                    border: darkMode ? '1px solid #555' : '1px solid #ccc',
+                    backgroundColor: darkMode ? '#3a3b3c' : secondaryColor, // Use secondaryColor
+                    border: darkMode ? '1px solid #555' : `1px solid ${primaryColor}`, // Use primaryColor for border
                 }}
             >
                 <Box
                     sx={{
                         p: 1.5,
-                        bgcolor: darkMode ? '#242526' : 'primary.main',
-                        color: darkMode ? '#e4e6eb' : 'white',
+                        bgcolor: primaryColor, // Use primaryColor
+                        color: 'white', // Text color on header is always white for contrast
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -301,11 +380,13 @@ const ChatbotWidget = () => {
                     }}
                 >
                     <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Avatar
-                            alt="Chatbot Icon"
-                            src={chatbotAvatar}
-                            sx={{ width: 24, height: 24, mr: 0.5 }}
-                        />
+                        {showAvatar && ( // Conditionally render avatar
+                            <Avatar
+                                alt="Chatbot Icon"
+                                src={chatbotAvatar}
+                                sx={{ width: 24, height: 24, mr: 0.5 }}
+                            />
+                        )}
                         Chatbot Hỗ Trợ
                     </Typography>
                     <IconButton size="small" onClick={toggleChatbot} color="inherit">
@@ -329,7 +410,7 @@ const ChatbotWidget = () => {
                                 mb: 1,
                             }}
                         >
-                            {msg.sender === 'bot' && (
+                            {msg.sender === 'bot' && showAvatar && ( // Conditionally render avatar
                                 <Avatar
                                     alt="Chatbot Avatar"
                                     src={chatbotAvatar}
@@ -342,9 +423,9 @@ const ChatbotWidget = () => {
                                     p: 1.2,
                                     borderRadius: '16px',
                                     bgcolor: msg.sender === 'user'
-                                        ? (darkMode ? '#1877F2' : 'primary.light')
+                                        ? primaryColor // Use primaryColor for user messages
                                         : (darkMode ? '#4a4b4c' : 'white'),
-                                    color: msg.sender === 'user' ? 'white' : (darkMode ? '#e4e6eb' : 'text.primary'),
+                                    color: msg.sender === 'user' ? 'white' : (darkMode ? '#e4e6eb' : textColor), // Use textColor for bot messages
                                     maxWidth: '85%',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -372,8 +453,8 @@ const ChatbotWidget = () => {
                         display: 'flex',
                         flexWrap: 'wrap',
                         gap: 1,
-                        borderTop: darkMode ? '1px solid #555' : '1px solid #e0e0e0',
-                        bgcolor: darkMode ? '#3a3b3c' : 'background.paper'
+                        borderTop: darkMode ? '1px solid #555' : `1px solid ${primaryColor}`, // Use primaryColor for border
+                        bgcolor: darkMode ? '#3a3b3c' : secondaryColor // Use secondaryColor
                     }}>
                         {suggestions.map((sugg, idx) => (
                             <Button
@@ -384,11 +465,12 @@ const ChatbotWidget = () => {
                                 sx={{
                                     borderRadius: '20px',
                                     textTransform: 'none',
-                                    borderColor: darkMode ? '#65676b' : 'grey.400',
-                                    color: darkMode ? '#90caf9' : 'primary.main',
+                                    borderColor: primaryColor, // Use primaryColor
+                                    color: primaryColor, // Use primaryColor
                                     '&:hover': {
-                                        backgroundColor: darkMode ? '#555' : 'action.hover',
-                                        borderColor: darkMode ? '#90caf9' : 'primary.main',
+                                        backgroundColor: primaryColor, // Use primaryColor
+                                        borderColor: primaryColor, // Use primaryColor
+                                        color: 'white', // White text on hover
                                     }
                                 }}
                             >
@@ -400,10 +482,10 @@ const ChatbotWidget = () => {
 
                 <Box sx={{
                     p: 1.5,
-                    borderTop: darkMode ? '1px solid #555' : '1px solid #e0e0e0',
+                    borderTop: darkMode ? '1px solid #555' : `1px solid ${primaryColor}`, // Use primaryColor for border
                     display: 'flex',
                     alignItems: 'center',
-                    bgcolor: darkMode ? '#3a3b3c' : 'background.paper'
+                    bgcolor: darkMode ? '#3a3b3c' : secondaryColor // Use secondaryColor
                 }}>
                     <TextField
                         fullWidth
@@ -419,15 +501,15 @@ const ChatbotWidget = () => {
                                 borderRadius: '25px',
                                 pr: 0.5,
                                 backgroundColor: darkMode ? '#4a4b4c' : 'white',
-                                color: darkMode ? '#e4e6eb' : 'text.primary',
+                                color: darkMode ? '#e4e6eb' : textColor, // Use textColor
                                 '& fieldset': {
-                                    borderColor: darkMode ? '#65676b' : 'grey.400',
+                                    borderColor: primaryColor, // Use primaryColor
                                 },
                                 '&:hover fieldset': {
-                                    borderColor: darkMode ? '#8a8d91' : 'primary.main',
+                                    borderColor: primaryColor, // Use primaryColor
                                 },
                                 '&.Mui-focused fieldset': {
-                                    borderColor: darkMode ? '#1877F2' : 'primary.main',
+                                    borderColor: primaryColor, // Use primaryColor
                                 },
                             },
                             // Thêm style cho phần input bên trong TextField
@@ -441,10 +523,10 @@ const ChatbotWidget = () => {
                             endAdornment: (
                                 <InputAdornment position="end">
                                     {loading ? (
-                                        <CircularProgress size={24} sx={{ color: darkMode ? '#90caf9' : 'primary.main' }} />
+                                        <CircularProgress size={24} sx={{ color: primaryColor }} /> // Use primaryColor
                                     ) : (
                                         <IconButton onClick={() => sendMessage()} edge="end" color="primary" disabled={input.trim() === ''}>
-                                            <SendIcon sx={{ color: darkMode ? '#90caf9' : 'primary.main' }} />
+                                            <SendIcon sx={{ color: primaryColor }} /> {/* Use primaryColor */}
                                         </IconButton>
                                     )}
                                 </InputAdornment>

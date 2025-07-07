@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Container,
     Typography,
     Box,
     Paper,
@@ -11,31 +10,26 @@ import {
     TableHead,
     TableRow,
     TablePagination,
-    IconButton,
-    Tooltip,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
     Button,
     Snackbar,
-    Alert
+    Alert,
+    Chip
 } from '@mui/material';
 import {
-    Delete as DeleteIcon,
     Refresh as RefreshIcon,
     ThumbUp as ThumbUpIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import AdminLikeDialog from './AdminLikeDialog';
 
 const AdminLikesPage = () => {
-    const [likes, setLikes] = useState([]);
+    const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
-    const [totalLikes, setTotalLikes] = useState(0);
-    const [selectedLike, setSelectedLike] = useState(null);
-    const [dialogOpen, setDialogOpen] = useState(false);
+    const [totalPosts, setTotalPosts] = useState(0);
+    const [selectedPost, setSelectedPost] = useState(null);
+    const [likeDialogOpen, setLikeDialogOpen] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
     const API_BASE_URL = 'http://localhost:5000/api';
@@ -52,11 +46,11 @@ const AdminLikesPage = () => {
         return null;
     };
 
-    const fetchLikes = async () => {
+    const fetchPostsWithLikes = async () => {
         setLoading(true);
         try {
             const token = getAuthToken();
-            const response = await axios.get(`${API_BASE_URL}/admin/likes`, {
+            const response = await axios.get(`${API_BASE_URL}/admin/posts`, {
                 headers: { Authorization: `Bearer ${token}` },
                 params: {
                     page: page + 1,
@@ -64,42 +58,27 @@ const AdminLikesPage = () => {
                 }
             });
 
-            if (response.data.success) {
-                setLikes(response.data.data.likes);
-                setTotalLikes(response.data.data.pagination.totalLikes);
-            }
+            setPosts(response.data.posts);
+            setTotalPosts(response.data.totalPosts);
         } catch (error) {
-            console.error('Error fetching likes:', error);
-            showSnackbar('Lỗi khi tải danh sách lượt thích', 'error');
+            console.error('Error fetching posts:', error);
+            showSnackbar('Lỗi khi tải danh sách bài viết', 'error');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleShowLikes = (post) => {
+        setSelectedPost(post);
+        setLikeDialogOpen(true);
     };
 
     const showSnackbar = (message, severity = 'success') => {
         setSnackbar({ open: true, message, severity });
     };
 
-    const handleDeleteLike = async () => {
-        if (!selectedLike) return;
-
-        try {
-            const token = getAuthToken();
-            await axios.delete(`${API_BASE_URL}/admin/likes/${selectedLike._id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            showSnackbar('Đã xóa lượt thích thành công');
-            setDialogOpen(false);
-            fetchLikes();
-        } catch (error) {
-            console.error('Error deleting like:', error);
-            showSnackbar('Lỗi khi xóa lượt thích', 'error');
-        }
-    };
-
     useEffect(() => {
-        fetchLikes();
+        fetchPostsWithLikes();
     }, [page, rowsPerPage]);
 
     return (
@@ -113,7 +92,7 @@ const AdminLikesPage = () => {
                     <Button
                         variant="outlined"
                         startIcon={<RefreshIcon />}
-                        onClick={fetchLikes}
+                        onClick={fetchPostsWithLikes}
                     >
                         Làm mới
                     </Button>
@@ -125,46 +104,37 @@ const AdminLikesPage = () => {
                     <Table size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell>Bài viết</TableCell>
-                                <TableCell>Người thích</TableCell>
-                                <TableCell>Ngày tạo</TableCell>
-                                <TableCell>Hành động</TableCell>
+                                <TableCell>Tên bài viết</TableCell>
+                                <TableCell>Lượt thích</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center">
+                                    <TableCell colSpan={2} align="center">
                                         Đang tải...
                                     </TableCell>
                                 </TableRow>
-                            ) : likes.length === 0 ? (
+                            ) : posts.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center">
-                                        Không có lượt thích nào
+                                    <TableCell colSpan={2} align="center">
+                                        Không có bài viết nào
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                likes.map((like) => (
-                                    <TableRow key={like._id}>
-                                        <TableCell>{like.post?.title || 'Bài viết không tồn tại'}</TableCell>
-                                        <TableCell>{like.user?.fullName || 'Người dùng không tồn tại'}</TableCell>
+                                posts.map((post) => (
+                                    <TableRow key={post._id}>
+                                        <TableCell>{post.title}</TableCell>
                                         <TableCell>
-                                            {new Date(like.createdAt).toLocaleDateString('vi-VN')}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Tooltip title="Xóa">
-                                                <IconButton
-                                                    size="small"
-                                                    color="error"
-                                                    onClick={() => {
-                                                        setSelectedLike(like);
-                                                        setDialogOpen(true);
-                                                    }}
-                                                >
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            </Tooltip>
+                                            <Chip
+                                                icon={<ThumbUpIcon />}
+                                                label={post.likesCount || 0}
+                                                onClick={() => handleShowLikes(post)}
+                                                clickable
+                                                color="primary"
+                                                variant="outlined"
+                                                sx={{ cursor: 'pointer' }}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -175,9 +145,9 @@ const AdminLikesPage = () => {
 
                 <TablePagination
                     component="div"
-                    count={totalLikes}
+                    count={totalPosts}
                     page={page}
-                    onPageChange={(event, newPage) => setPage(newPage)}
+                    onPageChange={(_, newPage) => setPage(newPage)}
                     rowsPerPage={rowsPerPage}
                     onRowsPerPageChange={(event) => {
                         setRowsPerPage(parseInt(event.target.value, 10));
@@ -190,29 +160,13 @@ const AdminLikesPage = () => {
                 />
             </Paper>
 
-            <Dialog
-                open={dialogOpen}
-                onClose={() => setDialogOpen(false)}
-                maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle>Xóa Lượt thích</DialogTitle>
-                <DialogContent>
-                    <Typography>
-                        Bạn có chắc chắn muốn xóa lượt thích này?
-                    </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDialogOpen(false)}>Hủy</Button>
-                    <Button
-                        onClick={handleDeleteLike}
-                        variant="contained"
-                        color="error"
-                    >
-                        Xác nhận
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            {selectedPost && (
+                <AdminLikeDialog
+                    open={likeDialogOpen}
+                    onClose={() => setLikeDialogOpen(false)}
+                    postId={selectedPost._id}
+                />
+            )}
 
             <Snackbar
                 open={snackbar.open}

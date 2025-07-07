@@ -406,16 +406,6 @@ const Header = () => {
                         >
                             Quy định
                         </Button>
-                        <IconButton
-                            color="inherit"
-                            onClick={() => navigate('/search')}
-                            sx={{
-                                color: 'white',
-                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
-                            }}
-                        >
-                            <Search />
-                        </IconButton>
                     </Box>
 
                     {/* Navbar actions - Phía bên phải */}
@@ -464,40 +454,42 @@ const Header = () => {
                                     </Button>
                                 )}
 
-                                {/* Nút Chat (hiển thị cho tất cả user đã đăng nhập) */}
-                                <Button
-                                    color="inherit"
-                                    onClick={() => navigate('/chat')}
-                                    sx={{
-                                        marginRight: 2,
-                                        color: 'white',
-                                        fontWeight: 'bold',
-                                        borderRadius: '8px',
-                                        padding: '8px 12px',
-                                        transition: 'background-color 0.3s ease',
-                                        '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
-                                    }}
-                                    startIcon={
-                                        <Badge
-                                            badgeContent={unreadCount > 0 ? (unreadCount > 5 ? '5+' : unreadCount) : 0}
-                                            color="error"
-                                            sx={{
-                                                '& .MuiBadge-badge': {
-                                                    fontSize: '0.7rem',
-                                                    minWidth: '18px',
-                                                    height: '18px',
-                                                    borderRadius: '9px',
-                                                    border: '1px solid white',
-                                                    fontWeight: 'bold'
-                                                }
-                                            }}
-                                        >
-                                            <Chat />
-                                        </Badge>
-                                    }
-                                >
-                                    Chat
-                                </Button>
+                                {/* Nút Chat (hiển thị cho user, không hiển thị cho admin) */}
+                                {user.role !== 'admin' && (
+                                    <Button
+                                        color="inherit"
+                                        onClick={() => navigate('/chat')}
+                                        sx={{
+                                            marginRight: 2,
+                                            color: 'white',
+                                            fontWeight: 'bold',
+                                            borderRadius: '8px',
+                                            padding: '8px 12px',
+                                            transition: 'background-color 0.3s ease',
+                                            '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
+                                        }}
+                                        startIcon={
+                                            <Badge
+                                                badgeContent={unreadCount > 0 ? (unreadCount > 5 ? '5+' : unreadCount) : 0}
+                                                color="error"
+                                                sx={{
+                                                    '& .MuiBadge-badge': {
+                                                        fontSize: '0.7rem',
+                                                        minWidth: '18px',
+                                                        height: '18px',
+                                                        borderRadius: '9px',
+                                                        border: '1px solid white',
+                                                        fontWeight: 'bold'
+                                                    }
+                                                }}
+                                            >
+                                                <Chat />
+                                            </Badge>
+                                        }
+                                    >
+                                        Chat
+                                    </Button>
+                                )}
 
                                 {/* Real-time Notification Bell */}
                                 <NotificationBell />

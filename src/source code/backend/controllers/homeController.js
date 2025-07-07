@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const Topic = require('../models/Topic');
 const Comment = require('../models/Comment');
+const Rating = require('../models/Rating');
 const { getPostThumbnail } = require('../utils/imageExtractor');
 const Like = require('../models/Like');
 
@@ -73,6 +74,11 @@ exports.getFeaturedPosts = async (req, res) => {
             .sort({ updatedAt: -1, createdAt: -1 }) // Sort by recent first
             .lean(); // Use .lean() for better performance
 
+        console.log('Fetched featured posts (initial):', posts.length, 'posts');
+        if (posts.length > 0) {
+            console.log('Example post after initial fetch:', posts[0]);
+        }
+
         // Calculate interaction score and sort in JavaScript
         posts = posts.map(post => {
             const interactionScore =
@@ -98,11 +104,24 @@ exports.getFeaturedPosts = async (req, res) => {
         // Limit the results
         const limitedPosts = posts.slice(0, limit);
 
+        // Get ratings for these posts
+        const postIds = limitedPosts.map(p => p._id);
+        const ratings = await Rating.aggregate([
+            { $match: { postId: { $in: postIds } } },
+            { $group: { _id: '$postId', averageRating: { $avg: '$rating' }, totalRatings: { $sum: 1 } } }
+        ]);
+
+        console.log('Fetched ratings:', ratings.length, 'ratings');
+        if (ratings.length > 0) {
+            console.log('Example rating:', ratings[0]);
+        }
+
+        const ratingsMap = new Map(ratings.map(r => [r._id.toString(), r]));
+
         // Add thumbnail and excerpt, and ensure consistent data structure
         const postsWithDetails = limitedPosts.map(post => {
-            // The frontend expects `authorInfo` and `topicInfo` objects.
-            // Since we used .populate(), the data is in `authorId` and `topicId`.
-            // We will remap it for consistency with the aggregation pipeline's output.
+            const postRatings = ratingsMap.get(post._id.toString());
+
             const authorInfo = post.authorId ? {
                 _id: post.authorId._id,
                 fullName: post.authorId.fullName || 'Anonymous',
@@ -123,10 +142,12 @@ exports.getFeaturedPosts = async (req, res) => {
 
             return {
                 ...post,
-                authorInfo, // Add the remapped authorInfo object
-                topicInfo,  // Add the remapped topicInfo object
+                authorInfo,
+                topicInfo,
                 thumbnailImage: getPostThumbnail(post),
-                excerpt: post.content ? post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...' : ''
+                excerpt: post.content ? post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...' : '',
+                averageRating: postRatings ? postRatings.averageRating : 0,
+                totalRatings: postRatings ? postRatings.totalRatings : 0
             };
         });
 

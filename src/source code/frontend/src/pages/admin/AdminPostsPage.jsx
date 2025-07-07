@@ -6,21 +6,25 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     IconButton, Menu, MenuItem, TextField, Dialog, DialogActions, DialogContent, DialogTitle,
     FormControl, InputLabel, Select, Snackbar, Alert, Grid,
-    TablePagination
+    TablePagination, Chip
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, MoreVert as MoreVertIcon, Add as AddIcon, Refresh as RefreshIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, MoreVert as MoreVertIcon, Add as AddIcon, Refresh as RefreshIcon, Visibility as VisibilityIcon, ThumbUp as ThumbUpIcon, Comment as CommentIcon, FileDownload as FileDownloadIcon, Star as StarIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import PostForm from '../../components/admin/PostForm';
 import ConfirmDialog from '../../components/admin/ConfirmDialog';
 import PostPreviewDialog from '../../components/admin/PostPreviewDialog';
+import AdminLikeDialog from './AdminLikeDialog';
+import AdminCommentDialog from './AdminCommentDialog';
+import AdminRatingDialog from './AdminRatingDialog'; // Import AdminRatingDialog
+import AdminEditReasonDialog from './AdminEditReasonDialog';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
 
 const API_BASE_URL = 'http://localhost:5000/api/admin/posts';
 
 const AdminPostsPage = () => {
-    const { logout, getToken } = useAuth();
+    const { logout, getToken, user } = useAuth();
     const { socket } = useChat();
     const navigate = useNavigate();
 
@@ -30,6 +34,7 @@ const AdminPostsPage = () => {
     const [page, setPage] = useState(0);
     const [limit, setLimit] = useState(10);
     const [search, setSearch] = useState('');
+    const [authorSearch, setAuthorSearch] = useState(''); // New state for author search
     const [statusFilter, setStatusFilter] = useState('');
     const [sortBy, setSortBy] = useState('createdAt');
     const [sortOrder, setSortOrder] = useState('-1');
@@ -51,6 +56,19 @@ const AdminPostsPage = () => {
 
     const [previewPostId, setPreviewPostId] = useState(null);
     const [openPreview, setOpenPreview] = useState(false);
+
+    // Dialog states for likes and comments
+    const [likeDialogOpen, setLikeDialogOpen] = useState(false);
+    const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+    const [selectedPostForDialog, setSelectedPostForDialog] = useState(null);
+
+    // Dialog states for ratings
+    const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
+    const [selectedPostForRatingDialog, setSelectedPostForRatingDialog] = useState(null);
+
+    // Edit reason dialog state
+    const [editReasonDialogOpen, setEditReasonDialogOpen] = useState(false);
+    const [postToEdit, setPostToEdit] = useState(null);
 
     // Setup Socket.IO listeners for admin post events
     useEffect(() => {
@@ -123,14 +141,15 @@ const AdminPostsPage = () => {
                     page: page + 1,
                     limit,
                     search,
+                    authorName: authorSearch, // Include authorSearch in params
                     status: statusFilter,
                     sortBy,
                     sortOrder,
                 },
             });
-            setPosts(response.data.posts);
-            setTotalPages(response.data.totalPages);
-            setTotalPosts(response.data.totalPosts);
+            setPosts(response.data.posts || []);
+            setTotalPages(response.data.totalPages || 1);
+            setTotalPosts(response.data.totalPosts || 0);
         } catch (err) {
             console.error('Error fetching posts:', err.response?.data || err.message);
             // Chỉ đăng xuất và điều hướng khi server trả về 401, tức là token đã hết hạn/không hợp lệ
@@ -146,7 +165,7 @@ const AdminPostsPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, limit, search, statusFilter, sortBy, sortOrder, logout, getToken, navigate]);
+    }, [page, limit, search, authorSearch, statusFilter, sortBy, sortOrder, logout, getToken, navigate]);
 
     useEffect(() => {
         fetchPosts();
@@ -158,8 +177,18 @@ const AdminPostsPage = () => {
     };
 
     const handleEditPost = (post) => {
-        setEditingPost(post);
-        setOpenForm(true);
+        // Kiểm tra xem admin có đang chỉnh sửa bài viết của user khác không
+        const isEditingOtherUserPost = post.authorId?._id !== user?._id;
+
+        if (isEditingOtherUserPost) {
+            // Hiển thị dialog yêu cầu lý do
+            setPostToEdit(post);
+            setEditReasonDialogOpen(true);
+        } else {
+            // Admin chỉnh sửa bài viết của chính mình
+            setEditingPost(post);
+            setOpenForm(true);
+        }
     };
 
     const handleDeletePost = (postId) => {
@@ -277,6 +306,79 @@ const AdminPostsPage = () => {
         setOpenPreview(true);
     };
 
+    const handleShowLikes = (post) => {
+        setSelectedPostForDialog(post);
+        setLikeDialogOpen(true);
+    };
+
+    const handleShowComments = (post) => {
+        setSelectedPostForDialog(post);
+        setCommentDialogOpen(true);
+    };
+
+    const handleShowRatings = (post) => {
+        setSelectedPostForRatingDialog(post);
+        setRatingDialogOpen(true);
+    };
+
+    const handleConfirmEditReason = async (reason) => {
+        if (!postToEdit) return;
+
+        try {
+            // Gửi thông báo đến user về việc admin chỉnh sửa bài viết
+            const token = getToken();
+            await axios.post(`http://localhost:5000/api/notifications/user`, {
+                userId: postToEdit.authorId._id,
+                type: 'admin_edit_post',
+                title: 'Admin đã chỉnh sửa bài viết của bạn',
+                message: `Lý do: ${reason}`,
+                relatedData: {
+                    postId: postToEdit._id,
+                    postTitle: postToEdit.title,
+                    reason: reason
+                },
+                actionUrl: `/posts/detail?postId=${postToEdit._id}`
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // Mở form chỉnh sửa
+            setEditingPost(postToEdit);
+            setOpenForm(true);
+
+            showSnackbar('Đã gửi thông báo đến tác giả bài viết', 'success');
+        } catch (error) {
+            console.error('Error sending notification:', error);
+            showSnackbar('Lỗi khi gửi thông báo', 'error');
+        }
+    };
+
+    const handleExportPosts = async () => {
+        try {
+            const token = getToken();
+            const response = await axios.get(`${API_BASE_URL}/export`, {
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob'
+            });
+
+            // Tạo file download
+            const blob = new Blob([response.data], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `posts_export_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            showSnackbar('Xuất dữ liệu thành công', 'success');
+        } catch (error) {
+            console.error('Error exporting posts:', error);
+            showSnackbar('Lỗi khi xuất dữ liệu', 'error');
+        }
+    };
+
     return (
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -295,6 +397,14 @@ const AdminPostsPage = () => {
                     </Button>
                     <Button
                         variant="outlined"
+                        startIcon={<FileDownloadIcon />}
+                        onClick={handleExportPosts}
+                        sx={{ mr: 2 }}
+                    >
+                        Xuất dữ liệu
+                    </Button>
+                    <Button
+                        variant="outlined"
                         color="secondary"
                         onClick={handleLogout}
                     >
@@ -305,10 +415,10 @@ const AdminPostsPage = () => {
 
             <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
                 <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid item xs={12} sm={6} md={3}>
                         <TextField
                             fullWidth
-                            label="Tìm kiếm"
+                            label="Tìm kiếm theo tiêu đề/nội dung/tags"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             onKeyPress={(e) => {
@@ -320,6 +430,20 @@ const AdminPostsPage = () => {
                         />
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
+                        <TextField
+                            fullWidth
+                            label="Tìm kiếm theo tên tác giả"
+                            value={authorSearch}
+                            onChange={(e) => setAuthorSearch(e.target.value)}
+                            onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                    handleApplyFilters();
+                                }
+                            }}
+                            size="small"
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={2}>
                         <FormControl fullWidth size="small">
                             <InputLabel>Trạng thái</InputLabel>
                             <Select
@@ -339,7 +463,7 @@ const AdminPostsPage = () => {
                             </Select>
                         </FormControl>
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid item xs={12} sm={6} md={2}>
                         <FormControl fullWidth size="small">
                             <InputLabel>Sắp xếp theo</InputLabel>
                             <Select
@@ -400,6 +524,9 @@ const AdminPostsPage = () => {
                                 <TableCell>Tác giả</TableCell>
                                 <TableCell>Chủ đề</TableCell>
                                 <TableCell>Trạng thái</TableCell>
+                                <TableCell>Lượt thích</TableCell>
+                                <TableCell>Bình luận</TableCell>
+                                <TableCell>Đánh giá</TableCell> {/* New column for ratings */}
                                 <TableCell>Ngày tạo</TableCell>
                                 <TableCell>Ngày cập nhật</TableCell>
                                 <TableCell align="right">Hành động</TableCell>
@@ -438,6 +565,39 @@ const AdminPostsPage = () => {
                                         </Menu>
                                     </TableCell>
                                     <TableCell>
+                                        <Chip
+                                            icon={<ThumbUpIcon />}
+                                            label={post.likesCount || 0}
+                                            onClick={() => handleShowLikes(post)}
+                                            clickable
+                                            color="primary"
+                                            variant="outlined"
+                                            sx={{ cursor: 'pointer' }}
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            icon={<CommentIcon />}
+                                            label={post.commentsCount || 0}
+                                            onClick={() => handleShowComments(post)}
+                                            clickable
+                                            color="secondary"
+                                            variant="outlined"
+                                            sx={{ cursor: 'pointer' }}
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            icon={<StarIcon />}
+                                            label={`${post.averageRating || 0} (${post.totalRatings || 0})`}
+                                            onClick={() => handleShowRatings(post)}
+                                            clickable
+                                            color="warning"
+                                            variant="outlined"
+                                            sx={{ cursor: 'pointer' }}
+                                        />
+                                    </TableCell>
+                                    <TableCell>
                                         {post.createdAt
                                             ? format(new Date(post.createdAt), 'dd/MM/yyyy HH:mm', { locale: vi })
                                             : 'N/A'
@@ -467,7 +627,7 @@ const AdminPostsPage = () => {
                 </TableContainer>
             )}
 
-            <TablePagination
+            {!loading && !error && <TablePagination
                 rowsPerPageOptions={[5, 10, 25]}
                 component="div"
                 count={totalPosts}
@@ -480,7 +640,7 @@ const AdminPostsPage = () => {
                     `Hiển thị ${from}-${to} trong tổng số ${count} bài viết`
                 }
                 sx={{ mt: 2 }}
-            />
+            />}
 
             <Dialog open={openForm} onClose={() => setOpenForm(false)} fullWidth maxWidth="md">
                 <DialogTitle>{editingPost ? 'Cập nhật bài viết' : 'Tạo bài viết mới'}</DialogTitle>
@@ -506,6 +666,40 @@ const AdminPostsPage = () => {
                 open={openPreview}
                 onClose={() => setOpenPreview(false)}
             />
+
+            {selectedPostForDialog && (
+                <AdminLikeDialog
+                    open={likeDialogOpen}
+                    onClose={() => setLikeDialogOpen(false)}
+                    postId={selectedPostForDialog._id}
+                />
+            )}
+
+            {selectedPostForRatingDialog && (
+                <AdminRatingDialog
+                    open={ratingDialogOpen}
+                    onClose={() => setRatingDialogOpen(false)}
+                    postId={selectedPostForRatingDialog._id}
+                />
+            )}
+
+            {selectedPostForDialog && (
+                <AdminCommentDialog
+                    open={commentDialogOpen}
+                    onClose={() => setCommentDialogOpen(false)}
+                    postId={selectedPostForDialog._id}
+                />
+            )}
+
+            {postToEdit && (
+                <AdminEditReasonDialog
+                    open={editReasonDialogOpen}
+                    onClose={() => setEditReasonDialogOpen(false)}
+                    onConfirm={handleConfirmEditReason}
+                    postTitle={postToEdit.title}
+                    authorName={postToEdit.authorId?.fullName || 'Người dùng ẩn danh'}
+                />
+            )}
 
             <Snackbar
                 open={snackbarOpen}
