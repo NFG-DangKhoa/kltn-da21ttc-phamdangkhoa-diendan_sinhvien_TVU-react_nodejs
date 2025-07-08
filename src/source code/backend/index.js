@@ -286,9 +286,9 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            // Soft delete the message
-            await message.softDelete();
-            console.log('✅ Message soft deleted successfully');
+            // Soft delete the message for the specific user
+            await message.softDelete(userId);
+            console.log(`✅ Message soft deleted successfully for user ${userId}`);
 
             // Emit to both sender and receiver
             const senderUserData = chatService.onlineUsers.get(message.senderId.toString());

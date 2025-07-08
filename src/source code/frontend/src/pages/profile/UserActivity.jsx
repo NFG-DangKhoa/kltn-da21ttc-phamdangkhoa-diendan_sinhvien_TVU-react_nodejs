@@ -253,7 +253,11 @@ const UserActivity = ({ userId, currentUser, activityVisibility }) => {
             setError(null);
             try {
                 const token = localStorage.getItem('token');
-                const config = { headers: { 'Authorization': `Bearer ${token}` } };
+                const config = { headers: {} };
+                if (token) {
+                    config.headers['Authorization'] = `Bearer ${token}`;
+                }
+
                 const [posts, comments, likes] = await Promise.all([
                     axios.get(`http://localhost:5000/api/users/posts?authorId=${userId}`, config),
                     axios.get(`http://localhost:5000/api/users/comments?authorId=${userId}`, config),

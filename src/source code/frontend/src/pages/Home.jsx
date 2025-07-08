@@ -47,6 +47,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { ThemeContext } from '../context/ThemeContext';
+import { AuthContext } from '../context/AuthContext'; // Assuming AuthContext provides login status
 import HeroSection from '../components/HeroSection';
 
 // Helper function to construct full URL for images
@@ -100,6 +101,7 @@ const Home = () => {
     const theme = useTheme();
     const { mode } = useContext(ThemeContext);
     const isDarkMode = mode === 'dark';
+    const { isLoggedIn } = useContext(AuthContext);
     const navigate = useNavigate();
 
     // Navigation handlers for stats
@@ -345,32 +347,38 @@ const Home = () => {
     );
 
     // Dynamic forum stats using real data
-    const forumStats = [
-        {
-            label: 'Thành viên',
-            value: formatNumber(stats.userCount),
-            icon: <PeopleIcon />,
-            color: '#2196F3'
-        },
-        {
-            label: 'Bài viết',
-            value: formatNumber(stats.postCount),
-            icon: <ForumIcon />,
-            color: '#4CAF50'
-        },
-        {
-            label: 'Chủ đề',
-            value: formatNumber(stats.topicCount),
-            icon: <SchoolIcon />,
-            color: '#FF9800'
-        },
-        {
-            label: 'Hoạt động hôm nay',
-            value: formatNumber(stats.todayActivity),
-            icon: <TrendingUpIcon />,
-            color: '#9C27B0'
+    const forumStats = useMemo(() => {
+        const statsArray = [
+            {
+                label: 'Bài viết',
+                value: formatNumber(stats.postCount),
+                icon: <ForumIcon />,
+                color: '#4CAF50'
+            },
+            {
+                label: 'Chủ đề',
+                value: formatNumber(stats.topicCount),
+                icon: <SchoolIcon />,
+                color: '#FF9800'
+            },
+            {
+                label: 'Hoạt động hôm nay',
+                value: formatNumber(stats.todayActivity),
+                icon: <TrendingUpIcon />,
+                color: '#9C27B0'
+            }
+        ];
+
+        if (isLoggedIn) {
+            statsArray.unshift({
+                label: 'Thành viên',
+                value: formatNumber(stats.userCount),
+                icon: <PeopleIcon />,
+                color: '#2196F3'
+            });
         }
-    ];
+        return statsArray;
+    }, [isLoggedIn, stats]);
 
     if (loading) {
         return (

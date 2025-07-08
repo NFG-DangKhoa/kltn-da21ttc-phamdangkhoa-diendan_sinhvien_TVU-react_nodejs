@@ -23,8 +23,7 @@ const constructUrl = (url) => {
 const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
     const theme = useTheme();
     const navigate = useNavigate();
-    const { user: currentUser } = useContext(AuthContext);
-    const { updateUser } = useAuth(); // Use the updateUser function from AuthContext
+    const { user: currentUser, isLoggedIn, updateUser } = useAuth(); // Destructure user, isLoggedIn, and updateUser from useAuth
     const [openEdit, setOpenEdit] = useState(false);
     const [form, setForm] = useState({
         fullName: userData.fullName || '',
@@ -76,17 +75,15 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
         const fetchCounts = async () => {
             try {
                 const token = localStorage.getItem('token');
-                if (!token) {
-                    console.error('No token found');
-                    return;
-                }
-
                 const config = {
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     }
                 };
+                // Only add Authorization header if token exists
+                if (token) {
+                    config.headers['Authorization'] = `Bearer ${token}`;
+                }
 
                 const response = await axios.get(
                     `http://localhost:5000/api/users/stats/${userData._id}`,
@@ -503,6 +500,7 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
                             color="primary"
                             startIcon={<ChatIcon />}
                             onClick={() => navigate(`/chat`, { state: { recipientId: userData._id } })}
+                            disabled={!isLoggedIn} // Disable if not logged in
                             sx={{
                                 borderRadius: 5,
                                 px: 3,
@@ -698,4 +696,3 @@ const ProfileHeader = ({ userData, isCurrentUser, onProfileUpdate }) => {
 };
 
 export default ProfileHeader;
-

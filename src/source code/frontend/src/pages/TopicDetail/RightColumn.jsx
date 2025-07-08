@@ -1,6 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { Box, Typography, List, ListItem, ListItemText, ListItemAvatar, Avatar, Divider, Tooltip, Button, CircularProgress, Paper, Chip } from '@mui/material';
 import { ThemeContext } from '../../context/ThemeContext';
+import { AuthContext } from '../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { TrendingUp, People, Campaign } from '@mui/icons-material';
 import axios from 'axios';
@@ -8,6 +9,7 @@ import { OnlineBadge } from '../../components/Chat/OnlineIndicator';
 
 const RightColumn = () => {
     const { mode } = useContext(ThemeContext);
+    const { isLoggedIn } = useContext(AuthContext);
     const navigate = useNavigate();
     const darkMode = mode === 'dark';
 
@@ -69,127 +71,129 @@ const RightColumn = () => {
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             {/* Active Members Section - Compact */}
-            <Paper
-                elevation={0}
-                sx={{
-                    background: '#ffffff',
-                    borderRadius: 2.5,
-                    border: '1px solid rgba(226, 232, 240, 0.8)',
-                    boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    overflow: 'hidden'
-                }}
-            >
-                <Box sx={{ p: 2.5, pb: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                        <Typography variant="subtitle1" sx={{
-                            color: '#1e293b',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            fontSize: '0.9rem'
-                        }}>
-                            <People sx={{ mr: 1, color: '#3b82f6', fontSize: '1.1rem' }} />
-                            Thành viên
-                        </Typography>
-                        <Button
-                            component={Link}
-                            to="/MembersList"
-                            size="small"
-                            sx={{
-                                color: '#3b82f6',
-                                textTransform: 'none',
-                                fontSize: '0.7rem',
-                                fontWeight: 500,
-                                minWidth: 'auto',
-                                px: 1,
-                                '&:hover': {
-                                    backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                                },
-                            }}
-                        >
-                            Tất cả
-                        </Button>
-                    </Box>
-                </Box>
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                        <CircularProgress size={24} />
-                    </Box>
-                ) : (
-                    <List sx={{ pt: 0, pb: 1 }}>
-                        {activeMembers.slice(0, 4).map((member, index) => (
-                            <ListItem
-                                key={member._id}
+            {isLoggedIn && (
+                <Paper
+                    elevation={0}
+                    sx={{
+                        background: '#ffffff',
+                        borderRadius: 2.5,
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        overflow: 'hidden'
+                    }}
+                >
+                    <Box sx={{ p: 2.5, pb: 1 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                            <Typography variant="subtitle1" sx={{
+                                color: '#1e293b',
+                                fontWeight: 600,
+                                display: 'flex',
+                                alignItems: 'center',
+                                fontSize: '0.9rem'
+                            }}>
+                                <People sx={{ mr: 1, color: '#3b82f6', fontSize: '1.1rem' }} />
+                                Thành viên
+                            </Typography>
+                            <Button
                                 component={Link}
-                                to={`/profile/${member._id}`}
+                                to="/MembersList"
+                                size="small"
                                 sx={{
-                                    px: 2.5,
-                                    py: 1,
-                                    textDecoration: 'none',
-                                    borderBottom: index < 3 ? '1px solid #f1f5f9' : 'none',
+                                    color: '#3b82f6',
+                                    textTransform: 'none',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 500,
+                                    minWidth: 'auto',
+                                    px: 1,
                                     '&:hover': {
-                                        backgroundColor: '#f8fafc',
-                                        '& .member-name': {
-                                            color: '#3b82f6'
-                                        }
+                                        backgroundColor: 'rgba(59, 130, 246, 0.05)',
                                     },
-                                    transition: 'all 0.2s ease',
                                 }}
                             >
-                                <ListItemAvatar sx={{ minWidth: 36 }}>
-                                    <OnlineBadge
-                                        userId={member._id}
-                                        size="small"
-                                        showTooltip={true}
-                                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                                    >
-                                        <Avatar
-                                            alt={member.fullName}
-                                            src={member.avatarUrl}
-                                            sx={{
-                                                width: 28,
-                                                height: 28,
-                                                background: member.role === 'admin'
-                                                    ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
-                                                    : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                                                fontSize: '0.75rem',
-                                                fontWeight: 600
-                                            }}
-                                        >
-                                            {!member.avatarUrl && member.fullName?.charAt(0)?.toUpperCase()}
-                                        </Avatar>
-                                    </OnlineBadge>
-                                </ListItemAvatar>
-                                <ListItemText
-                                    primary={member.fullName}
-                                    secondary={
-                                        <Chip
-                                            size="small"
-                                            label={member.role === 'admin' ? 'Admin' : 'Member'}
-                                            color={member.role === 'admin' ? 'error' : 'primary'}
-                                            sx={{
-                                                fontSize: '0.6rem',
-                                                height: 16,
-                                                mt: 0.3
-                                            }}
-                                        />
-                                    }
-                                    secondaryTypographyProps={{ component: 'div' }}
-                                    primaryTypographyProps={{
-                                        className: 'member-name',
-                                        color: '#374151',
-                                        fontWeight: 500,
-                                        fontSize: '0.8rem',
-                                        transition: 'color 0.2s ease',
-                                        lineHeight: 1.2,
-                                        noWrap: true
+                                Tất cả
+                            </Button>
+                        </Box>
+                    </Box>
+                    {loading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                            <CircularProgress size={24} />
+                        </Box>
+                    ) : (
+                        <List sx={{ pt: 0, pb: 1 }}>
+                            {activeMembers.slice(0, 4).map((member, index) => (
+                                <ListItem
+                                    key={member._id}
+                                    component={Link}
+                                    to={`/profile/${member._id}`}
+                                    sx={{
+                                        px: 2.5,
+                                        py: 1,
+                                        textDecoration: 'none',
+                                        borderBottom: index < 3 ? '1px solid #f1f5f9' : 'none',
+                                        '&:hover': {
+                                            backgroundColor: '#f8fafc',
+                                            '& .member-name': {
+                                                color: '#3b82f6'
+                                            }
+                                        },
+                                        transition: 'all 0.2s ease',
                                     }}
-                                />
-                            </ListItem>
-                        ))}
-                    </List>
-                )}
-            </Paper>
+                                >
+                                    <ListItemAvatar sx={{ minWidth: 36 }}>
+                                        <OnlineBadge
+                                            userId={member._id}
+                                            size="small"
+                                            showTooltip={true}
+                                            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                        >
+                                            <Avatar
+                                                alt={member.fullName}
+                                                src={member.avatarUrl}
+                                                sx={{
+                                                    width: 28,
+                                                    height: 28,
+                                                    background: member.role === 'admin'
+                                                        ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                                                        : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 600
+                                                }}
+                                            >
+                                                {!member.avatarUrl && member.fullName?.charAt(0)?.toUpperCase()}
+                                            </Avatar>
+                                        </OnlineBadge>
+                                    </ListItemAvatar>
+                                    <ListItemText
+                                        primary={member.fullName}
+                                        secondary={
+                                            <Chip
+                                                size="small"
+                                                label={member.role === 'admin' ? 'Admin' : 'Member'}
+                                                color={member.role === 'admin' ? 'error' : 'primary'}
+                                                sx={{
+                                                    fontSize: '0.6rem',
+                                                    height: 16,
+                                                    mt: 0.3
+                                                }}
+                                            />
+                                        }
+                                        secondaryTypographyProps={{ component: 'div' }}
+                                        primaryTypographyProps={{
+                                            className: 'member-name',
+                                            color: '#374151',
+                                            fontWeight: 500,
+                                            fontSize: '0.8rem',
+                                            transition: 'color 0.2s ease',
+                                            lineHeight: 1.2,
+                                            noWrap: true
+                                        }}
+                                    />
+                                </ListItem>
+                            ))}
+                        </List>
+                    )}
+                </Paper>
+            )}
 
             {/* Advertisement Section - Compact */}
             <Paper

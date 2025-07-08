@@ -17,15 +17,18 @@ router.put('/me/activity-visibility', authMiddleware, userController.updateActiv
 router.post('/upload-image', authMiddleware, userController.updateProfileImage);
 
 // User activities
-router.get('/posts', authMiddleware, userController.getUserPosts);
-router.get('/comments', authMiddleware, userController.getUserComments);
-router.get('/likes', authMiddleware, userController.getUserLikes);
+// These routes are intentionally public to allow viewing user activities without authentication.
+router.get('/posts', userController.getUserPosts);
+router.get('/comments', userController.getUserComments);
+router.get('/likes', userController.getUserLikes);
 
 // User statistics
-router.get('/stats/:userId', authMiddleware, userController.getUserStats);
+// This route is intentionally public to allow viewing profile stats without authentication.
+router.get('/stats/:userId', userController.getUserStats);
 
 // Add this route to get a user by their ID
 // IMPORTANT: This must be AFTER specific string routes like /posts, /likes, etc.
-router.get('/:userId', authMiddleware, userController.getUserById);
+// This route is intentionally public to allow viewing profiles without authentication.
+router.get('/:userId', userController.getUserById);
 
 module.exports = router;

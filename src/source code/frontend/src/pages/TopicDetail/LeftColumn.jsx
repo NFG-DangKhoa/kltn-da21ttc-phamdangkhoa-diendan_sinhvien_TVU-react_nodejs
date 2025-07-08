@@ -82,40 +82,42 @@ const LeftColumn = ({ user }) => {
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             {/* User Info Card */}
-            <Paper
-                elevation={0}
-                sx={{
-                    p: 2.5,
-                    background: darkMode ? '#1e293b' : '#ffffff',
-                    borderRadius: 2.5,
-                    border: `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(226, 232, 240, 0.8)'}`,
-                }}
-            >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Avatar
-                        src={user?.avatarUrl && !user?.isAvatarBlocked ? `http://localhost:5000${user.avatarUrl}` : undefined}
-                        sx={{ width: 40, height: 40, mr: 1.5, background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)' }}
-                    >
-                        {user?.fullName?.charAt(0) || <Person />}
-                    </Avatar>
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                            {user?.fullName || 'Khách'}
-                        </Typography>
-                        <Chip
-                            size="small"
-                            label={user?.role === 'admin' ? 'Admin' : (user?.role === 'user' ? 'Người dùng' : 'Member')}
-                            color={user?.role === 'admin' ? 'error' : 'primary'}
-                        />
+            {user && (
+                <Paper
+                    elevation={0}
+                    sx={{
+                        p: 2.5,
+                        background: darkMode ? '#1e293b' : '#ffffff',
+                        borderRadius: 2.5,
+                        border: `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(226, 232, 240, 0.8)'}`,
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <Avatar
+                            src={user?.avatarUrl && !user?.isAvatarBlocked ? `http://localhost:5000${user.avatarUrl}` : undefined}
+                            sx={{ width: 40, height: 40, mr: 1.5, background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)' }}
+                        >
+                            {user?.fullName?.charAt(0) || <Person />}
+                        </Avatar>
+                        <Box>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                {user?.fullName || 'Khách'}
+                            </Typography>
+                            <Chip
+                                size="small"
+                                label={user?.role === 'admin' ? 'Admin' : (user?.role === 'user' ? 'Người dùng' : 'Member')}
+                                color={user?.role === 'admin' ? 'error' : 'primary'}
+                            />
+                        </Box>
                     </Box>
-                </Box>
-                {user?.email && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', mt: 1 }}>
-                        <Email sx={{ fontSize: 14, mr: 1 }} />
-                        <Typography variant="caption">{user.email}</Typography>
-                    </Box>
-                )}
-            </Paper>
+                    {user?.email && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', mt: 1 }}>
+                            <Email sx={{ fontSize: 14, mr: 1 }} />
+                            <Typography variant="caption">{user.email}</Typography>
+                        </Box>
+                    )}
+                </Paper>
+            )}
 
             {/* Topics Card */}
             <Paper

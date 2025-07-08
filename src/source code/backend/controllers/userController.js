@@ -235,9 +235,9 @@ exports.getAllMembers = async (req, res) => {
 // Get user stats
 exports.getUserStats = async (req, res) => {
     try {
-        const userId = req.params.userId || req.user._id;
+        const userId = req.params.userId; // Always use userId from params for this public route
 
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json({ message: 'ID người dùng không hợp lệ.' });
         }
 

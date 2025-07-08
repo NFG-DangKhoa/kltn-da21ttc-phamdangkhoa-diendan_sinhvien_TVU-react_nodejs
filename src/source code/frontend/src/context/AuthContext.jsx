@@ -205,7 +205,8 @@ export const AuthProvider = ({ children }) => {
             loadingAuth,
             showWelcomeRules,
             hideWelcomeRules,
-            agreeToWelcomeRules
+            agreeToWelcomeRules,
+            isLoggedIn: !!user // Add isLoggedIn status
         }}>
             {children}
         </AuthContext.Provider>

@@ -2,8 +2,8 @@
 // src/pages/profile/ProfilePage.jsx
 import React, { useEffect, useState, useContext } from "react";
 import axios from "axios";
-import { useParams } from "react-router-dom";
-import { AuthContext } from "../../context/AuthContext";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { ThemeContext } from "../../context/ThemeContext";
 import {
     Box,
@@ -30,7 +30,8 @@ import BreadcrumbNavigation from "../../components/BreadcrumbNavigation/Breadcru
 
 const ProfilePage = () => {
     const { userId } = useParams(); // Lấy userId từ URL
-    const { user: currentUser } = useContext(AuthContext); // Lấy người dùng đang đăng nhập từ context
+    const navigate = useNavigate();
+    const { user: currentUser, isLoggedIn, loadingAuth } = useAuth(); // Lấy người dùng đang đăng nhập và trạng thái đăng nhập từ context
     const { mode } = useContext(ThemeContext);
     const isDarkMode = mode === 'dark';
 
@@ -51,32 +52,37 @@ const ProfilePage = () => {
 
             try {
                 const token = localStorage.getItem("token");
-                const response = await axios.get(`http://localhost:5000/api/users/${userId}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+                const response = await axios.get(`http://localhost:5000/api/users/${userId}`, { headers });
                 setUserData(response.data);
             } catch (err) {
                 console.error("Profile fetch error:", err);
-                setError("Không thể tải thông tin người dùng. Người dùng có thể không tồn tại.");
+                // Do not redirect on 401, just show error or handle gracefully
+                setError("Không thể tải thông tin người dùng. Người dùng có thể không tồn tại hoặc bạn không có quyền truy cập.");
             } finally {
                 setLoading(false);
             }
         };
 
+        if (loadingAuth) {
+            // Do nothing while authentication status is being determined
+            return;
+        }
+
         if (userId) {
-            fetchUserData();
+            fetchUserData(); // Always attempt to fetch data for a given userId
         } else {
             // If no userId in URL, it might be the current user's page
-            // Or redirect to home/login page
             if (currentUser) {
                 // Redirect to current user's profile page
-                window.location.href = `/profile/${currentUser._id}`;
+                navigate(`/profile/${currentUser._id}`);
             } else {
                 setError("Không tìm thấy ID người dùng.");
                 setLoading(false);
             }
         }
-    }, [userId, currentUser]); // Re-run effect when userId or currentUser changes
+    }, [userId, currentUser, loadingAuth, navigate]); // Re-run effect when userId, currentUser, loadingAuth, or navigate changes
 
     const handleProfileUpdate = (newData) => {
         setUserData(prev => ({ ...prev, ...newData }));

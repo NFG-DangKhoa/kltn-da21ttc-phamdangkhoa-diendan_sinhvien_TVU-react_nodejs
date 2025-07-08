@@ -352,7 +352,7 @@ const HeroSection = ({ visible = true }) => {
                                         transition: 'all 0.3s ease'
                                     }}
                                 >
-                                    Xem video giới thiệu
+                                    Những chủ đề đa dạng
                                 </Button>
                             </Box>
                         </Box>
